@@ -36,4 +36,12 @@ class ListeningProgress {
       isCompleted: isCompleted ?? this.isCompleted,
     );
   }
+
+  /// e.g. "13:24 còn lại"
+  String get remainingLabel {
+    final remaining = totalDuration - position;
+    final m = remaining.inMinutes;
+    final s = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s còn lại';
+  }
 }

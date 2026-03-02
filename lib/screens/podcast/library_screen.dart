@@ -67,7 +67,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: _filters.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final isSelected = _selectedFilter == index;
                   return GestureDetector(
@@ -110,7 +110,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: _recentlyPlayed.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                separatorBuilder: (context, index) => const SizedBox(width: 16),
                 itemBuilder: (context, index) {
                   final item = _recentlyPlayed[index];
                   return SizedBox(

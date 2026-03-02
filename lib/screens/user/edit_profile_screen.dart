@@ -99,7 +99,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.white.withOpacity(0.06)),
+          child: Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
         ),
       ),
       body: ListView(
@@ -117,7 +117,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           width: 3,
                         ),
                       ),
@@ -134,7 +134,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                         ),
                         child: const Icon(
                           Icons.photo_camera,
@@ -181,7 +181,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             decoration: BoxDecoration(
               color: kBgCard,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.06)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
             ),
             child: TextField(
               controller: _bioController,
@@ -233,13 +233,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Colors.white.withOpacity(0.12)
+                        ? Colors.white.withValues(alpha: 0.12)
                         : kBgCard,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(
                       color: isSelected
-                          ? Colors.white.withOpacity(0.3)
-                          : Colors.white.withOpacity(0.06),
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.06),
                     ),
                   ),
                   child: Text(
@@ -265,7 +265,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           const SizedBox(height: 32),
 
           // Divider
-          Container(height: 1, color: Colors.white.withOpacity(0.06)),
+          Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
           const SizedBox(height: 24),
 
           // Default Podcast Preferences
@@ -340,7 +340,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       decoration: BoxDecoration(
         color: kBgCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: TextField(
         controller: controller,

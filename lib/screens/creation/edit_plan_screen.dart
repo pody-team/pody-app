@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/models/models.dart';
 
 class EditPlanScreen extends StatefulWidget {
   const EditPlanScreen({super.key});
@@ -8,6 +10,10 @@ class EditPlanScreen extends StatefulWidget {
 }
 
 class _EditPlanScreenState extends State<EditPlanScreen> {
+  late final ProductionPlan _plan = MockData.samplePlan;
+  late bool _autoGenerateImages = _plan.autoGenerateImages;
+  late bool _autoGenerateIntroMusic = _plan.autoGenerateIntroMusic;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,19 +65,16 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(text: 'The Oracle Portfolio'),
+              controller: TextEditingController(text: _plan.seriesTitle),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
             const SizedBox(height: 16),
@@ -83,51 +86,38 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(
-                text:
-                    'A deep dive into Warren Buffett\'s investment philosophy and early career milestones.',
-              ),
+              controller: TextEditingController(text: _plan.seriesDescription),
               maxLines: 3,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
             const SizedBox(height: 16),
 
-            // Host & Voice
+            // Hosts & Voices
             const Text(
               'Hosts & Voices',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildHostVoiceSelector(
-                    name: 'Sarah',
-                    voiceType: 'Female, Professional',
-                    onTap: () {},
-                  ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: _plan.hosts.map((host) => SizedBox(
+                width: (MediaQuery.of(context).size.width - 44) / 2,
+                child: _buildHostVoiceSelector(
+                  name: host.name,
+                  voiceType: host.voiceId ?? host.role,
+                  onTap: () {},
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildHostVoiceSelector(
-                    name: 'Marcus',
-                    voiceType: 'Male, Analytical',
-                    onTap: () {},
-                  ),
-                ),
-              ],
+              )).toList(),
             ),
             const SizedBox(height: 16),
 
@@ -138,21 +128,47 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(
-                text: 'Analytical, Professional',
-              ),
+              controller: TextEditingController(text: _plan.toneStyle),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
+                fillColor: Colors.white.withValues(alpha: 0.05),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // AI Generation
+            const Text(
+              'AI Generation',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _buildToggleRow(
+                    icon: Icons.image_outlined,
+                    title: 'Auto-generate Cover Images',
+                    value: _autoGenerateImages,
+                    onChanged: (val) => setState(() => _autoGenerateImages = val),
+                  ),
+                  Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
+                  _buildToggleRow(
+                    icon: Icons.music_note_outlined,
+                    title: 'Auto-generate Intro Music',
+                    value: _autoGenerateIntroMusic,
+                    onChanged: (val) => setState(() => _autoGenerateIntroMusic = val),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -167,32 +183,17 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Episode 1
-            _buildEpisodeEditorCard(
-              num: '1',
-              title: 'The Foundation years',
-              description: 'Early partnerships and the Graham-Newman era.',
-              duration: '15',
-              notes: 'Focus largely on the early 1950s.',
-            ),
-            const SizedBox(height: 12),
-            // Episode 2
-            _buildEpisodeEditorCard(
-              num: '2',
-              title: 'Growth & Acquisition',
-              description: 'Shifting from cigar butts to quality companies.',
-              duration: '20',
-              notes: 'Mention the Berkshire Hathaway textile mill purchase.',
-            ),
-            const SizedBox(height: 12),
-            // Episode 3
-            _buildEpisodeEditorCard(
-              num: '3',
-              title: 'The Modern Legacy',
-              description: 'Global scaling and philanthropic transitions.',
-              duration: '10',
-              notes: 'Conclude with the succession plan.',
-            ),
+            // Episode cards from plan
+            ..._plan.episodes.map((ep) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildEpisodeEditorCard(
+                num: '${ep.number}',
+                title: ep.title,
+                description: ep.description,
+                duration: '${ep.estimatedDuration.inMinutes}',
+                notes: ep.notes,
+              ),
+            )),
           ],
         ),
       ),
@@ -209,9 +210,9 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +223,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -295,7 +296,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
           style: const TextStyle(color: Colors.white, fontSize: 13),
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
+            fillColor: Colors.white.withValues(alpha: 0.05),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
@@ -322,9 +323,9 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,6 +365,37 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildToggleRow({
+    required IconData icon,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white54, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: Colors.white,
+            activeTrackColor: Colors.white38,
+            inactiveThumbColor: Colors.white38,
+            inactiveTrackColor: Colors.white12,
+          ),
+        ],
       ),
     );
   }

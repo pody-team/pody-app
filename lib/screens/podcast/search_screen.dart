@@ -144,7 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               border: _selectedTab == 0
                                   ? null
                                   : Border.all(
-                                      color: Colors.white.withOpacity(0.05),
+                                      color: Colors.white.withValues(alpha: 0.05),
                                     ),
                             ),
                             alignment: Alignment.center,
@@ -176,7 +176,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               border: _selectedTab == 1
                                   ? null
                                   : Border.all(
-                                      color: Colors.white.withOpacity(0.05),
+                                      color: Colors.white.withValues(alpha: 0.05),
                                     ),
                             ),
                             alignment: Alignment.center,
@@ -331,7 +331,7 @@ class _SearchScreenState extends State<SearchScreen> {
       decoration: BoxDecoration(
         color: kBgCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -349,7 +349,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
+                      color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -392,7 +392,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -425,7 +425,7 @@ class _SearchScreenState extends State<SearchScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.add, color: Colors.white54, size: 20),
@@ -438,9 +438,9 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildCategoryCard(Map<String, dynamic> cat) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Stack(
         children: [
@@ -451,7 +451,7 @@ class _SearchScreenState extends State<SearchScreen> {
             child: Icon(
               cat['icon'] as IconData,
               size: 40,
-              color: Colors.white.withOpacity(0.06),
+              color: Colors.white.withValues(alpha: 0.06),
             ),
           ),
           // Label

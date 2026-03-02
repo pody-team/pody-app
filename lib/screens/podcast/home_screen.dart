@@ -1,43 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:pody/screens/player_screen.dart';
-import 'package:pody/screens/search_screen.dart';
-import 'package:pody/screens/podcast_detail_screen.dart';
+import 'package:pody/screens/podcast/search_screen.dart';
+import 'package:pody/screens/podcast/podcast_detail_screen.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/models/models.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  final List<Map<String, dynamic>> _mockPodcasts = const [
-    {
-      'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
-      'title': 'Future Minds',
-      'host': 'Tech & Innovation',
-      'category': 'Công nghệ',
-      'episodes': [
-        'MVC thời hiện đại: Cũ nhưng không kỹ',
-        'Nhìn nhanh về MVVM và MVP',
-        'Clean Architecture thực chiến',
-      ],
-      'subscriberCount': '12.5k',
-      'totalEpisodes': '42 tập',
-    },
-    {
-      'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRyNqWoebcCRyWA9Z01YumR31TnNjxnIwbUUAIbiubmjZz8n4AqMoO_sGjMeNG9Nb5gzGPgVIVWGpwrvBm6AKbhhLVVjvTi1jDJgwDe29EvYIS5fTqEDuGmIu8PVbWTTNfzZp6w09dErSJe5hnQS-DRuyYAfHBMd9Pk7pzFEQ-x0q_Zo_VBGtA1tYEnGVIAM1dDf56POWot-PMEFogFBBMzZrd10Iv26tCL3goroNsN7APhD9BZ1kHtKP7X0v1Am6ntCf_BwLHIY0',
-      'title': 'True Crime Daily',
-      'host': 'Crime & Mystery',
-      'category': 'Điều tra',
-      'episodes': [
-        '"The evidence was right there."',
-        'Vụ án chưa có lời giải từ 1995.',
-        'Kết quả phá án bất ngờ từ DNA.',
-      ],
-      'subscriberCount': '8.2k',
-      'totalEpisodes': '31 tập',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final podcasts = MockData.podcasts;
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -76,7 +49,7 @@ class HomeScreen extends StatelessWidget {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(Icons.search, color: Colors.white, size: 17),
@@ -87,10 +60,10 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   // Podcast Cards
-                  ..._mockPodcasts.map(
-                    (data) => Padding(
+                  ...podcasts.map(
+                    (podcast) => Padding(
                       padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                      child: _buildPodcastCard(context, data),
+                      child: _buildPodcastCard(context, podcast),
                     ),
                   ),
                 ],
@@ -102,13 +75,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-
   Widget _buildFilterChip(String label, {bool isActive = false}) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: isActive ? kTikRed : Colors.white.withOpacity(0.08),
+        color: isActive ? kTikRed : Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.center,
@@ -123,17 +95,16 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPodcastCard(BuildContext context, Map<String, dynamic> data) {
-    final episodes = data['episodes'] as List;
+  Widget _buildPodcastCard(BuildContext context, Podcast podcast) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PodcastDetailScreen(data: data)));
+        Navigator.push(context, MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
       },
       child: Container(
         decoration: BoxDecoration(
           color: kBgCard,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.07)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -146,14 +117,14 @@ class HomeScreen extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(data['imageUrl'], fit: BoxFit.cover),
+                  Image.network(podcast.imageUrl, fit: BoxFit.cover),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         stops: const [0.2, 1.0],
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.95)],
+                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.95)],
                       ),
                     ),
                   ),
@@ -168,26 +139,25 @@ class HomeScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (data['category'] != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    data['category'],
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white70,
-                                      letterSpacing: 0.5,
-                                    ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  podcast.category,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white70,
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
+                              ),
                               const SizedBox(height: 6),
                               Text(
-                                data['title'],
+                                podcast.title,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -197,10 +167,10 @@ class HomeScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                data['host'],
+                                podcast.hostsLabel,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.white.withOpacity(0.6),
+                                  color: Colors.white.withValues(alpha: 0.6),
                                 ),
                               ),
                             ],
@@ -214,9 +184,9 @@ class HomeScreen extends StatelessWidget {
                               color: kTikRed,
                               borderRadius: BorderRadius.circular(30),
                             ),
-                            child: const Text(
-                              'Theo dõi',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            child: Text(
+                              podcast.isFollowing ? 'Đang theo dõi' : 'Theo dõi',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                           ),
                         ),
@@ -231,7 +201,8 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
               child: Column(
                 children: [
-                  ...List.generate(episodes.length, (index) {
+                  ...List.generate(podcast.episodes.length, (index) {
+                    final ep = podcast.episodes[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Row(
@@ -242,7 +213,7 @@ class HomeScreen extends StatelessWidget {
                               '${index + 1}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 fontWeight: FontWeight.w600,
                               ),
                               textAlign: TextAlign.center,
@@ -251,43 +222,40 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              episodes[index],
+                              ep.title,
                               style: const TextStyle(fontSize: 13, color: Colors.white, height: 1.3),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Icon(Icons.play_circle_outline_rounded,
-                              color: kTikTeal, size: 18),
+                          Icon(Icons.play_circle_outline_rounded, color: kTikTeal, size: 18),
                         ],
                       ),
                     );
                   }),
                   const SizedBox(height: 6),
-                  Divider(color: Colors.white.withOpacity(0.06), height: 1),
+                  Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.people_outline, color: Colors.white38, size: 13),
+                      const Icon(Icons.people_outline, color: Colors.white38, size: 13),
                       const SizedBox(width: 4),
                       Text(
-                        '${data['subscriberCount']} theo d\u00f5i',
+                        '${podcast.subscriberCount} theo dõi',
                         style: const TextStyle(fontSize: 11, color: Colors.white38),
                       ),
-                      if (data['totalEpisodes'] != null) ...[
-                        const SizedBox(width: 12),
-                        Icon(Icons.queue_music_rounded, color: Colors.white38, size: 13),
-                        const SizedBox(width: 4),
-                        Text(
-                          data['totalEpisodes'],
-                          style: const TextStyle(fontSize: 11, color: Colors.white38),
-                        ),
-                      ],
-                      const Spacer(),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.queue_music_rounded, color: Colors.white38, size: 13),
+                      const SizedBox(width: 4),
                       Text(
+                        '${podcast.totalEpisodeCount} tập',
+                        style: const TextStyle(fontSize: 11, color: Colors.white38),
+                      ),
+                      const Spacer(),
+                      const Text(
                         'Xem tất cả →',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: kTikTeal,
                           fontWeight: FontWeight.w600,

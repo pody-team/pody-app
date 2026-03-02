@@ -352,72 +352,95 @@ class MockData {
   // NOTIFICATIONS
   // ══════════════════════════════════════════════════════════════════════════
 
+  static final _now = DateTime.now();
+
   static final notifications = [
     AppNotification(
       id: 'nt001',
       type: NotificationType.like,
-      user: 'Trung Phan',
+      actorId: 'u_trung',
+      actorName: 'Trung Phan',
+      actorAvatarUrl: _avatarHost,
       action: 'liked your episode',
-      target: 'MVC thời hiện đại',
-      time: '2 min ago',
-      avatarUrl: _avatarHost,
-      isNew: true,
+      targetType: NotificationTargetType.episode,
+      targetId: 'e001',
+      targetTitle: 'MVC thời hiện đại',
+      createdAt: _now.subtract(const Duration(minutes: 2)),
     ),
     AppNotification(
       id: 'nt002',
       type: NotificationType.comment,
-      user: 'Linh Nguyen',
+      actorId: 'u_linh',
+      actorName: 'Linh Nguyen',
+      actorAvatarUrl: _avatarLinh,
       action: 'commented on',
-      target: 'AI sẽ thay thế Dev?',
+      targetType: NotificationTargetType.episode,
+      targetId: 'e001',
+      targetTitle: 'AI sẽ thay thế Dev?',
       preview: '"Anh ơi phần cuối hay quá! Em muốn nghe thêm về..."',
-      time: '15 min ago',
-      avatarUrl: _avatarLinh,
-      isNew: true,
+      createdAt: _now.subtract(const Duration(minutes: 15)),
     ),
     AppNotification(
       id: 'nt003',
       type: NotificationType.follow,
-      user: 'Anh Ba',
+      actorId: 'h001',
+      actorName: 'Anh Ba',
+      actorAvatarUrl: _avatarAnhBa,
       action: 'started following you',
-      time: '1 hour ago',
-      avatarUrl: _avatarAnhBa,
-      isNew: true,
+      targetType: NotificationTargetType.profile,
+      targetId: 'h001',
+      createdAt: _now.subtract(const Duration(hours: 1)),
     ),
     AppNotification(
       id: 'nt004',
       type: NotificationType.milestone,
-      user: 'Future Minds',
+      actorId: 'p001',
+      actorName: 'Future Minds',
+      actorAvatarUrl: _coverFutureMinds,
       action: 'reached 10K listens! 🎉',
-      time: '3 hours ago',
-      avatarUrl: _coverFutureMinds,
+      targetType: NotificationTargetType.podcast,
+      targetId: 'p001',
+      createdAt: _now.subtract(const Duration(hours: 3)),
+      readAt: _now.subtract(const Duration(hours: 2)),
     ),
     AppNotification(
       id: 'nt005',
       type: NotificationType.like,
-      user: 'Mai Anh & 12 others',
+      actorId: 'u_mai',
+      actorName: 'Mai Anh & 12 others',
+      actorAvatarUrl: _avatarMaiAnh,
       action: 'liked your episode',
-      target: 'Chuyện làm Product',
-      time: '5 hours ago',
-      avatarUrl: _avatarMaiAnh,
+      targetType: NotificationTargetType.episode,
+      targetId: 'e003',
+      targetTitle: 'Chuyện làm Product',
+      createdAt: _now.subtract(const Duration(hours: 5)),
+      readAt: _now.subtract(const Duration(hours: 4)),
     ),
     AppNotification(
       id: 'nt006',
       type: NotificationType.newEpisode,
-      user: 'True Crime Daily',
+      actorId: 'p002',
+      actorName: 'True Crime Daily',
+      actorAvatarUrl: _coverTrueCrime,
       action: 'published a new episode',
-      target: '"The evidence was right there."',
-      time: '8 hours ago',
-      avatarUrl: _coverTrueCrime,
+      targetType: NotificationTargetType.episode,
+      targetId: 'e004',
+      targetTitle: '"The evidence was right there."',
+      createdAt: _now.subtract(const Duration(hours: 8)),
+      readAt: _now.subtract(const Duration(hours: 6)),
     ),
     AppNotification(
       id: 'nt007',
       type: NotificationType.comment,
-      user: 'Dev Community',
+      actorId: 'u_dev',
+      actorName: 'Dev Community',
+      actorAvatarUrl: _avatarAnhBa,
       action: 'replied to your comment on',
-      target: 'Tech Trends 2024',
+      targetType: NotificationTargetType.episode,
+      targetTitle: 'Tech Trends 2024',
       preview: '"Đồng ý với bạn, micro-frontend là tương lai!"',
-      time: '1 day ago',
-      avatarUrl: _avatarAnhBa,
+      createdAt: _now.subtract(const Duration(days: 1)),
+      readAt: _now.subtract(const Duration(hours: 20)),
     ),
   ];
 
@@ -480,4 +503,93 @@ class MockData {
       return null;
     }
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CREATION FLOW: HOSTS FOR PLAN
+  // ══════════════════════════════════════════════════════════════════════════
+
+  static const planHostSarah = Host(
+    id: 'h_sarah',
+    name: 'Sarah',
+    avatarUrl: _avatarLinh,
+    voiceId: 'en-US-female-pro',
+    role: 'host',
+  );
+
+  static const planHostMarcus = Host(
+    id: 'h_marcus',
+    name: 'Marcus',
+    avatarUrl: _avatarAnhBa,
+    voiceId: 'en-US-male-analytical',
+    role: 'co-host',
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CREATION FLOW: PRODUCTION PLAN
+  // ══════════════════════════════════════════════════════════════════════════
+
+  static final samplePlan = ProductionPlan(
+    id: 'plan_001',
+    seriesTitle: 'The Oracle Portfolio',
+    seriesDescription:
+        "A deep dive into Warren Buffett's investment philosophy and early career milestones.",
+    hosts: const [planHostSarah],
+    tags: const ['Analytical', 'Professional'],
+    toneStyle: 'Analytical, Professional',
+    episodes: const [
+      EpisodeDraft(
+        id: 'draft_001',
+        number: 1,
+        title: 'The Foundation Years',
+        description: 'Early partnerships and the Graham-Newman era.',
+        estimatedDuration: Duration(minutes: 15),
+        notes: 'Focus largely on the early 1950s.',
+      ),
+      EpisodeDraft(
+        id: 'draft_002',
+        number: 2,
+        title: 'Growth & Acquisition',
+        description: 'Shifting from cigar butts to quality companies.',
+        estimatedDuration: Duration(minutes: 20),
+        notes: 'Mention the Berkshire Hathaway textile mill purchase.',
+      ),
+      EpisodeDraft(
+        id: 'draft_003',
+        number: 3,
+        title: 'The Modern Legacy',
+        description: 'Global scaling and philanthropic transitions.',
+        estimatedDuration: Duration(minutes: 10),
+        notes: 'Conclude with the succession plan.',
+      ),
+    ],
+    status: PlanStatus.draft,
+    createdAt: DateTime(2026, 3, 1, 10, 0),
+    updatedAt: DateTime(2026, 3, 1, 10, 30),
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CREATION FLOW: CHAT THREAD
+  // ══════════════════════════════════════════════════════════════════════════
+
+  static final sampleChatThread = ChatThread(
+    id: 'thread_001',
+    title: 'The Oracle Portfolio',
+    createdAt: DateTime(2026, 3, 1, 9, 50),
+    updatedAt: DateTime(2026, 3, 1, 10, 30),
+    messages: [
+      ChatMessage(
+        id: 'msg_001',
+        role: ChatRole.user,
+        text: 'Make it more professional and focus on the early investment years for the first episode.',
+        timestamp: DateTime(2026, 3, 1, 10, 25),
+      ),
+      ChatMessage(
+        id: 'msg_002',
+        role: ChatRole.assistant,
+        text: "Sure, I've refined the tone to be more analytical and adjusted the episode breakdown to emphasize the formative years. Here is the updated production plan:",
+        timestamp: DateTime(2026, 3, 1, 10, 26),
+        plan: samplePlan,
+      ),
+    ],
+  );
 }

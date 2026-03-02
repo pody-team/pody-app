@@ -40,7 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.white.withOpacity(0.06)),
+          child: Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
         ),
       ),
       body: ListView(
@@ -64,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: Switch(
               value: _pushNotifications,
               onChanged: (val) => setState(() => _pushNotifications = val),
-              activeColor: Colors.white,
+              activeThumbColor: Colors.white,
               activeTrackColor: Colors.white38,
               inactiveThumbColor: Colors.white38,
               inactiveTrackColor: Colors.white12,
@@ -225,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: BoxDecoration(
                   color: kBgCard,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.red.withOpacity(0.15)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -278,7 +278,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(color: Colors.white.withOpacity(0.04)),
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
           ),
         ),
         child: Row(
@@ -335,7 +335,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildDivider() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-      child: Container(height: 1, color: Colors.white.withOpacity(0.04)),
+      child: Container(height: 1, color: Colors.white.withValues(alpha: 0.04)),
     );
   }
 }

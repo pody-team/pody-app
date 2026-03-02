@@ -1,71 +1,12 @@
 import 'package:flutter/material.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
-import 'podcast_detail_screen.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/models/models.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
-
-  // Mock: Saved Episodes
-  static const _savedEpisodes = [
-    {
-      'title': 'MVC thời hiện đại: Cũ nhưng không kỹ',
-      'channel': 'Future Minds',
-      'duration': '32 phút',
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
-    },
-    {
-      'title': '"The evidence was right there."',
-      'channel': 'True Crime Daily',
-      'duration': '45 phút',
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDRyNqWoebcCRyWA9Z01YumR31TnNjxnIwbUUAIbiubmjZz8n4AqMoO_sGjMeNG9Nb5gzGPgVIVWGpwrvBm6AKbhhLVVjvTi1jDJgwDe29EvYIS5fTqEDuGmIu8PVbWTTNfzZp6w09dErSJe5hnQS-DRuyYAfHBMd9Pk7pzFEQ-x0q_Zo_VBGtA1tYEnGVIAM1dDf56POWot-PMEFogFBBMzZrd10Iv26tCL3goroNsN7APhD9BZ1kHtKP7X0v1Am6ntCf_BwLHIY0',
-    },
-  ];
-
-  // Mock: Following channels
-  static const _following = [
-    {
-      'name': 'Future Minds',
-      'category': 'Công nghệ',
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
-    },
-    {
-      'name': 'True Crime Daily',
-      'category': 'Điều tra',
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDRyNqWoebcCRyWA9Z01YumR31TnNjxnIwbUUAIbiubmjZz8n4AqMoO_sGjMeNG9Nb5gzGPgVIVWGpwrvBm6AKbhhLVVjvTi1jDJgwDe29EvYIS5fTqEDuGmIu8PVbWTTNfzZp6w09dErSJe5hnQS-DRuyYAfHBMd9Pk7pzFEQ-x0q_Zo_VBGtA1tYEnGVIAM1dDf56POWot-PMEFogFBBMzZrd10Iv26tCL3goroNsN7APhD9BZ1kHtKP7X0v1Am6ntCf_BwLHIY0',
-    },
-    {
-      'name': 'Mindful Hours',
-      'category': 'Sức khỏe',
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBXxaIrUBG6uaxLRdgFLmXZRZOXa-4kEx5w4uuChjtHFq1nwsvjdfcRGefYdKgFNn4kVvW_v8kkD8uZ0SOAJ5JX8Uyp7KCEBpKWL-Ps-4lFOpviwCcZCXVxvYD35Ur2DJttpijqFr9_YK4E-bF4ApxeHY5ziXZZ0cR0BA3zR7CQq-V996pVWsqRrcxH44_lcySHGplz8KweWfgzOB0FHaB2CEFKh7YuFjAYHYVlQey6yQDhofs03-SnFBCpOCwH5APs1RA1y6vCmWsV',
-    },
-  ];
-
-  // Mock: My Creations
-  static const _creations = [
-    {
-      'title': 'Tech Trends 2024',
-      'subtitle': '24 Episodes',
-      'badge': 'Published',
-      'isPublished': true,
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuBXxaIrUBG6uaxLRdgFLmXZRZOXa-4kEx5w4uuChjtHFq1nwsvjdfcRGefYdKgFNn4kVvW_v8kkD8uZ0SOAJ5JX8Uyp7KCEBpKWL-Ps-4lFOpviwCcZCXVxvYD35Ur2DJttpijqFr9_YK4E-bF4ApxeHY5ziXZZ0cR0BA3zR7CQq-V996pVWsqRrcxH44_lcySHGplz8KweWfgzOB0FHaB2CEFKh7YuFjAYHYVlQey6yQDhofs03-SnFBCpOCwH5APs1RA1y6vCmWsV',
-    },
-    {
-      'title': 'UI Design Systems',
-      'subtitle': '8 Episodes',
-      'badge': 'Draft',
-      'isPublished': false,
-      'imageUrl':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDB3RvJGL4ymSXKqgcf2lNqSv3cq179HXKWiZiCohETt28E1m9Z_7KC0cDZEUC5YV8wuMr8CPuagHWk9zKJLlXHPuyW0S96RCC2KUilP7rJn23yYsEjIX8YYefxyUh8M47ur7U6tZeXwMOWj9vWOyg46sZN5Xga8oRbi4IVwn1ba-B26NDOetx7_fnFLS9Om9LMhztFUCXD-72pMA6oZoityrwcYDRPabxnz_bQRT8ahfmK_V7SCwwaWgO9g_EKfyIVU4jzMkAtxFA_',
-    },
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +57,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final user = MockData.currentUser;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       child: Column(
@@ -131,7 +73,7 @@ class ProfileScreen extends StatelessWidget {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
@@ -150,30 +92,27 @@ class ProfileScreen extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(38),
-              child: Image.network(
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuAWGX1z6hXmkcfBIlhDnk0zE9cv8lX5A5B_hsXdZwH57h3bdtokrT2CGW01UyaWneHx-8azq8ciqAjJQe3nJ7y5tREangqFs1BmRkWxfA98Mt0qCf5PuiB9U1DGLRFd9qOwV25TMb1uyyjoWi6gXf10TJRWnKursAmQTO0bgJ8Vqu9aPD_3OlBzSyKZSuntBKn6nEek-FUektilhtlyXBb3aUAj9Y3Zt1y_xgR7IvsTaWFf4UILkhoKo_6OpaEJJYqFpgedWemeUfoo',
-                fit: BoxFit.cover,
-              ),
+              child: Image.network(user.avatarUrl, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Minh Nguyen',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          Text(
+            user.name,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 2),
-          const Text('@minhdev',
-              style: TextStyle(fontSize: 13, color: Colors.white38)),
+          Text('@${user.name.toLowerCase().replaceAll(' ', '')}',
+              style: const TextStyle(fontSize: 13, color: Colors.white38)),
           const SizedBox(height: 16),
           // Stats Row
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _statChip('142h', 'Đã nghe'),
+              _statChip('${user.listeningHours}h', 'Đã nghe'),
               _divider(),
-              _statChip('12', 'Podcast'),
+              _statChip('${user.podcastCount}', 'Podcast'),
               _divider(),
-              _statChip('186', 'Theo dõi'),
+              _statChip('${user.followingCount}', 'Theo dõi'),
             ],
           ),
           const SizedBox(height: 16),
@@ -229,91 +168,97 @@ class _SavedTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final savedEps = MockData.savedEpisodes;
+    final progress = MockData.currentUserProgress;
+    // Find first episode with progress for "Continue Listening"
+    final continueEp = progress.isNotEmpty ? progress.first : null;
+    final continueEpisode = continueEp != null ? MockData.getEpisodeById(continueEp.episodeId) : null;
+    final continuePodcast = continueEp != null ? MockData.getPodcastById(continueEp.podcastId) : null;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
         // Continue Listening banner
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.history_rounded, color: Colors.white54, size: 14),
-                  const SizedBox(width: 6),
-                  const Text('Nghe tiếp',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white54,
-                          letterSpacing: 0.5)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
-                      width: 52, height: 52, fit: BoxFit.cover,
+        if (continueEpisode != null && continueEp != null)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1A),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.history_rounded, color: Colors.white54, size: 14),
+                    SizedBox(width: 6),
+                    Text('Nghe tiếp',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white54,
+                            letterSpacing: 0.5)),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        continuePodcast?.imageUrl ?? continueEpisode.images.first,
+                        width: 52, height: 52, fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Clean Architecture thực chiến',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 4),
-                        // Progress bar
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: 0.42,
-                            backgroundColor: Colors.white12,
-                            valueColor:
-                                const AlwaysStoppedAnimation<Color>(Colors.white),
-                            minHeight: 3,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(continueEpisode.title,
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: continueEp.progress,
+                              backgroundColor: Colors.white12,
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              minHeight: 3,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text('13:24 còn lại',
-                            style: TextStyle(fontSize: 11, color: Colors.white38)),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(continueEp.remainingLabel,
+                              style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: Colors.black, size: 20),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                          color: Colors.white, shape: BoxShape.circle),
+                      child: const Icon(Icons.play_arrow_rounded,
+                          color: Colors.black, size: 20),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: 20),
         const Text('Đã lưu',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
         const SizedBox(height: 10),
-        ...ProfileScreen._savedEpisodes.map((ep) => Padding(
+        ...savedEps.map((ep) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
-              child: _EpisodeRow(ep: ep),
+              child: _EpisodeRow(episode: ep),
             )),
       ],
     );
@@ -321,23 +266,25 @@ class _SavedTab extends StatelessWidget {
 }
 
 class _EpisodeRow extends StatelessWidget {
-  final Map<String, dynamic> ep;
-  const _EpisodeRow({required this.ep});
+  final Episode episode;
+  const _EpisodeRow({required this.episode});
 
   @override
   Widget build(BuildContext context) {
+    final podcast = MockData.getPodcastById(episode.podcastId);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF141414),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(ep['imageUrl']!,
+            child: Image.network(
+                episode.images.isNotEmpty ? episode.images.first : (podcast?.imageUrl ?? ''),
                 width: 50, height: 50, fit: BoxFit.cover),
           ),
           const SizedBox(width: 12),
@@ -345,19 +292,19 @@ class _EpisodeRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(ep['title']!,
+                Text(episode.title,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 3),
-                Text('${ep['channel']}  ·  ${ep['duration']}',
+                Text('${podcast?.title ?? ''}  ·  ${episode.formattedDuration}',
                     style: const TextStyle(fontSize: 11, color: Colors.white38)),
               ],
             ),
           ),
           Icon(Icons.play_circle_outline_rounded,
-              color: Colors.white.withOpacity(0.5), size: 26),
+              color: Colors.white.withValues(alpha: 0.5), size: 26),
         ],
       ),
     );
@@ -370,6 +317,7 @@ class _FollowingTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final following = MockData.followingChannels;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
@@ -378,9 +326,9 @@ class _FollowingTab extends StatelessWidget {
           height: 96,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
-            itemCount: ProfileScreen._following.length,
+            itemCount: following.length,
             itemBuilder: (ctx, i) {
-              final ch = ProfileScreen._following[i];
+              final ch = following[i];
               return Padding(
                 padding: const EdgeInsets.only(right: 16),
                 child: Column(
@@ -414,8 +362,7 @@ class _FollowingTab extends StatelessWidget {
             style: TextStyle(
                 fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
         const SizedBox(height: 10),
-        // fake update items
-        ...ProfileScreen._following.map((ch) => Padding(
+        ...following.map((ch) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _ChannelUpdateRow(channel: ch),
             )),
@@ -435,7 +382,7 @@ class _ChannelUpdateRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF141414),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [
@@ -455,14 +402,14 @@ class _ChannelUpdateRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text('Tập mới vừa phát hành',
                     style: TextStyle(
-                        fontSize: 11, color: Colors.white.withOpacity(0.4))),
+                        fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text('Xem',
@@ -481,13 +428,15 @@ class _MyCreationsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = MockData.currentUser;
+    final creations = MockData.myCreations;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       children: [
         // Stats cards
         Row(
           children: [
-            _miniStat('142h', 'Tổng giờ nghe', Icons.headphones_rounded),
+            _miniStat('${user.listeningHours}h', 'Tổng giờ nghe', Icons.headphones_rounded),
             const SizedBox(width: 10),
             _miniStat('2.4k', 'Người theo dõi', Icons.people_outline),
           ],
@@ -497,16 +446,16 @@ class _MyCreationsTab extends StatelessWidget {
             style:
                 TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
         const SizedBox(height: 10),
-        ...ProfileScreen._creations.map((c) => Padding(
+        ...creations.map((c) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: _CreationCard(creation: c),
             )),
         const SizedBox(height: 8),
-        Row(
+        const Row(
           children: [
-            const Icon(Icons.history_rounded, color: Colors.white38, size: 13),
-            const SizedBox(width: 6),
-            const Text('Hoạt động gần đây',
+            Icon(Icons.history_rounded, color: Colors.white38, size: 13),
+            SizedBox(width: 6),
+            Text('Hoạt động gần đây',
                 style: TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
           ],
@@ -555,7 +504,7 @@ class _MyCreationsTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.07),
+              color: Colors.white.withValues(alpha: 0.07),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white54, size: 16),
@@ -601,7 +550,7 @@ class _CreationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF141414),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [
@@ -630,8 +579,8 @@ class _CreationCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
               color: isPublished
-                  ? Colors.white.withOpacity(0.12)
-                  : Colors.white.withOpacity(0.06),
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

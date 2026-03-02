@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 
 import 'package:flutter/cupertino.dart';
-import 'package:pody/screens/edit_plan_screen.dart';
+import 'package:pody/screens/creation/edit_plan_screen.dart';
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/models/models.dart';
 
 class CreateScreen extends StatefulWidget {
   const CreateScreen({super.key});
@@ -130,188 +132,60 @@ class _CreateScreenState extends State<CreateScreen> {
                     bottom: 16,
                   ),
                   children: [
-                    // User chat message
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.75,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF2F2F2F,
-                          ), // ChatGPT User bubble color
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'Make it more professional and focus on the early investment years for the first episode.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // AI message (text part)
-                    const Text(
-                      'Sure, I\'ve refined the tone to be more analytical and adjusted the episode breakdown to emphasize the formative years. Here is the updated production plan:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // AI message (card part)
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: kBgCard, // Slightly lighter dark
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'The Oracle Portfolio',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '3 Episodes • 45 min total',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.white.withOpacity(0.6),
-                                      ),
-                                    ),
-                                  ],
+                    // Build messages from thread
+                    ...MockData.sampleChatThread.messages.map((msg) {
+                      if (msg.role == ChatRole.user) {
+                        return Column(
+                          children: [
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Container(
+                                constraints: BoxConstraints(
+                                  maxWidth: MediaQuery.of(context).size.width * 0.75,
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit_note,
-                                    color: Colors.white70,
-                                    size: 24,
-                                  ),
-                                  onPressed: _showEditPlanDialog,
-                                  tooltip: 'Edit Plan',
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Tags
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                _buildTag('Analytical'),
-                                const SizedBox(width: 8),
-                                _buildTag('Professional'),
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.group,
-                                  color: Colors.white54,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Sarah & Marcus',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white54,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Episodes
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildEpisodeRow('1', 'The Foundation years'),
-                                const SizedBox(height: 8),
-                                _buildEpisodeRow('2', 'Growth & Acquisition'),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '+ 1 more episode',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Process Button
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              left: 16,
-                              right: 16,
-                              bottom: 16,
-                            ),
-                            child: ElevatedButton(
-                              onPressed: () {},
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
+                                  horizontal: 16,
+                                  vertical: 12,
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2F2F2F),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                elevation: 0,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.play_arrow, size: 20),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Start Production',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                                child: Text(
+                                  msg.text,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    height: 1.4,
                                   ),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
+                            const SizedBox(height: 32),
+                          ],
+                        );
+                      } else {
+                        // Assistant message
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              msg.text,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                height: 1.5,
+                              ),
+                            ),
+                            if (msg.hasPlan) ...[
+                              const SizedBox(height: 16),
+                              _buildPlanCard(msg.plan!),
+                            ],
+                            const SizedBox(height: 32),
+                          ],
+                        );
+                      }
+                    }),
                   ].reversed.toList(),
                 ),
               ),
@@ -356,10 +230,10 @@ class _CreateScreenState extends State<CreateScreen> {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Colors.white.withValues(alpha: 0.1),
                                   ),
                                 ),
                                 child: Row(
@@ -403,7 +277,7 @@ class _CreateScreenState extends State<CreateScreen> {
                         ),
                         Container(
                           height: 1,
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           margin: const EdgeInsets.only(bottom: 8),
                         ),
                       ],
@@ -413,7 +287,7 @@ class _CreateScreenState extends State<CreateScreen> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
@@ -479,7 +353,7 @@ class _CreateScreenState extends State<CreateScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -524,6 +398,138 @@ class _CreateScreenState extends State<CreateScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const EditPlanScreen()),
+    );
+  }
+
+  Widget _buildPlanCard(ProductionPlan plan) {
+    const maxVisible = 2;
+    final visibleEps = plan.episodes.take(maxVisible).toList();
+    final remaining = plan.episodes.length - maxVisible;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: kBgCard,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan.seriesTitle,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        plan.summaryLabel,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit_note, color: Colors.white70, size: 24),
+                  onPressed: _showEditPlanDialog,
+                  tooltip: 'Edit Plan',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Tags + Hosts
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ...plan.tags.map((tag) => _buildTag(tag)),
+                if (plan.hosts.isNotEmpty) ...[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.group, color: Colors.white54, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        plan.hosts.map((h) => h.name).join(' & '),
+                        style: const TextStyle(fontSize: 13, color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Episodes
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...visibleEps.map((ep) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildEpisodeRow('${ep.number}', ep.title),
+                )),
+                if (remaining > 0)
+                  Text(
+                    '+ $remaining more episode${remaining > 1 ? 's' : ''}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Start Production
+          Padding(
+            padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.play_arrow, size: 20),
+                  SizedBox(width: 8),
+                  Text('Start Production', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

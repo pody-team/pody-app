@@ -100,7 +100,7 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
                           'Select all that apply',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -136,7 +136,7 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
                               border: Border.all(
                                 color: isSelected
                                     ? Colors.white
-                                    : Colors.white.withOpacity(0.15),
+                                    : Colors.white.withValues(alpha: 0.15),
                               ),
                             ),
                             child: Text(
@@ -188,7 +188,7 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
                     Container(
                       height: 1,
                       margin: const EdgeInsets.symmetric(vertical: 12),
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                     ),
                     // Frequency
                     _buildScheduleRow(
@@ -223,7 +223,7 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
                     Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.06),
+                        color: Colors.white.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
@@ -328,7 +328,7 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, 4),
                     ),
@@ -363,7 +363,7 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
       decoration: BoxDecoration(
         color: kBgCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: child,
     );
@@ -382,9 +382,9 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.06),
+            color: Colors.white.withValues(alpha: 0.06),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Icon(icon, color: Colors.white54, size: 20),
         ),
@@ -446,11 +446,11 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.08),
+            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
             width: isSelected ? 1.5 : 1,
           ),
           color: isSelected
-              ? Colors.white.withOpacity(0.04)
+              ? Colors.white.withValues(alpha: 0.04)
               : Colors.transparent,
         ),
         child: Row(
@@ -459,9 +459,9 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.06),
+                color: Colors.white.withValues(alpha: 0.06),
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               ),
               child: Icon(icon, color: Colors.white54, size: 20),
             ),

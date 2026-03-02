@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:pody/screens/home_screen.dart';
-import 'package:pody/screens/news_screen.dart';
-import 'package:pody/screens/create_screen.dart';
-import 'package:pody/screens/notifications_screen.dart';
-import 'package:pody/screens/profile_screen.dart';
+import 'package:pody/screens/podcast/home_screen.dart';
+import 'package:pody/screens/news/news_screen.dart';
+import 'package:pody/screens/creation/create_screen.dart';
+import 'package:pody/screens/social/notifications_screen.dart';
+import 'package:pody/screens/user/profile_screen.dart';
 import 'package:pody/widgets/mini_player.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/screens/auth/sign_in_screen.dart';
 
 void main() {
   runApp(const PodyApp());
@@ -25,9 +26,8 @@ class PodyApp extends StatelessWidget {
       primaryColor: primaryColor,
       colorScheme: ColorScheme.dark(
         primary: primaryColor,
-        secondary: primaryColor.withOpacity(0.8),
+        secondary: primaryColor.withValues(alpha: 0.8),
         surface: kBgBlack,
-        background: const Color(0xFF000000),
       ),
       textTheme: GoogleFonts.plusJakartaSansTextTheme(
         ThemeData.dark().textTheme,
@@ -57,7 +57,7 @@ class PodyApp extends StatelessWidget {
       title: 'Remix of Immersive Podcast Player',
       debugShowCheckedModeBanner: false,
       theme: darkTheme,
-      home: const MainNavigationScreen(),
+      home: const SignInScreen(),
     );
   }
 }
@@ -99,8 +99,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.8),
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+          color: Colors.black.withValues(alpha: 0.8),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
         ),
         child: ClipRRect(
           child: BackdropFilter(

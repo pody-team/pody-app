@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/models/models.dart';
 
-import 'ai_summary_setup_screen.dart';
+import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -11,48 +13,13 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
-  final List<String> _categories = [
-    '🔥 Nóng hổi', '💻 Công nghệ', '🚀 Khởi nghiệp', '🪙 Crypto', '🎨 Design', '💰 Tài chính'
-  ];
   int _selectedCategoryIndex = 0;
-
-  final List<Map<String, dynamic>> _newsData = [
-    {
-      'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
-      'title': 'FPT giảm lao động sau nhiều năm tăng nóng: Hàng chục nghìn kỹ sư hiện hữu s...',
-      'time': '9h',
-      'publisher': 'CafeBiz',
-      'desc': 'Ba điểm cốt lõi trong chính sách mới của FPT liên quan đến trí tuệ nhân tạo...',
-      'isAdded': false,
-    },
-    {
-      'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDRyNqWoebcCRyWA9Z01YumR31TnNjxnIwbUUAIbiubmjZz8n4AqMoO_sGjMeNG9Nb5gzGPgVIVWGpwrvBm6AKbhhLVVjvTi1jDJgwDe29EvYIS5fTqEDuGmIu8PVbWTTNfzZp6w09dErSJe5hnQS-DRuyYAfHBMd9Pk7pzFEQ-x0q_Zo_VBGtA1tYEnGVIAM1dDf56POWot-PMEFogFBBMzZrd10Iv26tCL3goroNsN7APhD9BZ1kHtKP7X0v1Am6ntCf_BwLHIY0',
-      'title': 'Lãi 120 tỷ USD/năm, Nvidia trở thành cỗ máy in tiền khổng lồ, xóa tan hoài nghi v...',
-      'time': '8h',
-      'publisher': 'GenK',
-      'desc': 'Nvidia tiếp tục công bố mức lợi nhuận kỷ lục, khẳng định vị trí độc tôn trong mảng chip AI...',
-      'isAdded': false,
-    },
-    {
-      'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuA_WasjbTwvfuUzfmiQ7adeTtkOq96d9eVBI55URTUMSxbY80T6Gyx4pNqag9GhJjiVlzvGAhwGy7wxEYS9NZ0H7MycBwaJI5IB5dlsmsntPHhMZH5ihYcE4gvLKCPCbP76yi7HBmrC2qLo09pHi6C4ndA9-guMkYrjDZhbloRNCYnOD6BgKpuIzEi_T3LooR_huwwoFOA_pwPc_aN7BdWZoIi9LAkWDJvoCGx5YaQu6mnazcsps5TuwSZGieXs2pNOe_oIHqhJmB0i',
-      'title': 'Podcast industry trends: Why short-form audio is taking over social media platforms',
-      'time': '12h',
-      'publisher': 'TechCrunch',
-      'desc': 'Analysis on how user behavior is shifting towards bite-sized audio content...',
-      'isAdded': true,
-    },
-    {
-      'imageUrl': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAebWbaJhEISYKavHmqyyfaTOnExvH26vkZtcZ1S5NZ7DFIbsovehIuGwXiL0jhEtaNLbErAn9aBfGgfnrPtlQl3NC6S2paFtaFLlbevFSpLqgILPbuzjwad2aZQC4uGD7nwXeOKnMkv9H1_4w8_rkbMQTayE9M0XST4j0vu5-LXlalPyFAMCXOV0Qf3puL9BXypPRRFPoboZALB8Wfw5JFmxqpcOLIAotCb3WzXfHozaVeC-xD6807djjSdOlOSYCaWL1TQGSUEp1R',
-      'title': 'AI Overview: Hàng loạt các startup công nghệ mọc lên như nấm',
-      'time': '1 ngày',
-      'publisher': 'VnExpress',
-      'desc': 'Bức tranh khởi nghiệp đang thay đổi liên tục với sự trỗi dậy của AI...',
-      'isAdded': false,
-    }
-  ];
+  late final List<bool> _addedStates =
+      MockData.newsArticles.map((a) => a.isAdded).toList();
 
   @override
   Widget build(BuildContext context) {
+    final articles = MockData.newsArticles;
     return Scaffold(
       backgroundColor: kBgBlack,
       body: SafeArea(
@@ -69,9 +36,9 @@ class _NewsScreenState extends State<NewsScreen> {
             ),
 
             // Highlight Story
-            if (_newsData.isNotEmpty)
+            if (articles.isNotEmpty)
               SliverToBoxAdapter(
-                child: _buildHighlightStory(_newsData[0]),
+                child: _buildHighlightStory(0, articles[0]),
               ),
 
             // Compact List News
@@ -81,9 +48,9 @@ class _NewsScreenState extends State<NewsScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     if (index == 0) return const SizedBox.shrink(); // Skips highlight
-                    return _buildCompactNewsRow(index, _newsData[index]);
+                    return _buildCompactNewsRow(index, articles[index]);
                   },
-                  childCount: _newsData.length,
+                  childCount: articles.length,
                 ),
               ),
             ),
@@ -100,10 +67,10 @@ class _NewsScreenState extends State<NewsScreen> {
       decoration: BoxDecoration(
         color: kBgCard,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -118,7 +85,7 @@ class _NewsScreenState extends State<NewsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: kTikRed.withOpacity(0.2),
+                  color: kTikRed.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -149,9 +116,9 @@ class _NewsScreenState extends State<NewsScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Dựa trên 5 tin tức bạn đã chọn và xu hướng Tech.',
-            style: TextStyle(
+          Text(
+            'Dựa trên ${MockData.newsArticles.where((a) => a.isAdded).isNotEmpty ? MockData.newsArticles.where((a) => a.isAdded).length : 5} tin tức bạn đã chọn và xu hướng Tech.',
+            style: const TextStyle(
               fontSize: 13,
               color: Colors.white54,
             ),
@@ -196,7 +163,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   height: 44,
                   width: 44,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   alignment: Alignment.center,
@@ -211,14 +178,15 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildCategories() {
+    final categories = MockData.newsCategories;
     return Container(
       height: 36,
       margin: const EdgeInsets.only(top: 8, bottom: 8),
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
-        itemCount: _categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: categories.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final isSelected = _selectedCategoryIndex == index;
           return GestureDetector(
@@ -231,11 +199,11 @@ class _NewsScreenState extends State<NewsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.06),
+                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                _categories[index],
+                categories[index],
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -249,26 +217,25 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  Widget _buildHighlightStory(Map<String, dynamic> item) {
+  Widget _buildHighlightStory(int index, NewsArticle article) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item['imageUrl'] != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.network(
-                  item['imageUrl'],
-                  fit: BoxFit.cover,
-                ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.network(
+                article.imageUrl,
+                fit: BoxFit.cover,
               ),
             ),
+          ),
           const SizedBox(height: 12),
           Text(
-            item['title'],
+            article.title,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -278,7 +245,7 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            item['desc'] ?? '',
+            article.description,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -294,19 +261,19 @@ class _NewsScreenState extends State<NewsScreen> {
               Row(
                 children: [
                   Text(
-                    item['publisher'],
+                    article.publisher,
                     style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(width: 8),
                   const Text('•', style: TextStyle(color: Colors.white38, fontSize: 12)),
                   const SizedBox(width: 8),
                   Text(
-                    item['time'],
+                    article.time,
                     style: const TextStyle(color: Colors.white38, fontSize: 12),
                   ),
                 ],
               ),
-              _buildAddButton(0, item),
+              _buildAddButton(index),
             ],
           ),
         ],
@@ -314,33 +281,22 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
-  Widget _buildCompactNewsRow(int index, Map<String, dynamic> item) {
+  Widget _buildCompactNewsRow(int index, NewsArticle article) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Thumbnail
-          if (item['imageUrl'] != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                item['imageUrl'],
-                width: 76,
-                height: 76,
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Container(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              article.imageUrl,
               width: 76,
               height: 76,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.newspaper, color: Colors.white24, size: 30),
+              fit: BoxFit.cover,
             ),
+          ),
           const SizedBox(width: 12),
           
           // Info
@@ -349,7 +305,7 @@ class _NewsScreenState extends State<NewsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['title'],
+                  article.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -363,14 +319,14 @@ class _NewsScreenState extends State<NewsScreen> {
                 Row(
                   children: [
                     Text(
-                      item['publisher'],
+                      article.publisher,
                       style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 6),
                     const Text('•', style: TextStyle(color: Colors.white38, fontSize: 10)),
                     const SizedBox(width: 6),
                     Text(
-                      item['time'],
+                      article.time,
                       style: const TextStyle(color: Colors.white38, fontSize: 11),
                     ),
                   ],
@@ -382,25 +338,25 @@ class _NewsScreenState extends State<NewsScreen> {
           const SizedBox(width: 8),
           
           // Add to queue btn
-          _buildAddButton(index, item),
+          _buildAddButton(index),
         ],
       ),
     );
   }
 
-  Widget _buildAddButton(int index, Map<String, dynamic> item) {
-    final bool isAdded = item['isAdded'] == true;
+  Widget _buildAddButton(int index) {
+    final bool isAdded = _addedStates[index];
     return GestureDetector(
       onTap: () {
         setState(() {
-          _newsData[index]['isAdded'] = !isAdded;
+          _addedStates[index] = !isAdded;
         });
       },
       child: Container(
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: isAdded ? kTikRed.withOpacity(0.2) : Colors.white.withOpacity(0.08),
+          color: isAdded ? kTikRed.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.08),
           shape: BoxShape.circle,
         ),
         child: Icon(

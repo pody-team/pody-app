@@ -1,12 +1,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
-
+import 'package:pody/models/models.dart';
 
 class PodcastDetailScreen extends StatelessWidget {
-  final Map<String, dynamic> data;
+  final Podcast podcast;
 
-  const PodcastDetailScreen({super.key, required this.data});
+  const PodcastDetailScreen({super.key, required this.podcast});
 
   @override
   Widget build(BuildContext context) {
@@ -52,18 +52,18 @@ class PodcastDetailScreen extends StatelessWidget {
                                   BoxShadow(
                                     color: const Color(
                                       0xFFFFFFFF,
-                                    ).withOpacity(0.3),
+                                    ).withValues(alpha: 0.3),
                                     blurRadius: 20,
                                   ),
                                 ],
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(24),
                                 child: Image.network(
-                                  data['imageUrl'],
+                                  podcast.imageUrl,
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -72,9 +72,9 @@ class PodcastDetailScreen extends StatelessWidget {
                           const SizedBox(height: 24),
 
                           // Podcast Title
-                          const Text(
-                            'Future Minds',
-                            style: TextStyle(
+                          Text(
+                            podcast.title,
+                            style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -84,9 +84,9 @@ class PodcastDetailScreen extends StatelessWidget {
                           const SizedBox(height: 4),
 
                           // Hosted by
-                          const Text(
-                            'Hosted by Anh Ba & Linh',
-                            style: TextStyle(
+                          Text(
+                            'Hosted by ${podcast.hostsLabel}',
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFFCCCCCC),
@@ -160,10 +160,10 @@ class PodcastDetailScreen extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: const Color(
                                       0xFF18181B,
-                                    ).withOpacity(0.5),
+                                    ).withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.05),
+                                      color: Colors.white.withValues(alpha: 0.05),
                                     ),
                                   ),
                                   child: RichText(
@@ -303,7 +303,7 @@ class PodcastDetailScreen extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     const Color(0xFF0F0E13),
-                    const Color(0xFF0F0E13).withOpacity(0.9),
+                    const Color(0xFF0F0E13).withValues(alpha: 0.9),
                     Colors.transparent,
                   ],
                 ),
@@ -345,9 +345,9 @@ class PodcastDetailScreen extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Icon(icon, color: Colors.white, size: 20),
           ),
@@ -360,9 +360,9 @@ class PodcastDetailScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Text(
         text,
@@ -392,7 +392,7 @@ class PodcastDetailScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: kBgCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,7 +402,7 @@ class PodcastDetailScreen extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
@@ -467,7 +467,7 @@ class PodcastDetailScreen extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -486,7 +486,7 @@ class PodcastDetailScreen extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Row(
@@ -513,7 +513,7 @@ class PodcastDetailScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(2),
                           child: LinearProgressIndicator(
                             value: progress,
-                            backgroundColor: Colors.white.withOpacity(0.05),
+                            backgroundColor: Colors.white.withValues(alpha: 0.05),
                             valueColor: const AlwaysStoppedAnimation(
                               Colors.white,
                             ),

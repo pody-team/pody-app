@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pody/screens/player_screen.dart';
+import 'package:pody/screens/podcast/player_screen.dart';
 
 class MiniPlayer extends StatefulWidget {
   const MiniPlayer({super.key});
@@ -46,7 +46,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
@@ -86,7 +86,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   Text(
                     'Future Minds • Ep. 42',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
                     ),
                     maxLines: 1,
@@ -96,7 +96,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   // mini progress bar
                   LinearProgressIndicator(
                     value: 0.4,
-                    backgroundColor: Colors.white.withOpacity(0.1),
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                     color: Colors.white,
                     minHeight: 2,
                   ),

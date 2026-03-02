@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/models/models.dart';
 
-import 'comments_overlay.dart';
+import 'package:pody/screens/social/comments_overlay.dart';
 import 'podcast_detail_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
@@ -13,75 +15,19 @@ class PlayerScreen extends StatefulWidget {
 }
 
 class _PlayerScreenState extends State<PlayerScreen> {
-
-  final List<Map<String, dynamic>> _mockData = [
-    {
-      'images': [
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
-        'https://images.unsplash.com/photo-1516280440502-861f1c7eb1ea?q=80&w=600&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=600&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=600&auto=format&fit=crop',
-      ],
-      'title': 'MVC thời hiện đại: Cũ nhưng không kỹ',
-      'episodeInfo': 'Future Minds • Ep. 42',
-      'desc':
-          'Tổng kết về ưu nhược điểm và cái nhìn nhanh về các \'họ hàng\' như MVVM hay MVP.',
-      'tags': ['#AI', '#Tech', '#Future'],
-      'bubbles': [
-        {
-          'speaker': 'Anh Ba',
-          'text': 'Lùi lại một chút để nhìn bức tranh toàn cảnh hơn.',
-          'isRight': true,
-          'color': Colors.white, // accent
-        },
-        {
-          'speaker': 'Linh',
-          'text':
-              '"Em hiểu rồi! Kiểu như là..." nhìn lại xem cụ tổ MVC của chúng ta bây giờ đang đứng ở đâu trong thế giới công nghệ thay đổi chóng mặt này đúng không anh?',
-          'isRight': false,
-          'color': const Color(0xFFCCCCCC), // light gray
-        },
-      ],
-      'likes': '12.5k',
-      'comments': '842',
-      'hostAvatar':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuB4EIkdO1i3-4hGeSAtEzTxcNQ8qnrTI6kPdXnUgmw9dbsvrmq1hV3q1s_5TIbjYmpT0Q206FiA1ZGDGpg0jLGpyBKEpU9y4Im0cAa_rJXSMEwLuTHReSD3-ztzaFcACqv8-UM7dIb97V_tskBEYjZp1glNRlAo-yS1D-fbUXHESR6Tz_wBE1uZjFZAwpHO3DHnfFrLYPqklXvAcRC9urQxh-a7J23PghYOXri3n7xRx9Y4LzpExbVD_lAChzEbhE3u-OEfpuLTLsc',
-    },
-    {
-      'images': [
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuDRyNqWoebcCRyWA9Z01YumR31TnNjxnIwbUUAIbiubmjZz8n4AqMoO_sGjMeNG9Nb5gzGPgVIVWGpwrvBm6AKbhhLVVjvTi1jDJgwDe29EvYIS5fTqEDuGmIu8PVbWTTNfzZp6w09dErSJe5hnQS-DRuyYAfHBMd9Pk7pzFEQ-x0q_Zo_VBGtA1tYEnGVIAM1dDf56POWot-PMEFogFBBMzZrd10Iv26tCL3goroNsN7APhD9BZ1kHtKP7X0v1Am6ntCf_BwLHIY0',
-        'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?q=80&w=600&auto=format&fit=crop',
-      ],
-      'title': '"The evidence was right there."',
-      'episodeInfo': 'True Crime Daily • Ep. 104',
-      'desc':
-          'We looked at it a hundred times, but we didn\'t *see* it. A cold case from 1995 is finally solved using new DNA technology.',
-      'tags': [],
-      'bubbles': [
-        {
-          'speaker': 'Detective',
-          'text': 'We looked at it a hundred times, but we didn\'t *see* it.',
-          'isRight': false,
-          'color': const Color(0xFFCCCCCC),
-        },
-      ],
-      'likes': '84.2k',
-      'comments': '5.2k',
-      'hostAvatar':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuB4EIkdO1i3-4hGeSAtEzTxcNQ8qnrTI6kPdXnUgmw9dbsvrmq1hV3q1s_5TIbjYmpT0Q206FiA1ZGDGpg0jLGpyBKEpU9y4Im0cAa_rJXSMEwLuTHReSD3-ztzaFcACqv8-UM7dIb97V_tskBEYjZp1glNRlAo-yS1D-fbUXHESR6Tz_wBE1uZjFZAwpHO3DHnfFrLYPqklXvAcRC9urQxh-a7J23PghYOXri3n7xRx9Y4LzpExbVD_lAChzEbhE3u-OEfpuLTLsc',
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return PodcastFeedItem(data: _mockData[0]);
+    final podcast = MockData.podcasts.first;
+    final episode = podcast.episodes.first;
+    return PodcastFeedItem(episode: episode, podcast: podcast);
   }
 }
 
 class PodcastFeedItem extends StatefulWidget {
-  final Map<String, dynamic> data;
+  final Episode episode;
+  final Podcast podcast;
 
-  const PodcastFeedItem({super.key, required this.data});
+  const PodcastFeedItem({super.key, required this.episode, required this.podcast});
 
   @override
   State<PodcastFeedItem> createState() => _PodcastFeedItemState();
@@ -90,7 +36,6 @@ class PodcastFeedItem extends StatefulWidget {
 class _PodcastFeedItemState extends State<PodcastFeedItem>
     with TickerProviderStateMixin {
   bool _isLiked = false;
-  bool _isSaved = false;
   bool _isPlaying = true;
   bool _showPlayPauseIcon = false;
   double _progress = 0.33;
@@ -109,25 +54,23 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
   // Animation controllers for each button
   late AnimationController _likeController;
   late AnimationController _commentController;
-  late AnimationController _saveController;
   late AnimationController _shareController;
   late AnimationController _playPauseController;
 
   late Animation<double> _likeScale;
   late Animation<double> _commentScale;
-  late Animation<double> _saveScale;
   late Animation<double> _shareScale;
   late Animation<double> _playPauseOpacity;
   late Animation<double> _playPauseScale;
 
-  Map<String, dynamic> get data => widget.data;
+  Episode get episode => widget.episode;
+  Podcast get podcast => widget.podcast;
 
   @override
   void initState() {
     super.initState();
     _likeController = _createBounceController();
     _commentController = _createBounceController();
-    _saveController = _createBounceController();
     _shareController = _createBounceController();
 
     _playPauseController = AnimationController(
@@ -159,7 +102,6 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
 
     _likeScale = _createBounceAnimation(_likeController);
     _commentScale = _createBounceAnimation(_commentController);
-    _saveScale = _createBounceAnimation(_saveController);
     _shareScale = _createBounceAnimation(_shareController);
   }
 
@@ -190,7 +132,6 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
   void dispose() {
     _likeController.dispose();
     _commentController.dispose();
-    _saveController.dispose();
     _shareController.dispose();
     _playPauseController.dispose();
     _pageController.dispose();
@@ -200,20 +141,6 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
   void _onLikeTap() {
     setState(() => _isLiked = !_isLiked);
     _likeController.forward(from: 0);
-  }
-
-  void _onSaveTap() {
-    setState(() => _isSaved = !_isSaved);
-    _saveController.forward(from: 0);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isSaved ? 'Saved to library' : 'Removed from library'),
-        duration: const Duration(seconds: 1),
-        backgroundColor: kBgCard,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   void _onShareTap() {
@@ -270,7 +197,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 24),
@@ -354,7 +281,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                   Container(
                     padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -394,7 +321,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Container(height: 1, color: Colors.white.withOpacity(0.05)),
+                  Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
                   const SizedBox(height: 12),
 
                   // Subtitles
@@ -435,7 +362,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                     },
                   ),
                   const SizedBox(height: 12),
-                  Container(height: 1, color: Colors.white.withOpacity(0.05)),
+                  Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
                   const SizedBox(height: 12),
 
                   // Repeat Mode
@@ -484,7 +411,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                             decoration: BoxDecoration(
                               color: _repeatMode != 'Off'
                                   ? Colors.white
-                                  : Colors.white.withOpacity(0.08),
+                                  : Colors.white.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -582,7 +509,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: Colors.white38,
             inactiveThumbColor: Colors.white38,
             inactiveTrackColor: Colors.white12,
@@ -663,12 +590,12 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                   _currentImageIndex = index;
                 });
               },
-              itemCount: (data['images'] as List).length,
+              itemCount: episode.images.length,
               itemBuilder: (context, index) {
                 return Image.network(
-                  data['images'][index],
+                  episode.images[index],
                   fit: BoxFit.cover,
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   colorBlendMode: BlendMode.darken,
                 );
               },
@@ -706,10 +633,9 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: (data['bubbles'] as List<dynamic>).map((bubble) {
-                final b = bubble as Map<String, dynamic>;
+              children: episode.bubbles.map((bubble) {
                 return Align(
-                  alignment: b['isRight']
+                  alignment: bubble.isRight
                       ? Alignment.centerRight
                       : Alignment.centerLeft,
                   child: Container(
@@ -721,34 +647,34 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(20),
                         topRight: const Radius.circular(20),
-                        bottomLeft: Radius.circular(b['isRight'] ? 20 : 4),
-                        bottomRight: Radius.circular(b['isRight'] ? 4 : 20),
+                        bottomLeft: Radius.circular(bubble.isRight ? 20 : 4),
+                        bottomRight: Radius.circular(bubble.isRight ? 4 : 20),
                       ),
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                (b['speaker'] as String).toUpperCase(),
+                                bubble.speaker.toUpperCase(),
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  color: b['color'],
+                                  color: Color(bubble.colorValue),
                                   letterSpacing: 1.2,
                                 ),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                b['text'],
+                                bubble.text,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -813,7 +739,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(19),
                           child: Image.network(
-                            data['hostAvatar'],
+                            podcast.primaryHost.avatarUrl,
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -841,7 +767,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                 _buildAnimatedAction(
                   animation: _likeScale,
                   icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                  label: data['likes'],
+                  label: episode.formattedLikes,
                   color: _isLiked ? Colors.redAccent : Colors.white,
                   onTap: _onLikeTap,
                 ),
@@ -849,7 +775,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                 _buildAnimatedAction(
                   animation: _commentScale,
                   icon: Icons.chat_bubble_outline_rounded,
-                  label: data['comments'],
+                  label: episode.formattedComments,
                   color: Colors.white,
                   onTap: _onCommentTap,
                 ),
@@ -889,7 +815,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    (data['images'] as List).length,
+                    episode.images.length,
                     (index) {
                       final isActive = index == _currentImageIndex;
                       return AnimatedContainer(
@@ -913,7 +839,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => PodcastDetailScreen(data: data),
+                        builder: (_) => PodcastDetailScreen(podcast: MockData.podcasts.first),
                       ),
                     );
                   },
@@ -927,9 +853,9 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                           ),
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -951,7 +877,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              data['episodeInfo'].toUpperCase(),
+                              '${podcast.title} • Ep. ${podcast.totalEpisodeCount}'.toUpperCase(),
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -968,7 +894,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
 
                 // Title
                 Text(
-                  data['title'],
+                  episode.title,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -980,21 +906,21 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
 
                 // Description
                 Text(
-                  data['desc'],
+                  episode.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                   ),
                 ),
                 const SizedBox(height: 8),
 
                 // Tags
-                if ((data['tags'] as List).isNotEmpty)
+                if (episode.tags.isNotEmpty)
                   Row(
-                    children: (data['tags'] as List<String>).map((tag) {
+                    children: episode.tags.map((tag) {
                       return Container(
                         margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.symmetric(
@@ -1002,10 +928,10 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
                         child: Text(
@@ -1071,7 +997,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                           height: barHeight,
                           width: totalWidth,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),
@@ -1080,7 +1006,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                           height: barHeight,
                           width: activeWidth,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),
@@ -1131,7 +1057,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -1163,7 +1089,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: 24),
@@ -1172,7 +1098,7 @@ class _PodcastFeedItemState extends State<PodcastFeedItem>
             Positioned(
               right: 2,
               top: 2,
-              child: Container(
+              child: const SizedBox(
                 width: 8,
                 height: 8,
               ),
