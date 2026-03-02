@@ -62,7 +62,6 @@ class _PlayerScreenState extends State<PlayerScreen>
 
         return Container(
           decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,

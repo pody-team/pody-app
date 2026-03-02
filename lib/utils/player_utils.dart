@@ -12,9 +12,6 @@ void openPlayerScreen(BuildContext context, {Podcast? podcast, Episode? episode}
     useRootNavigator: true,
     backgroundColor: Colors.transparent,
     useSafeArea: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-    ),
     builder: (context) {
       return SizedBox.expand(
         child: PlayerScreen(
