@@ -1,8 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
-import 'package:pody/screens/podcast/player_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class PodcastDetailScreen extends StatelessWidget {
   final Podcast podcast;
@@ -92,6 +93,56 @@ class PodcastDetailScreen extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                               color: Color(0xFFCCCCCC),
                             ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Author row
+                          Builder(
+                            builder: (context) {
+                              final author = MockData.getUserById(podcast.authorId);
+                              if (author == null) return const SizedBox.shrink();
+                              return GestureDetector(
+                                onTap: () {
+                                  openUserDetail(context, author);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.06),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          author.avatarUrl,
+                                          width: 24,
+                                          height: 24,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        author.name,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        color: Colors.white.withValues(alpha: 0.3),
+                                        size: 12,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
 
@@ -249,15 +300,7 @@ class PodcastDetailScreen extends StatelessWidget {
                         trailing: epIndex == 0 ? Icons.download : Icons.add_circle,
                         trailingColor: epIndex == 0 ? Colors.white38 : Colors.white38,
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PlayerScreen(
-                                podcast: podcast,
-                                episode: ep,
-                              ),
-                            ),
-                          );
+                          openPlayerScreen(context, podcast: podcast, episode: ep);
                         },
                       );
                     },

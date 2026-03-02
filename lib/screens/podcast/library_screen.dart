@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
-import 'package:pody/screens/podcast/player_screen.dart';
-import 'package:pody/screens/podcast/podcast_detail_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -20,7 +19,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     // Pull data from MockData
     final allPodcasts = MockData.podcasts;
-    final savedEpisodes = MockData.savedEpisodes;
     final progress = MockData.currentUserProgress;
 
     // "Recently Played" = episodes with listening progress
@@ -86,12 +84,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               final pod = recentlyPlayed[index]['podcast'] as Podcast;
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PlayerScreen(podcast: pod, episode: ep),
-                    ),
-                  );
+                  openPlayerScreen(context, podcast: pod, episode: ep);
                 },
                 child: SizedBox(
                   width: 120,
@@ -136,12 +129,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             children: allPodcasts.map((podcast) {
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PodcastDetailScreen(podcast: podcast),
-                    ),
-                  );
+                  openPodcastDetail(context, podcast);
                 },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -199,77 +187,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           color: Colors.black,
                           size: 20,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Saved Episodes
-        _buildSectionTitle('Saved Episodes'),
-        const SizedBox(height: 4),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: savedEpisodes.asMap().entries.map((entry) {
-              final index = entry.key;
-              final ep = entry.value;
-              final pod = MockData.getPodcastById(ep.podcastId);
-              final isLast = index == savedEpisodes.length - 1;
-              return GestureDetector(
-                onTap: () {
-                  if (pod != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PlayerScreen(podcast: pod, episode: ep),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    border: isLast
-                        ? null
-                        : const Border(
-                            bottom: BorderSide(color: Colors.white10),
-                          ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              ep.title,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${pod?.title ?? ''} • ${ep.formattedDuration}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white38,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.download_done,
-                        color: Colors.white38,
-                        size: 24,
                       ),
                     ],
                   ),

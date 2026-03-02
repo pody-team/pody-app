@@ -69,7 +69,65 @@ class MockData {
     listeningHours: 142,
     podcastCount: 12,
     followingCount: 186,
+    followerCount: 2400,
   );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // OTHER USERS (for profile viewing)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  static const otherUsers = [
+    UserProfile(
+      id: 'h001',
+      name: 'Anh Ba',
+      avatarUrl: _avatarAnhBa,
+      bio: 'Tech podcast host 🎙️ | Software architect | Coffee lover ☕',
+      listeningHours: 520,
+      podcastCount: 3,
+      followingCount: 342,
+      followerCount: 15800,
+    ),
+    UserProfile(
+      id: 'h002',
+      name: 'Linh',
+      avatarUrl: _avatarLinh,
+      bio: 'Co-host @FutureMinds | UX Designer | Sharing tech stories 💡',
+      listeningHours: 380,
+      podcastCount: 1,
+      followingCount: 215,
+      followerCount: 8600,
+    ),
+    UserProfile(
+      id: 'h003',
+      name: 'Detective Minh',
+      avatarUrl: _avatarHost,
+      bio: 'True crime investigator 🔍 | Host of True Crime Daily',
+      listeningHours: 890,
+      podcastCount: 2,
+      followingCount: 128,
+      followerCount: 42000,
+    ),
+    UserProfile(
+      id: 'h004',
+      name: 'Mai Anh',
+      avatarUrl: _avatarMaiAnh,
+      bio: 'Narrator & voice artist 🎤 | Storyteller',
+      listeningHours: 210,
+      podcastCount: 1,
+      followingCount: 95,
+      followerCount: 3200,
+    ),
+  ];
+
+  /// Get user profile by ID (checks both current user and other users)
+  static UserProfile? getUserById(String id) {
+    if (currentUser.id == id) return currentUser;
+    try {
+      return otherUsers.firstWhere((u) => u.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // HOSTS
@@ -120,6 +178,7 @@ class MockData {
       imageUrl: _coverFutureMinds,
       subscriberCount: '12.5k',
       totalEpisodeCount: 42,
+      authorId: 'h001',
       episodes: [
         Episode(
           id: 'e001',
@@ -170,6 +229,7 @@ class MockData {
       imageUrl: _coverTrueCrime,
       subscriberCount: '8.2k',
       totalEpisodeCount: 31,
+      authorId: 'h003',
       episodes: [
         Episode(
           id: 'e004',

@@ -11,6 +11,7 @@ class Podcast {
   final String subscriberCount;
   final int totalEpisodeCount;
   final bool isFollowing;
+  final String authorId; // ID of the user who created this podcast
 
   const Podcast({
     required this.id,
@@ -22,6 +23,7 @@ class Podcast {
     required this.subscriberCount,
     required this.totalEpisodeCount,
     this.isFollowing = false,
+    required this.authorId,
   });
 
   /// Convenience: primary host (first in list)
@@ -41,6 +43,7 @@ class Podcast {
       subscriberCount: subscriberCount,
       totalEpisodeCount: totalEpisodeCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      authorId: authorId,
     );
   }
 }

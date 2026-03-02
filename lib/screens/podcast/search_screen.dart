@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
-import 'package:pody/screens/podcast/podcast_detail_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -330,8 +330,7 @@ class _SearchScreenState extends State<SearchScreen> {
       onTap: () {
         if (item.containsKey('podcastIndex')) {
           final podcast = MockData.podcasts[item['podcastIndex'] as int];
-          Navigator.push(context,
-            MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+          openPodcastDetail(context, podcast);
         }
       },
       child: Container(

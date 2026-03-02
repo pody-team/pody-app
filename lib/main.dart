@@ -72,31 +72,59 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const NewsScreen(),
-    const CreateScreen(),
-    const NotificationsScreen(),
-    const ProfileScreen(),
+  // A navigator key per tab so each tab has its own navigation stack
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
+    5,
+    (_) => GlobalKey<NavigatorState>(),
+  );
+
+  final List<Widget> _screens = const [
+    HomeScreen(),
+    NewsScreen(),
+    CreateScreen(),
+    NotificationsScreen(),
+    ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      extendBody: true,
-      body: Stack(
-        children: [
-          _screens[_currentIndex],
-          if (_currentIndex != 1 && _currentIndex != 2)
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 72, // Để 72 là khoảng an toàn vừa khít không bị lẹm viền
-              child: MiniPlayer(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        // Let the current tab's navigator handle back first
+        final navigatorState = _navigatorKeys[_currentIndex].currentState;
+        if (navigatorState != null && navigatorState.canPop()) {
+          navigatorState.pop();
+        }
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        extendBody: true,
+        body: Stack(
+          children: [
+            // IndexedStack keeps all tab states alive
+            IndexedStack(
+              index: _currentIndex,
+              children: List.generate(5, (index) {
+                return Navigator(
+                  key: _navigatorKeys[index],
+                  onGenerateRoute: (settings) {
+                    return MaterialPageRoute(
+                      builder: (_) => _screens[index],
+                    );
+                  },
+                );
+              }),
             ),
-        ],
-      ),
+            if (_currentIndex != 1 && _currentIndex != 2)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 72,
+                child: MiniPlayer(),
+              ),
+          ],
+        ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.8),
@@ -145,7 +173,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildNavItem(

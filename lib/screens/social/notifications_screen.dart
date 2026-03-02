@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
-import 'package:pody/screens/podcast/player_screen.dart';
-import 'package:pody/screens/podcast/podcast_detail_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -31,29 +30,21 @@ class NotificationsScreen extends StatelessWidget {
         final episode = MockData.getEpisodeById(notification.targetId ?? '');
         final podcast = MockData.getPodcastById(episode?.podcastId ?? '');
         if (episode != null && podcast != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PlayerScreen(
-                podcast: podcast,
-                episode: episode,
-              ),
-            ),
-          );
+          openPlayerScreen(context, podcast: podcast, episode: episode);
         }
         break;
       case NotificationTargetType.podcast:
         final podcast = MockData.getPodcastById(notification.targetId ?? '');
         if (podcast != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PodcastDetailScreen(podcast: podcast),
-            ),
-          );
+          openPodcastDetail(context, podcast);
         }
         break;
       case NotificationTargetType.profile:
+        final user = MockData.getUserById(notification.targetId ?? '');
+        if (user != null) {
+          openUserDetail(context, user);
+        }
+        break;
       case NotificationTargetType.none:
         break;
     }
@@ -124,6 +115,11 @@ class NotificationsScreen extends StatelessWidget {
                 ),
                 childCount: read.length,
               ),
+            ),
+
+            // Bottom padding for mini player
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 80),
             ),
           ],
         ),

@@ -1,11 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
-
-import 'package:pody/screens/social/comments_overlay.dart';
-import 'podcast_detail_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class PlayerScreen extends StatefulWidget {
   final Podcast? podcast;
@@ -17,1126 +14,823 @@ class PlayerScreen extends StatefulWidget {
   State<PlayerScreen> createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> {
-  @override
-  Widget build(BuildContext context) {
-    final podcast = widget.podcast ?? MockData.podcasts.first;
-    final episode = widget.episode ?? podcast.episodes.first;
-    return Material(
-      type: MaterialType.transparency,
-      child: PodcastFeedItem(episode: episode, podcast: podcast),
-    );
-  }
-}
-
-class PodcastFeedItem extends StatefulWidget {
-  final Episode episode;
-  final Podcast podcast;
-
-  const PodcastFeedItem({super.key, required this.episode, required this.podcast});
-
-  @override
-  State<PodcastFeedItem> createState() => _PodcastFeedItemState();
-}
-
-class _PodcastFeedItemState extends State<PodcastFeedItem>
+class _PlayerScreenState extends State<PlayerScreen>
     with TickerProviderStateMixin {
-  bool _isLiked = false;
   bool _isPlaying = true;
-  bool _showPlayPauseIcon = false;
   double _progress = 0.33;
-  bool _isDraggingProgress = false;
-
-  final PageController _pageController = PageController();
-  int _currentImageIndex = 0;
-
-  // Player settings
+  bool _isDragging = false;
   double _playbackSpeed = 1.0;
-  bool _showSubtitles = true;
-  bool _introMusic = true;
-  bool _autoPlay = true;
-  String _repeatMode = 'Off'; // Off, One, All
+  bool _isLiked = false;
+  bool _showSubs = true;
 
-  // Animation controllers for each button
-  late AnimationController _likeController;
-  late AnimationController _commentController;
-  late AnimationController _shareController;
-  late AnimationController _playPauseController;
+  Episode get episode => widget.episode ?? podcast.episodes.first;
+  Podcast get podcast => widget.podcast ?? MockData.podcasts.first;
 
-  late Animation<double> _likeScale;
-  late Animation<double> _commentScale;
-  late Animation<double> _shareScale;
-  late Animation<double> _playPauseOpacity;
-  late Animation<double> _playPauseScale;
+  String get _currentTime {
+    final total = episode.duration.inSeconds;
+    final current = (total * _progress).toInt();
+    return _formatTime(current);
+  }
 
-  Episode get episode => widget.episode;
-  Podcast get podcast => widget.podcast;
+  String get _totalTime => _formatTime(episode.duration.inSeconds);
 
-  @override
-  void initState() {
-    super.initState();
-    _likeController = _createBounceController();
-    _commentController = _createBounceController();
-    _shareController = _createBounceController();
+  String _formatTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
 
-    _playPauseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _playPauseOpacity =
-        TweenSequence<double>([
-          TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.9), weight: 15),
-          TweenSequenceItem(tween: Tween(begin: 0.9, end: 0.9), weight: 45),
-          TweenSequenceItem(tween: Tween(begin: 0.9, end: 0.0), weight: 40),
-        ]).animate(
-          CurvedAnimation(parent: _playPauseController, curve: Curves.easeOut),
-        );
-    _playPauseScale =
-        TweenSequence<double>([
-          TweenSequenceItem(tween: Tween(begin: 0.5, end: 1.1), weight: 20),
-          TweenSequenceItem(tween: Tween(begin: 1.1, end: 1.0), weight: 20),
-          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 40),
-          TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.8), weight: 20),
-        ]).animate(
-          CurvedAnimation(parent: _playPauseController, curve: Curves.easeOut),
-        );
-    _playPauseController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() => _showPlayPauseIcon = false);
+  void _cycleSpeed() {
+    setState(() {
+      if (_playbackSpeed == 1.0) {
+        _playbackSpeed = 1.5;
+      } else if (_playbackSpeed == 1.5) {
+        _playbackSpeed = 2.0;
+      } else {
+        _playbackSpeed = 1.0;
       }
     });
-
-    _likeScale = _createBounceAnimation(_likeController);
-    _commentScale = _createBounceAnimation(_commentController);
-    _shareScale = _createBounceAnimation(_shareController);
-  }
-
-  AnimationController _createBounceController() {
-    return AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-  }
-
-  Animation<double> _createBounceAnimation(AnimationController controller) {
-    return TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.7), weight: 30),
-      TweenSequenceItem(tween: Tween(begin: 0.7, end: 1.3), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 30),
-    ]).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
-  }
-
-  void _onPlayPauseTap() {
-    setState(() {
-      _isPlaying = !_isPlaying;
-      _showPlayPauseIcon = true;
-    });
-    _playPauseController.forward(from: 0);
   }
 
   @override
-  void dispose() {
-    _likeController.dispose();
-    _commentController.dispose();
-    _shareController.dispose();
-    _playPauseController.dispose();
-    _pageController.dispose();
-    super.dispose();
-  }
+  Widget build(BuildContext context) {
+    final comments = MockData.comments;
 
-  void _onLikeTap() {
-    setState(() => _isLiked = !_isLiked);
-    _likeController.forward(from: 0);
-  }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableHeight = constraints.maxHeight;
 
-  void _onShareTap() {
-    _shareController.forward(from: 0);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: kBgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Share Episode',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildShareOption(Icons.link, 'Copy Link'),
-                _buildShareOption(Icons.message, 'Message'),
-                _buildShareOption(Icons.camera_alt, 'Story'),
-                _buildShareOption(Icons.more_horiz, 'More'),
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0.0, 0.35, 1.0],
+              colors: [
+                const Color(0xFF3A2D5C),
+                const Color(0xFF1A1428),
+                const Color(0xFF0F0E13),
               ],
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildShareOption(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: Colors.white, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.white70),
-        ),
-      ],
-    );
-  }
-
-  void _onCommentTap() {
-    _commentController.forward(from: 0);
-    showCommentsOverlay(context);
-  }
-
-  void _showPlayerSettings() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: kBgCard,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                // Player area fills the actual modal height
+                SizedBox(
+                  height: availableHeight,
+                  child: Column(
+                    children: [
+            // ── Top Bar ──
+            Padding(
+              padding: const EdgeInsets.only(
+                top: 12,
+                left: 20,
+                right: 20,
+                bottom: 8,
+              ),
+              child: Row(
                 children: [
-                  // Handle
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(Icons.keyboard_arrow_down,
+                        color: Colors.white, size: 32),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'PHÁT TỪ PODCAST',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          podcast.title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.more_vert, color: Colors.white, size: 24),
+                ],
+              ),
+            ),
+
+            // ── Cover Art ── (fills remaining space)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 4),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        episode.images.isNotEmpty
+                            ? episode.images.first
+                            : podcast.imageUrl,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    // Karaoke subtitle overlay
+                    if (_showSubs && episode.bubbles.isNotEmpty)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.vertical(
+                                bottom: Radius.circular(12)),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.85),
+                              ],
+                            ),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
+                          child: _buildKaraokeBubble(),
+                        ),
+                      ),
+                    // Cast icon
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.cast,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            size: 18),
+                      ),
+                    ),
+                    // Subtitle toggle
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _showSubs = !_showSubs),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _showSubs
+                                ? Colors.white.withValues(alpha: 0.2)
+                                : Colors.black.withValues(alpha: 0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.subtitles,
+                            color: _showSubs
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.5),
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Episode Title + Add ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          episode.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => openPodcastDetail(context, podcast),
+                          child: Text(
+                            podcast.title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () => setState(() => _isLiked = !_isLiked),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        _isLiked
+                            ? Icons.check_circle
+                            : Icons.add_circle_outline,
+                        key: ValueKey(_isLiked),
+                        color: _isLiked
+                            ? const Color(0xFF1DB954)
+                            : Colors.white.withValues(alpha: 0.6),
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ── Progress Bar ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 3,
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      overlayShape:
+                          const RoundSliderOverlayShape(overlayRadius: 14),
+                      activeTrackColor: Colors.white,
+                      inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
+                      thumbColor: Colors.white,
+                      overlayColor: Colors.white.withValues(alpha: 0.1),
+                    ),
+                    child: Slider(
+                      value: _progress,
+                      onChanged: (v) => setState(() => _progress = v),
+                      onChangeStart: (_) =>
+                          setState(() => _isDragging = true),
+                      onChangeEnd: (_) =>
+                          setState(() => _isDragging = false),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_currentTime,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    Colors.white.withValues(alpha: 0.5))),
+                        Text(_totalTime,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    Colors.white.withValues(alpha: 0.5))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            // ── Playback Controls ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Speed
+                  GestureDetector(
+                    onTap: _cycleSpeed,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${_playbackSpeed}x',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Rewind 15s
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _progress = (_progress - 15 / episode.duration.inSeconds)
+                            .clamp(0.0, 1.0);
+                      });
+                    },
+                    child: Icon(Icons.replay_10,
+                        color: Colors.white.withValues(alpha: 0.9), size: 36),
+                  ),
+                  // Play/Pause
+                  GestureDetector(
+                    onTap: () => setState(() => _isPlaying = !_isPlaying),
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                        color: Colors.black,
+                        size: 38,
+                      ),
+                    ),
+                  ),
+                  // Forward 15s
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _progress = (_progress + 15 / episode.duration.inSeconds)
+                            .clamp(0.0, 1.0);
+                      });
+                    },
+                    child: Icon(Icons.forward_10,
+                        color: Colors.white.withValues(alpha: 0.9), size: 36),
+                  ),
+                  // Timer
+                  Icon(Icons.timer_outlined,
+                      color: Colors.white.withValues(alpha: 0.5), size: 28),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ── Bottom Actions ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Host avatar
+                  GestureDetector(
+                    onTap: () {
+                      final user =
+                          MockData.getUserById(podcast.primaryHost.id);
+                      if (user != null) openUserDetail(context, user);
+                    },
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.network(
+                            podcast.primaryHost.avatarUrl,
+                            width: 28,
+                            height: 28,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          podcast.primaryHost.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.share_outlined,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          size: 22),
+                      const SizedBox(width: 24),
+                      Icon(Icons.queue_music_rounded,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          size: 24),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Divider ──
+            Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 28),
+              color: Colors.white.withValues(alpha: 0.06),
+            ),
+
+            // ── Comments Section ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+              child: Row(
+                children: [
                   const Text(
-                    'Player Settings',
+                    'Bình luận',
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Playback Speed
-                  Row(
-                    children: [
-                      const Icon(Icons.speed, color: Colors.white54, size: 20),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Playback Speed',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${_playbackSpeed}x',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Speed selector
-                  Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
-                        final isActive = _playbackSpeed == speed;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              setModalState(() => _playbackSpeed = speed);
-                              setState(() {});
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? Colors.white
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                speed == speed.toInt()
-                                    ? '${speed.toInt()}x'
-                                    : '${speed}x',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: isActive
-                                      ? Colors.black
-                                      : Colors.white38,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
-                  const SizedBox(height: 12),
-
-                  // Subtitles
-                  _buildSettingToggle(
-                    icon: Icons.subtitles_outlined,
-                    title: 'Subtitles',
-                    subtitle: 'Show captions on screen',
-                    value: _showSubtitles,
-                    onChanged: (val) {
-                      setModalState(() => _showSubtitles = val);
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Intro Music
-                  _buildSettingToggle(
-                    icon: Icons.music_note,
-                    title: 'Intro Music',
-                    subtitle: 'Play intro before episode',
-                    value: _introMusic,
-                    onChanged: (val) {
-                      setModalState(() => _introMusic = val);
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Auto-play
-                  _buildSettingToggle(
-                    icon: Icons.playlist_play,
-                    title: 'Auto-play Next',
-                    subtitle: 'Automatically play next episode',
-                    value: _autoPlay,
-                    onChanged: (val) {
-                      setModalState(() => _autoPlay = val);
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Container(height: 1, color: Colors.white.withValues(alpha: 0.05)),
-                  const SizedBox(height: 12),
-
-                  // Repeat Mode
-                  GestureDetector(
-                    onTap: () {
-                      setModalState(() {
-                        if (_repeatMode == 'Off') {
-                          _repeatMode = 'One';
-                        } else if (_repeatMode == 'One') {
-                          _repeatMode = 'All';
-                        } else {
-                          _repeatMode = 'Off';
-                        }
-                      });
-                      setState(() {});
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _repeatMode == 'One'
-                                ? Icons.repeat_one
-                                : Icons.repeat,
-                            color: _repeatMode == 'Off'
-                                ? Colors.white38
-                                : Colors.white,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Repeat',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _repeatMode != 'Off'
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _repeatMode,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: _repeatMode != 'Off'
-                                    ? Colors.black
-                                    : Colors.white38,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Sleep Timer
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _showSleepTimerPicker();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.bedtime_outlined,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Sleep Timer',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right,
-                            color: Colors.white24,
-                            size: 20,
-                          ),
-                        ],
-                      ),
+                  const Spacer(),
+                  Text(
+                    'Hiện tất cả (${comments.length})',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.4),
                     ),
                   ),
                 ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildSettingToggle({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white54, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 11, color: Colors.white24),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: Colors.white,
-            activeTrackColor: Colors.white38,
-            inactiveThumbColor: Colors.white38,
-            inactiveTrackColor: Colors.white12,
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSleepTimerPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: kBgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Sleep Timer',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-            ...[
-              'Off',
-              '15 minutes',
-              '30 minutes',
-              '45 minutes',
-              '1 hour',
-              'End of episode',
-            ].map(
-              (option) => ListTile(
-                title: Text(
-                  option,
-                  style: const TextStyle(color: Colors.white70, fontSize: 15),
-                ),
-                trailing: option == 'Off'
-                    ? const Icon(Icons.check, color: Colors.white, size: 20)
-                    : null,
-                onTap: () => Navigator.pop(ctx),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
+            ), // closes SizedBox
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _onPlayPauseTap,
-      child: Stack(
-        children: [
-          // Background Image
-          Positioned.fill(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentImageIndex = index;
-                });
-              },
-              itemCount: episode.images.length,
-              itemBuilder: (context, index) {
-                return Image.network(
-                  episode.images[index],
-                  fit: BoxFit.cover,
-                  color: Colors.black.withValues(alpha: 0.5),
-                  colorBlendMode: BlendMode.darken,
-                );
-              },
-            ),
-          ),
+            const SizedBox(height: 12),
 
-          // Gradient at top and bottom
-          Positioned.fill(
-            child: IgnorePointer(
+            // Comment list
+            ...comments.map((c) => _buildCommentTile(c)),
+
+            const SizedBox(height: 12),
+
+            // Comment input
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black87,
-                      Colors.black12,
-                      Colors.transparent,
-                      Colors.black54,
-                      Colors.black,
-                    ],
-                    stops: [0.0, 0.2, 0.4, 0.7, 1.0],
-                  ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(24),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.network(
+                        MockData.currentUser.avatarUrl,
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Viết bình luận...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.send_rounded,
+                        color: Colors.white.withValues(alpha: 0.2), size: 20),
+                  ],
                 ),
               ),
             ),
-          ),
 
-          // Floating Bubbles Area (Chat)
-          Positioned(
-            top: 100,
-            left: 16,
-            right: 16,
-            bottom: 160,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: episode.bubbles.map((bubble) {
-                return Align(
-                  alignment: bubble.isRight
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 24),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(20),
-                        topRight: const Radius.circular(20),
-                        bottomLeft: Radius.circular(bubble.isRight ? 20 : 4),
-                        bottomRight: Radius.circular(bubble.isRight ? 4 : 20),
-                      ),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.1),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                bubble.speaker.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(bubble.colorValue),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                bubble.text,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+            const SizedBox(height: 28),
+
+            // ── Divider ──
+            Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 28),
+              color: Colors.white.withValues(alpha: 0.06),
             ),
-          ),
 
-          // Top Bar (Search, Following/For You, Notifications)
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // ── Episode Description ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildCircleIconButton(
-                    Icons.keyboard_arrow_down_rounded,
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                  const Text(
+                    'Mô tả',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                  const SizedBox(), // Used to space out the top right buttons from top left
+                  const SizedBox(height: 12),
+                  Text(
+                    episode.description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      height: 1.6,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
 
-          // Right Action Bar
-          Positioned(
-            right: 12,
-            bottom: 120,
-            child: Column(
-              children: [
-                // Host Avatar
-                SizedBox(
-                  height: 60,
-                  child: Stack(
-                    alignment: Alignment.topCenter,
+            const SizedBox(height: 28),
+
+            // ── Podcast Info Card ──
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: GestureDetector(
+                onTap: () => openPodcastDetail(context, podcast),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06)),
+                  ),
+                  child: Row(
                     children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.black26,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white24, width: 1),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(19),
-                          child: Image.network(
-                            podcast.primaryHost.avatarUrl,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(podcast.imageUrl,
+                            width: 52, height: 52, fit: BoxFit.cover),
                       ),
-                      Positioned(
-                        bottom: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            color: Colors.black,
-                            size: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Like button
-                _buildAnimatedAction(
-                  animation: _likeScale,
-                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                  label: episode.formattedLikes,
-                  color: _isLiked ? Colors.redAccent : Colors.white,
-                  onTap: _onLikeTap,
-                ),
-                // Comment button
-                _buildAnimatedAction(
-                  animation: _commentScale,
-                  icon: Icons.chat_bubble_outline_rounded,
-                  label: episode.formattedComments,
-                  color: Colors.white,
-                  onTap: _onCommentTap,
-                ),
-                // Share button
-                _buildAnimatedAction(
-                  animation: _shareScale,
-                  icon: Icons.share,
-                  label: 'Share',
-                  color: Colors.white,
-                  onTap: _onShareTap,
-                ),
-                // Settings mini button
-                GestureDetector(
-                  onTap: _showPlayerSettings,
-                  child: const Padding(
-                    padding: EdgeInsets.only(bottom: 12.0),
-                    child: Icon(
-                      Icons.menu,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Bottom Info Area
-          Positioned(
-            left: 16,
-            right: 72,
-            bottom: 110,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image Pager indicator (TikTok style dots)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    episode.images.length,
-                    (index) {
-                      final isActive = index == _currentImageIndex;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: isActive ? 16 : 4,
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          color: isActive ? Colors.white : Colors.white30,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Episode Info Chip
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PodcastDetailScreen(podcast: MockData.podcasts.first),
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                              ),
-                              child: const Icon(
-                                Icons.graphic_eq,
-                                size: 12,
-                                color: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
                             Text(
-                              '${podcast.title} • Ep. ${podcast.totalEpisodeCount}'.toUpperCase(),
+                              podcast.title,
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 15,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${podcast.episodes.length} tập • ${podcast.category}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.4),
                               ),
                             ),
                           ],
                         ),
                       ),
+                      Icon(Icons.chevron_right,
+                          color: Colors.white.withValues(alpha: 0.3)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 60),
+          ],
+        ),
+      ),
+    );
+      },
+    );
+  }
+
+  Widget _buildCommentTile(Comment comment) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 0, 28, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: comment.isStoryAvatar
+                  ? Border.all(color: const Color(0xFFE040FB), width: 2)
+                  : null,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.network(comment.avatarUrl,
+                  width: 36, height: 36, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      comment.author,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Text(
+                      comment.time,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-
-                // Title
+                const SizedBox(height: 4),
                 Text(
-                  episode.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Description
-                Text(
-                  episode.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  comment.text,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withValues(alpha: 0.7),
+                    height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 8),
-
-                // Tags
-                if (episode.tags.isNotEmpty)
-                  Row(
-                    children: episode.tags.map((tag) {
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
-                          ),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: tag == '#AI' ? Colors.white : Colors.white70,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.favorite_border,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.3)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${comment.likes}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      'Trả lời',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // Progress Bar (interactive)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 74,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (details) {
-                final width = MediaQuery.of(context).size.width;
-                setState(() {
-                  _progress = (details.localPosition.dx / width).clamp(
-                    0.0,
-                    1.0,
-                  );
-                  _isDraggingProgress = true;
-                });
-              },
-              onTapUp: (_) => setState(() => _isDraggingProgress = false),
-              onHorizontalDragStart: (_) {
-                setState(() => _isDraggingProgress = true);
-              },
-              onHorizontalDragUpdate: (details) {
-                final width = MediaQuery.of(context).size.width;
-                setState(() {
-                  _progress = (details.localPosition.dx / width).clamp(
-                    0.0,
-                    1.0,
-                  );
-                });
-              },
-              onHorizontalDragEnd: (_) {
-                setState(() => _isDraggingProgress = false);
-              },
-              child: SizedBox(
-                height: 20,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final barHeight = _isDraggingProgress ? 6.0 : 2.0;
-                    final totalWidth = constraints.maxWidth;
-                    final activeWidth = totalWidth * _progress;
-                    return Stack(
-                      alignment: Alignment.centerLeft,
-                      children: [
-                        // Background track
-                        Container(
-                          height: barHeight,
-                          width: totalWidth,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        // Active track (left-aligned)
-                        Container(
-                          height: barHeight,
-                          width: activeWidth,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        // Thumb dot
-                        if (_isDraggingProgress)
-                          Positioned(
-                            left: activeWidth - 5,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black26,
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
+  Widget _buildKaraokeBubble() {
+    final bubbles = episode.bubbles;
+    // Show all bubbles up to current point
+    final activeBubbleIndex =
+        (_progress * bubbles.length).floor().clamp(0, bubbles.length - 1);
 
-          // Play/Pause overlay icon
-          if (_showPlayPauseIcon)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Center(
-                  child: AnimatedBuilder(
-                    animation: _playPauseController,
-                    builder: (context, child) {
-                      return Opacity(
-                        opacity: _playPauseOpacity.value,
-                        child: Transform.scale(
-                          scale: _playPauseScale.value,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _isPlaying
-                            ? Icons.play_arrow_rounded
-                            : Icons.pause_rounded,
-                        color: Colors.white,
-                        size: 48,
-                      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(activeBubbleIndex + 1, (i) {
+        final bubble = bubbles[i];
+        final isActive = i == activeBubbleIndex;
+        final opacity = isActive ? 1.0 : 0.5;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            mainAxisAlignment:
+                bubble.isRight ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!bubble.isRight) ...[
+                // Left speaker avatar
+                Opacity(
+                  opacity: opacity,
+                  child: CircleAvatar(
+                    radius: 12,
+                    backgroundImage: NetworkImage(
+                      podcast.hosts.length > 1
+                          ? podcast.hosts.last.avatarUrl
+                          : podcast.primaryHost.avatarUrl,
                     ),
                   ),
                 ),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Opacity(
+                  opacity: opacity,
+                  child: Column(
+                    crossAxisAlignment: bubble.isRight
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      if (i == 0 || bubbles[i - 1].speakerId != bubble.speakerId)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Text(
+                            bubble.speaker,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: bubble.isRight
+                              ? Colors.white.withValues(alpha: isActive ? 0.18 : 0.1)
+                              : Colors.white.withValues(alpha: isActive ? 0.10 : 0.05),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(14),
+                            topRight: const Radius.circular(14),
+                            bottomLeft:
+                                Radius.circular(bubble.isRight ? 14 : 4),
+                            bottomRight:
+                                Radius.circular(bubble.isRight ? 4 : 14),
+                          ),
+                          border: isActive
+                              ? Border.all(
+                                  color: Colors.white.withValues(alpha: 0.15))
+                              : null,
+                        ),
+                        child: Text(
+                          bubble.text,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                isActive ? FontWeight.w500 : FontWeight.w400,
+                            color: Color(bubble.colorValue),
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCircleIconButton(
-    IconData icon, {
-    bool hasBadge = false,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
-          if (hasBadge)
-            Positioned(
-              right: 2,
-              top: 2,
-              child: const SizedBox(
-                width: 8,
-                height: 8,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnimatedAction({
-    required Animation<double> animation,
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12.0),
-        child: AnimatedBuilder(
-          animation: animation,
-          builder: (context, child) {
-            return Transform.scale(scale: animation.value, child: child);
-          },
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 28),
+              if (bubble.isRight) ...[
+                const SizedBox(width: 6),
+                // Right speaker avatar
+                Opacity(
+                  opacity: opacity,
+                  child: CircleAvatar(
+                    radius: 12,
+                    backgroundImage:
+                        NetworkImage(podcast.primaryHost.avatarUrl),
+                  ),
+                ),
+              ],
             ],
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }

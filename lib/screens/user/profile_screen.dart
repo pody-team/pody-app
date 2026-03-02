@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
+import 'following_list_screen.dart';
+import 'my_podcasts_screen.dart';
+import 'listening_history_screen.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
-import 'package:pody/screens/podcast/player_screen.dart';
-import 'package:pody/screens/podcast/podcast_detail_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -110,11 +112,23 @@ class ProfileScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _statChip('${user.listeningHours}h', 'Đã nghe'),
+              GestureDetector(
+                onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ListeningHistoryScreen())),
+                child: _statChip('${user.listeningHours}h', 'Đã nghe'),
+              ),
               _divider(),
-              _statChip('${user.podcastCount}', 'Podcast'),
+              GestureDetector(
+                onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MyPodcastsScreen())),
+                child: _statChip('${user.podcastCount}', 'Podcast'),
+              ),
               _divider(),
-              _statChip('${user.followingCount}', 'Theo dõi'),
+              GestureDetector(
+                onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const FollowingListScreen())),
+                child: _statChip('${user.followingCount}', 'Theo dõi'),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -185,11 +199,7 @@ class _SavedTab extends StatelessWidget {
           GestureDetector(
             onTap: () {
               if (continuePodcast != null) {
-                Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => PlayerScreen(
-                    podcast: continuePodcast,
-                    episode: continueEpisode,
-                  )));
+                openPlayerScreen(context, podcast: continuePodcast, episode: continueEpisode);
               }
             },
             child: Container(
@@ -288,11 +298,7 @@ class _EpisodeRow extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (podcast != null) {
-          Navigator.push(context,
-            MaterialPageRoute(builder: (_) => PlayerScreen(
-              podcast: podcast,
-              episode: episode,
-            )));
+          openPlayerScreen(context, podcast: podcast, episode: episode);
         }
       },
       child: Container(
@@ -358,8 +364,7 @@ class _FollowingTab extends StatelessWidget {
                   final podcast = MockData.podcasts.where(
                     (p) => p.title == ch['name']).firstOrNull;
                   if (podcast != null) {
-                    Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+                    openPodcastDetail(context, podcast);
                   }
                 },
                 child: Padding(
@@ -416,8 +421,7 @@ class _ChannelUpdateRow extends StatelessWidget {
         final podcast = MockData.podcasts.where(
           (p) => p.title == channel['name']).firstOrNull;
         if (podcast != null) {
-          Navigator.push(context,
-            MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+          openPodcastDetail(context, podcast);
         }
       },
       child: Container(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
-import 'package:pody/screens/podcast/player_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 
 class MiniPlayer extends StatefulWidget {
   const MiniPlayer({super.key});
@@ -25,23 +25,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
         ? MockData.getPodcastById(_progress!.podcastId)
         : MockData.podcasts.first;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SizedBox.expand(
-          child: PlayerScreen(
-            podcast: podcast,
-            episode: episode,
-          ),
-        );
-      },
-    );
+    openPlayerScreen(context, podcast: podcast, episode: episode);
   }
 
   @override

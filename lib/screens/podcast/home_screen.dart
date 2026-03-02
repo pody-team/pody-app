@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pody/screens/podcast/search_screen.dart';
-import 'package:pody/screens/podcast/podcast_detail_screen.dart';
+import 'package:pody/utils/player_utils.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
@@ -133,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildPodcastCard(BuildContext context, Podcast podcast) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+        openPodcastDetail(context, podcast);
       },
       child: Container(
         decoration: BoxDecoration(

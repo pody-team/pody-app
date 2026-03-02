@@ -6,6 +6,8 @@ class UserProfile {
   final int listeningHours;
   final int podcastCount;
   final int followingCount;
+  final int followerCount;
+  final bool isFollowing;
 
   const UserProfile({
     required this.id,
@@ -15,5 +17,7 @@ class UserProfile {
     this.listeningHours = 0,
     this.podcastCount = 0,
     this.followingCount = 0,
+    this.followerCount = 0,
+    this.isFollowing = false,
   });
 }

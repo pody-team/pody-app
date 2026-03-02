@@ -45,7 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 40),
+        padding: const EdgeInsets.only(bottom: 160),
         children: [
           // Account
           _buildSectionHeader('Account'),
