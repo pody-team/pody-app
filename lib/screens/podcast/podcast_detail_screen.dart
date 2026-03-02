@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/models/models.dart';
+import 'package:pody/screens/podcast/player_screen.dart';
 
 class PodcastDetailScreen extends StatelessWidget {
   final Podcast podcast;
@@ -230,56 +231,38 @@ class PodcastDetailScreen extends StatelessWidget {
                   bottom: 120,
                 ),
                 sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    _buildEpisodeCard(
-                      number: '42',
-                      title: 'MVC thời hiện đại',
-                      desc:
-                          'Tổng kết về ưu nhược điểm và cái nhìn nhanh về các \'họ hàng\' như MVVM hay MVP trong bối cảnh phát triển app hiện nay.',
-                      duration: '45 min',
-                      date: 'Yesterday',
-                      listenCount: '23.4k',
-                      progress: 0.33,
-                      trailing: Icons.download,
-                      trailingColor: Colors.white38,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildEpisodeCard(
-                      number: '41',
-                      title: 'AI sẽ thay thế Dev?',
-                      desc:
-                          'Một cuộc tranh luận sôi nổi về Copilot, ChatGPT và tương lai của nghề lập trình viên.',
-                      duration: '52 min',
-                      date: 'Oct 24',
-                      listenCount: '45.1k',
-                      trailing: Icons.add_circle,
-                      trailingColor: Colors.white38,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildEpisodeCard(
-                      number: '40',
-                      title: 'Chuyện làm Product',
-                      desc:
-                          'Góc nhìn từ Product Manager về cách cân bằng giữa tính năng, thời gian và nguồn lực.',
-                      duration: '38 min',
-                      date: 'Oct 17',
-                      listenCount: '18.2k',
-                      trailing: Icons.add_circle,
-                      trailingColor: Colors.white38,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildEpisodeCard(
-                      number: '39',
-                      title: 'Burnout & Mental Health',
-                      desc:
-                          'Chia sẻ thật lòng về những giai đoạn khó khăn và cách vượt qua sự kiệt sức trong ngành công nghệ.',
-                      duration: '41 min',
-                      date: 'Oct 10',
-                      listenCount: '31.5k',
-                      trailing: Icons.check_circle,
-                      trailingColor: Colors.white,
-                    ),
-                  ]),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      if (index > podcast.episodes.length * 2 - 2) return null;
+                      if (index.isOdd) return const SizedBox(height: 16);
+                      
+                      final epIndex = index ~/ 2;
+                      final ep = podcast.episodes[epIndex];
+                      return _buildEpisodeCard(
+                        number: '${podcast.episodes.length - epIndex}',
+                        title: ep.title,
+                        desc: ep.description,
+                        duration: ep.formattedDuration,
+                        date: 'Recently',
+                        listenCount: Episode.formatCount(ep.likes),
+                        progress: epIndex == 0 ? 0.33 : null,
+                        trailing: epIndex == 0 ? Icons.download : Icons.add_circle,
+                        trailingColor: epIndex == 0 ? Colors.white38 : Colors.white38,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PlayerScreen(
+                                podcast: podcast,
+                                episode: ep,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    childCount: podcast.episodes.isEmpty ? 0 : podcast.episodes.length * 2 - 1,
+                  ),
                 ),
               ),
             ],
@@ -386,14 +369,17 @@ class PodcastDetailScreen extends StatelessWidget {
     double? progress,
     required IconData trailing,
     required Color trailingColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kBgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kBgCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -535,6 +521,6 @@ class PodcastDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }

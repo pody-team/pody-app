@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pody/data/mock_data.dart';
 import 'package:pody/screens/podcast/player_screen.dart';
 
 class MiniPlayer extends StatefulWidget {
@@ -11,18 +12,33 @@ class MiniPlayer extends StatefulWidget {
 class _MiniPlayerState extends State<MiniPlayer> {
   bool _isPlaying = true;
 
+  // Use the first episode with progress as "currently playing"
+  final _progress = MockData.currentUserProgress.isNotEmpty
+      ? MockData.currentUserProgress.first
+      : null;
+
   void _openFullPlayer(BuildContext context) {
+    final episode = _progress != null
+        ? MockData.getEpisodeById(_progress!.episodeId)
+        : MockData.allEpisodes.first;
+    final podcast = _progress != null
+        ? MockData.getPodcastById(_progress!.podcastId)
+        : MockData.podcasts.first;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, // the PlayerScreen will cover everything
+      backgroundColor: Colors.transparent,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return const SizedBox.expand(
-          child: PlayerScreen(),
+        return SizedBox.expand(
+          child: PlayerScreen(
+            podcast: podcast,
+            episode: episode,
+          ),
         );
       },
     );
@@ -30,11 +46,18 @@ class _MiniPlayerState extends State<MiniPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    final episode = _progress != null
+        ? MockData.getEpisodeById(_progress!.episodeId)
+        : MockData.allEpisodes.first;
+    final podcast = _progress != null
+        ? MockData.getPodcastById(_progress!.podcastId)
+        : MockData.podcasts.first;
+    final progressValue = _progress?.progress ?? 0.0;
+
     return GestureDetector(
       onTap: () => _openFullPlayer(context),
       onVerticalDragEnd: (details) {
         if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-          // Swipe up
           _openFullPlayer(context);
         }
       },
@@ -58,7 +81,9 @@ class _MiniPlayerState extends State<MiniPlayer> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
-                'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
+                episode?.images.isNotEmpty == true
+                    ? episode!.images.first
+                    : (podcast?.imageUrl ?? ''),
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
@@ -72,9 +97,9 @@ class _MiniPlayerState extends State<MiniPlayer> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'MVC thời hiện đại',
-                    style: TextStyle(
+                  Text(
+                    episode?.title ?? 'No episode',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -84,7 +109,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Future Minds • Ep. 42',
+                    '${podcast?.title ?? ''} • Ep. ${podcast?.totalEpisodeCount ?? ''}',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
@@ -95,7 +120,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   const SizedBox(height: 6),
                   // mini progress bar
                   LinearProgressIndicator(
-                    value: 0.4,
+                    value: progressValue,
                     backgroundColor: Colors.white.withValues(alpha: 0.1),
                     color: Colors.white,
                     minHeight: 2,

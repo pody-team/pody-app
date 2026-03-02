@@ -8,7 +8,10 @@ import 'package:pody/screens/social/comments_overlay.dart';
 import 'podcast_detail_screen.dart';
 
 class PlayerScreen extends StatefulWidget {
-  const PlayerScreen({super.key});
+  final Podcast? podcast;
+  final Episode? episode;
+
+  const PlayerScreen({super.key, this.podcast, this.episode});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -17,9 +20,12 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
-    final podcast = MockData.podcasts.first;
-    final episode = podcast.episodes.first;
-    return PodcastFeedItem(episode: episode, podcast: podcast);
+    final podcast = widget.podcast ?? MockData.podcasts.first;
+    final episode = widget.episode ?? podcast.episodes.first;
+    return Material(
+      type: MaterialType.transparency,
+      child: PodcastFeedItem(episode: episode, podcast: podcast),
+    );
   }
 }
 

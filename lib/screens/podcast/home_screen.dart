@@ -5,12 +5,28 @@ import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _selectedCategory = 'Tất cả';
+
+  @override
   Widget build(BuildContext context) {
-    final podcasts = MockData.podcasts;
+    // Filter podcasts based on selected category
+    final podcasts = MockData.podcasts.where((p) {
+      if (_selectedCategory == 'Tất cả') return true;
+      // Match category loosely (assumes mock data categories map to these filter labels)
+      if (_selectedCategory == 'Công nghệ' && p.category == 'Công nghệ') return true;
+      if (_selectedCategory == 'Câu chuyện' && p.category == 'Điều tra') return true; // Mapping example
+      if (_selectedCategory == 'Ngắn < 15p' && p.episodes.isNotEmpty && p.episodes.first.duration.inMinutes < 15) return true;
+      return p.category.contains(_selectedCategory);
+    }).toList();
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -32,7 +48,7 @@ class HomeScreen extends StatelessWidget {
                               scrollDirection: Axis.horizontal,
                               padding: const EdgeInsets.only(left: 16),
                               children: [
-                                _buildFilterChip('Tất cả', isActive: true),
+                                _buildFilterChip('Tất cả'),
                                 _buildFilterChip('Công nghệ'),
                                 _buildFilterChip('Câu chuyện'),
                                 _buildFilterChip('Ngắn < 15p'),
@@ -66,6 +82,17 @@ class HomeScreen extends StatelessWidget {
                       child: _buildPodcastCard(context, podcast),
                     ),
                   ),
+                  // Show empty state if no podcasts match
+                  if (podcasts.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(
+                        child: Text(
+                          'Không có podcast nào phù hợp.',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -75,21 +102,29 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFilterChip(String label, {bool isActive = false}) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: isActive ? kTikRed : Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isActive ? Colors.white : Colors.white60,
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
+  Widget _buildFilterChip(String label) {
+    final isActive = _selectedCategory == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedCategory = label;
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? kTikRed : Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.white60,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
         ),
       ),
     );

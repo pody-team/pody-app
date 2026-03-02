@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
+import 'package:pody/screens/auth/sign_in_screen.dart';
 
 
 class SettingsScreen extends StatefulWidget {
@@ -207,7 +208,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: () {
+                          Navigator.pop(ctx); // pop the dialog
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const SignInScreen()),
+                            (route) => false,
+                          );
+                        },
                         child: const Text(
                           'Log Out',
                           style: TextStyle(

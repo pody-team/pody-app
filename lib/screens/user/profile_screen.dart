@@ -4,6 +4,8 @@ import 'settings_screen.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
+import 'package:pody/screens/podcast/player_screen.dart';
+import 'package:pody/screens/podcast/podcast_detail_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -180,76 +182,87 @@ class _SavedTab extends StatelessWidget {
       children: [
         // Continue Listening banner
         if (continueEpisode != null && continueEp != null)
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.history_rounded, color: Colors.white54, size: 14),
-                    SizedBox(width: 6),
-                    Text('Nghe tiếp',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white54,
-                            letterSpacing: 0.5)),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        continuePodcast?.imageUrl ?? continueEpisode.images.first,
-                        width: 52, height: 52, fit: BoxFit.cover,
+          GestureDetector(
+            onTap: () {
+              if (continuePodcast != null) {
+                Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => PlayerScreen(
+                    podcast: continuePodcast,
+                    episode: continueEpisode,
+                  )));
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.history_rounded, color: Colors.white54, size: 14),
+                      SizedBox(width: 6),
+                      Text('Nghe tiếp',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white54,
+                              letterSpacing: 0.5)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          continuePodcast?.imageUrl ?? continueEpisode.images.first,
+                          width: 52, height: 52, fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(continueEpisode.title,
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: continueEp.progress,
-                              backgroundColor: Colors.white12,
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                              minHeight: 3,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(continueEpisode.title,
+                                style: const TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 4),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: continueEp.progress,
+                                backgroundColor: Colors.white12,
+                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                minHeight: 3,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(continueEp.remainingLabel,
-                              style: const TextStyle(fontSize: 11, color: Colors.white38)),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(continueEp.remainingLabel,
+                                style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                          color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.black, size: 20),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.play_arrow_rounded,
+                            color: Colors.black, size: 20),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         const SizedBox(height: 20),
@@ -272,40 +285,51 @@ class _EpisodeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final podcast = MockData.getPodcastById(episode.podcastId);
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-                episode.images.isNotEmpty ? episode.images.first : (podcast?.imageUrl ?? ''),
-                width: 50, height: 50, fit: BoxFit.cover),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(episode.title,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text('${podcast?.title ?? ''}  ·  ${episode.formattedDuration}',
-                    style: const TextStyle(fontSize: 11, color: Colors.white38)),
-              ],
+    return GestureDetector(
+      onTap: () {
+        if (podcast != null) {
+          Navigator.push(context,
+            MaterialPageRoute(builder: (_) => PlayerScreen(
+              podcast: podcast,
+              episode: episode,
+            )));
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                  episode.images.isNotEmpty ? episode.images.first : (podcast?.imageUrl ?? ''),
+                  width: 50, height: 50, fit: BoxFit.cover),
             ),
-          ),
-          Icon(Icons.play_circle_outline_rounded,
-              color: Colors.white.withValues(alpha: 0.5), size: 26),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(episode.title,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 3),
+                  Text('${podcast?.title ?? ''}  ·  ${episode.formattedDuration}',
+                      style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                ],
+              ),
+            ),
+            Icon(Icons.play_circle_outline_rounded,
+                color: Colors.white.withValues(alpha: 0.5), size: 26),
+          ],
+        ),
       ),
     );
   }
@@ -329,29 +353,39 @@ class _FollowingTab extends StatelessWidget {
             itemCount: following.length,
             itemBuilder: (ctx, i) {
               final ch = following[i];
-              return Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white24, width: 1.5),
+              return GestureDetector(
+                onTap: () {
+                  final podcast = MockData.podcasts.where(
+                    (p) => p.title == ch['name']).firstOrNull;
+                  if (podcast != null) {
+                    Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white24, width: 1.5),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(30),
+                          child: Image.network(ch['imageUrl']!, fit: BoxFit.cover),
+                        ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(30),
-                        child: Image.network(ch['imageUrl']!, fit: BoxFit.cover),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(ch['name']!,
-                        style: const TextStyle(
-                            fontSize: 10, color: Colors.white70, fontWeight: FontWeight.w500),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(ch['name']!,
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.white70, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
                 ),
               );
             },
@@ -377,46 +411,56 @@ class _ChannelUpdateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(channel['imageUrl']!,
-                width: 48, height: 48, fit: BoxFit.cover),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(channel['name']!,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
-                const SizedBox(height: 2),
-                Text('Tập mới vừa phát hành',
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
-              ],
+    return GestureDetector(
+      onTap: () {
+        final podcast = MockData.podcasts.where(
+          (p) => p.title == channel['name']).firstOrNull;
+        if (podcast != null) {
+          Navigator.push(context,
+            MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(channel['imageUrl']!,
+                  width: 48, height: 48, fit: BoxFit.cover),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(channel['name']!,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                  const SizedBox(height: 2),
+                  Text('Tập mới vừa phát hành',
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                ],
+              ),
             ),
-            child: const Text('Xem',
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70)),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text('Xem',
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70)),
+            ),
+          ],
+        ),
       ),
     );
   }

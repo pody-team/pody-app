@@ -533,7 +533,7 @@ class MockData {
     seriesTitle: 'The Oracle Portfolio',
     seriesDescription:
         "A deep dive into Warren Buffett's investment philosophy and early career milestones.",
-    hosts: const [planHostSarah],
+    hosts: const [planHostSarah, planHostMarcus],
     tags: const ['Analytical', 'Professional'],
     toneStyle: 'Analytical, Professional',
     episodes: const [

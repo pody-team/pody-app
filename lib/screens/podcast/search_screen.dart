@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
-
+import 'package:pody/data/mock_data.dart';
+import 'package:pody/screens/podcast/podcast_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -21,22 +22,22 @@ class _SearchScreenState extends State<SearchScreen> {
 
   final List<Map<String, dynamic>> _topResults = [
     {
-      'title': 'Future Minds',
-      'subtitle': 'Hosted by Sarah & Tech Team',
-      'tag': 'TECH',
-      'eps': '124 eps',
-      'image':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuATYB8bGdInAe7ldY3ArRuwbXNgOSgCv93cf_umwxaersMiO-6idUlT4JXFpwUSTBWYaUxs3W4foHJSlIi116P_v-NXG1WPJ_bG3LJmYWFg4oQQe6aZkwYco6UVqt5O8iR2wfmhsQjOt59_QQnvE0ghwkHNXC0FjBst-UPCqL89lfv7T1IDKzYBZRgz7a0j3sSYJxx9nO8pU4XRcinnkKjwcYGD03mXKcfS3FbB6EBA_e0mvrG959LmvX520iuBE7NzNr-AbyPChHk',
+      'title': MockData.podcasts[0].title,
+      'subtitle': 'Hosted by ${MockData.podcasts[0].hostsLabel}',
+      'tag': MockData.podcasts[0].category.toUpperCase(),
+      'eps': '${MockData.podcasts[0].totalEpisodeCount} eps',
+      'image': MockData.podcasts[0].imageUrl,
       'isImage': true,
+      'podcastIndex': 0,
     },
     {
-      'title': 'Dark Mysteries',
-      'subtitle': 'The Detective Agency',
-      'tag': 'CRIME',
-      'eps': '86 eps',
-      'image':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDRyNqWoebcCRyWA9Z01YumR31TnNjxnIwbUUAIbiubmjZz8n4AqMoO_sGjMeNG9Nb5gzGPgVIVWGpwrvBm6AKbhhLVVjvTi1jDJgwDe29EvYIS5fTqEDuGmIu8PVbWTTNfzZp6w09dErSJe5hnQS-DRuyYAfHBMd9Pk7pzFEQ-x0q_Zo_VBGtA1tYEnGVIAM1dDf56POWot-PMEFogFBBMzZrd10Iv26tCL3goroNsN7APhD9BZ1kHtKP7X0v1Am6ntCf_BwLHIY0',
+      'title': MockData.podcasts[1].title,
+      'subtitle': 'Hosted by ${MockData.podcasts[1].hostsLabel}',
+      'tag': MockData.podcasts[1].category.toUpperCase(),
+      'eps': '${MockData.podcasts[1].totalEpisodeCount} eps',
+      'image': MockData.podcasts[1].imageUrl,
       'isImage': true,
+      'podcastIndex': 1,
     },
     {
       'title': 'The Creative Loop',
@@ -325,7 +326,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildResultCard(Map<String, dynamic> item) {
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        if (item.containsKey('podcastIndex')) {
+          final podcast = MockData.podcasts[item['podcastIndex'] as int];
+          Navigator.push(context,
+            MaterialPageRoute(builder: (_) => PodcastDetailScreen(podcast: podcast)));
+        }
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -432,7 +441,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildCategoryCard(Map<String, dynamic> cat) {

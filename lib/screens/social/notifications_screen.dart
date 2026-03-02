@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
+import 'package:pody/screens/podcast/player_screen.dart';
+import 'package:pody/screens/podcast/podcast_detail_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -19,6 +21,41 @@ class NotificationsScreen extends StatelessWidget {
         return Icons.headphones;
       case NotificationType.mention:
         return Icons.alternate_email;
+    }
+  }
+
+  void _handleNotificationTap(BuildContext context, AppNotification notification) {
+    switch (notification.targetType) {
+      case NotificationTargetType.episode:
+        // Find the episode and its parent podcast
+        final episode = MockData.getEpisodeById(notification.targetId ?? '');
+        final podcast = MockData.getPodcastById(episode?.podcastId ?? '');
+        if (episode != null && podcast != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PlayerScreen(
+                podcast: podcast,
+                episode: episode,
+              ),
+            ),
+          );
+        }
+        break;
+      case NotificationTargetType.podcast:
+        final podcast = MockData.getPodcastById(notification.targetId ?? '');
+        if (podcast != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PodcastDetailScreen(podcast: podcast),
+            ),
+          );
+        }
+        break;
+      case NotificationTargetType.profile:
+      case NotificationTargetType.none:
+        break;
     }
   }
 
@@ -55,6 +92,7 @@ class NotificationsScreen extends StatelessWidget {
                 (context, index) => _NotificationTile(
                   notification: unread[index],
                   icon: _iconForType(unread[index].type),
+                  onTap: () => _handleNotificationTap(context, unread[index]),
                 ),
                 childCount: unread.length,
               ),
@@ -82,6 +120,7 @@ class NotificationsScreen extends StatelessWidget {
                 (context, index) => _NotificationTile(
                   notification: read[index],
                   icon: _iconForType(read[index].type),
+                  onTap: () => _handleNotificationTap(context, read[index]),
                 ),
                 childCount: read.length,
               ),
@@ -96,14 +135,17 @@ class NotificationsScreen extends StatelessWidget {
 class _NotificationTile extends StatelessWidget {
   final AppNotification notification;
   final IconData icon;
+  final VoidCallback? onTap;
 
-  const _NotificationTile({required this.notification, required this.icon});
+  const _NotificationTile({required this.notification, required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final isNew = notification.isUnread;
 
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -231,6 +273,6 @@ class _NotificationTile extends StatelessWidget {
           ],
         ],
       ),
-    );
+    ));
   }
 }
