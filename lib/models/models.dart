@@ -1,4 +1,6 @@
+export 'host.dart';
 export 'podcast.dart';
+export 'episode.dart';
 export 'user_profile.dart';
 export 'news_article.dart';
 export 'comment.dart';

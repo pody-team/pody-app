@@ -1,18 +1,5 @@
-class Host {
-  final String id;
-  final String name;
-  final String avatarUrl;
-  final String? voiceId;     // ID giọng nói AI (TTS)
-  final String role;         // 'host', 'co-host', 'guest'
-
-  const Host({
-    required this.id,
-    required this.name,
-    required this.avatarUrl,
-    this.voiceId,
-    this.role = 'host',
-  });
-}
+import 'host.dart';
+import 'episode.dart';
 
 class Podcast {
   final String id;
@@ -56,46 +43,4 @@ class Podcast {
       isFollowing: isFollowing ?? this.isFollowing,
     );
   }
-}
-
-class Episode {
-  final String id;
-  final String podcastId;
-  final String title;
-  final String description;
-  final String duration;
-  final List<String> images;
-  final List<String> tags;
-  final List<ChatBubble> bubbles;
-  final String likes;
-  final String comments;
-
-  const Episode({
-    required this.id,
-    required this.podcastId,
-    required this.title,
-    required this.description,
-    required this.duration,
-    required this.images,
-    this.tags = const [],
-    this.bubbles = const [],
-    required this.likes,
-    required this.comments,
-  });
-}
-
-class ChatBubble {
-  final String speakerId; // references Host.id
-  final String speaker;   // display name (for quick access)
-  final String text;
-  final bool isRight;
-  final int colorValue;
-
-  const ChatBubble({
-    required this.speakerId,
-    required this.speaker,
-    required this.text,
-    required this.isRight,
-    this.colorValue = 0xFFFFFFFF,
-  });
 }
