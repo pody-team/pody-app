@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pody/data/mock_data.dart';
+import 'package:pody/state/player_state.dart';
 import 'package:pody/utils/player_utils.dart';
 
 class MiniPlayer extends StatefulWidget {
@@ -10,33 +10,39 @@ class MiniPlayer extends StatefulWidget {
 }
 
 class _MiniPlayerState extends State<MiniPlayer> {
-  bool _isPlaying = true;
+  final _playerState = PlayerState.instance;
 
-  // Use the first episode with progress as "currently playing"
-  final _progress = MockData.currentUserProgress.isNotEmpty
-      ? MockData.currentUserProgress.first
-      : null;
+  @override
+  void initState() {
+    super.initState();
+    _playerState.addListener(_onStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _playerState.removeListener(_onStateChanged);
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) setState(() {});
+  }
 
   void _openFullPlayer(BuildContext context) {
-    final episode = _progress != null
-        ? MockData.getEpisodeById(_progress!.episodeId)
-        : MockData.allEpisodes.first;
-    final podcast = _progress != null
-        ? MockData.getPodcastById(_progress!.podcastId)
-        : MockData.podcasts.first;
-
-    openPlayerScreen(context, podcast: podcast, episode: episode);
+    final podcast = _playerState.podcast;
+    final episode = _playerState.episode;
+    if (podcast != null && episode != null) {
+      openPlayerScreen(context, podcast: podcast, episode: episode);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final episode = _progress != null
-        ? MockData.getEpisodeById(_progress!.episodeId)
-        : MockData.allEpisodes.first;
-    final podcast = _progress != null
-        ? MockData.getPodcastById(_progress!.podcastId)
-        : MockData.podcasts.first;
-    final progressValue = _progress?.progress ?? 0.0;
+    final episode = _playerState.episode;
+    final podcast = _playerState.podcast;
+    final progressValue = _playerState.progress;
+
+    if (episode == null || podcast == null) return const SizedBox.shrink();
 
     return GestureDetector(
       onTap: () => _openFullPlayer(context),
@@ -65,9 +71,9 @@ class _MiniPlayerState extends State<MiniPlayer> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
-                episode?.images.isNotEmpty == true
-                    ? episode!.images.first
-                    : (podcast?.imageUrl ?? ''),
+                episode.images.isNotEmpty
+                    ? episode.images.first
+                    : podcast.imageUrl,
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
@@ -82,7 +88,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    episode?.title ?? 'No episode',
+                    episode.title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -93,7 +99,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${podcast?.title ?? ''} • Ep. ${podcast?.totalEpisodeCount ?? ''}',
+                    '${podcast.title} • Ep. ${podcast.totalEpisodeCount}',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
@@ -120,10 +126,12 @@ class _MiniPlayerState extends State<MiniPlayer> {
             ),
             IconButton(
               onPressed: () {
-                setState(() => _isPlaying = !_isPlaying);
+                _playerState.togglePlayPause();
               },
               icon: Icon(
-                _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                _playerState.isPlaying
+                    ? Icons.pause_circle_filled
+                    : Icons.play_circle_fill,
                 color: Colors.white,
                 size: 36,
               ),

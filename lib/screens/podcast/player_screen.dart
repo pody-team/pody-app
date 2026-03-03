@@ -22,6 +22,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   double _playbackSpeed = 1.0;
   bool _isLiked = false;
   bool _showSubs = true;
+  final ScrollController _scrollController = ScrollController();
+  double _dragStart = 0;
 
   Episode get episode => widget.episode ?? podcast.episodes.first;
   Podcast get podcast => widget.podcast ?? MockData.podcasts.first;
@@ -73,7 +75,24 @@ class _PlayerScreenState extends State<PlayerScreen>
               ],
             ),
           ),
-          child: SingleChildScrollView(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification is OverscrollNotification &&
+                  notification.overscroll < 0) {
+                _dragStart += notification.overscroll.abs();
+                if (_dragStart > 15) {
+                  _dragStart = 0;
+                  Navigator.pop(context);
+                }
+              }
+              if (notification is ScrollEndNotification) {
+                _dragStart = 0;
+              }
+              return false;
+            },
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const ClampingScrollPhysics(),
             child: Column(
               children: [
                 // Player area fills the actual modal height
@@ -124,8 +143,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.more_vert, color: Colors.white, size: 24),
+                  const SizedBox(width: 44),
                 ],
               ),
             ),
@@ -171,22 +189,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                           child: _buildKaraokeBubble(),
                         ),
                       ),
-                    // Cast icon
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.cast,
-                            color: Colors.white.withValues(alpha: 0.7),
-                            size: 18),
-                      ),
-                    ),
+
                     // Subtitle toggle
                     Positioned(
                       top: 12,
@@ -226,16 +229,14 @@ class _PlayerScreenState extends State<PlayerScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          episode.title,
+                        _MarqueeText(
+                          text: episode.title,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             height: 1.2,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         GestureDetector(
@@ -630,6 +631,7 @@ class _PlayerScreenState extends State<PlayerScreen>
           ],
         ),
       ),
+    ),
     );
       },
     );
@@ -830,6 +832,111 @@ class _PlayerScreenState extends State<PlayerScreen>
           ),
         );
       }),
+    );
+  }
+}
+
+/// Spotify-style marquee text that scrolls horizontally when overflowing.
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _MarqueeText({required this.text, required this.style});
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText>
+    with SingleTickerProviderStateMixin {
+  late final ScrollController _scrollController;
+  late final AnimationController _animController;
+  bool _needsScroll = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.maxScrollExtent > 0) {
+        setState(() => _needsScroll = true);
+        _startScrolling();
+      }
+    });
+  }
+
+  void _startScrolling() async {
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+
+    _animController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        Future.delayed(const Duration(seconds: 1), () {
+          if (!mounted) return;
+          _scrollController.jumpTo(0);
+          _animController.reset();
+          Future.delayed(const Duration(seconds: 1), () {
+            if (!mounted) return;
+            _animController.forward();
+          });
+        });
+      }
+    });
+
+    _animController.addListener(() {
+      if (_scrollController.hasClients) {
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        _scrollController.jumpTo(maxScroll * _animController.value);
+      }
+    });
+
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: (widget.style.fontSize ?? 18) * (widget.style.height ?? 1.2) + 2,
+      child: ShaderMask(
+        shaderCallback: (bounds) {
+          return LinearGradient(
+            colors: [
+              if (_needsScroll) Colors.transparent else Colors.white,
+              Colors.white,
+              Colors.white,
+              if (_needsScroll) Colors.transparent else Colors.white,
+            ],
+            stops: const [0.0, 0.05, 0.95, 1.0],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.dstIn,
+        child: ListView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            Text(
+              widget.text,
+              style: widget.style,
+              maxLines: 1,
+              softWrap: false,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
