@@ -132,8 +132,8 @@ class _NewsScreenState extends State<NewsScreen> {
                   child: Container(
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
+                      gradient: LinearGradient(
+                        colors: [kTikRed, kTikRed.withValues(alpha: 0.8)],
                       ),
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -199,7 +199,7 @@ class _NewsScreenState extends State<NewsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.06),
+                color: isSelected ? kTikRed : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -207,7 +207,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.black : Colors.white70,
+                  color: isSelected ? Colors.white : Colors.white70,
                 ),
               ),
             ),

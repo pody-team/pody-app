@@ -13,6 +13,214 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
   late final ProductionPlan _plan = MockData.samplePlan;
   late bool _autoGenerateImages = _plan.autoGenerateImages;
   late bool _autoGenerateIntroMusic = _plan.autoGenerateIntroMusic;
+  late List<Host> _hosts = List.from(_plan.hosts);
+
+  // Available AI voices
+  static const List<Map<String, String>> _availableVoices = [
+    {'id': 'v_male_deep', 'name': 'Nam trầm', 'desc': 'Giọng nam trầm ấm, phù hợp tin tức'},
+    {'id': 'v_male_young', 'name': 'Nam trẻ', 'desc': 'Giọng nam trẻ năng động'},
+    {'id': 'v_female_warm', 'name': 'Nữ ấm', 'desc': 'Giọng nữ ấm áp, thân thiện'},
+    {'id': 'v_female_pro', 'name': 'Nữ chuyên nghiệp', 'desc': 'Giọng nữ rõ ràng, chuyên nghiệp'},
+    {'id': 'v_neutral', 'name': 'Trung tính', 'desc': 'Giọng trung tính, đa năng'},
+    {'id': 'v_narrator', 'name': 'Narrator', 'desc': 'Giọng kể chuyện điềm đạm'},
+  ];
+
+  void _openHostEditor(int hostIndex) {
+    final host = _hosts[hostIndex];
+    final nameController = TextEditingController(text: host.name);
+    String selectedVoice = host.voiceId ?? 'v_male_deep';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF252525),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Title
+                    const Text(
+                      'Chỉnh sửa giọng nói',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Host name
+                    const Text(
+                      'Tên host',
+                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: nameController,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.07),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        prefixIcon: const Icon(Icons.person, color: Colors.white38, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Voice selection
+                    const Text(
+                      'Chọn giọng nói AI',
+                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    ...List.generate(_availableVoices.length, (i) {
+                      final voice = _availableVoices[i];
+                      final isSelected = selectedVoice == voice['id'];
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() => selectedVoice = voice['id']!);
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFFE2C55).withValues(alpha: 0.12)
+                                : Colors.white.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFFFE2C55).withValues(alpha: 0.4)
+                                  : Colors.white.withValues(alpha: 0.06),
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFFFE2C55).withValues(alpha: 0.2)
+                                      : Colors.white.withValues(alpha: 0.06),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.graphic_eq,
+                                  color: isSelected ? const Color(0xFFFE2C55) : Colors.white38,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      voice['name']!,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.white70,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      voice['desc']!,
+                                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isSelected)
+                                const Icon(Icons.check_circle, color: Color(0xFFFE2C55), size: 22),
+                              if (!isSelected)
+                                Icon(Icons.play_circle_outline,
+                                    color: Colors.white.withValues(alpha: 0.2), size: 22),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+
+                    // Save button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _hosts[hostIndex] = Host(
+                              id: host.id,
+                              name: nameController.text.trim().isNotEmpty
+                                  ? nameController.text.trim()
+                                  : host.name,
+                              avatarUrl: host.avatarUrl,
+                              voiceId: selectedVoice,
+                              role: host.role,
+                            );
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFE2C55),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text(
+                          'Lưu thay đổi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -110,14 +318,22 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             Wrap(
               spacing: 12,
               runSpacing: 12,
-              children: _plan.hosts.map((host) => SizedBox(
-                width: (MediaQuery.of(context).size.width - 44) / 2,
-                child: _buildHostVoiceSelector(
-                  name: host.name,
-                  voiceType: host.voiceId ?? host.role,
-                  onTap: () {},
-                ),
-              )).toList(),
+              children: List.generate(_hosts.length, (i) {
+                final host = _hosts[i];
+                // Resolve voice name
+                final voiceName = _availableVoices
+                    .where((v) => v['id'] == host.voiceId)
+                    .map((v) => v['name']!)
+                    .firstOrNull ?? host.voiceId ?? host.role;
+                return SizedBox(
+                  width: (MediaQuery.of(context).size.width - 44) / 2,
+                  child: _buildHostVoiceSelector(
+                    name: host.name,
+                    voiceType: voiceName,
+                    onTap: () => _openHostEditor(i),
+                  ),
+                );
+              }),
             ),
             const SizedBox(height: 16),
 

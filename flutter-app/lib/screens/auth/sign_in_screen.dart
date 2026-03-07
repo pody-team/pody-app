@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'sign_up_screen.dart';
+import 'forgot_password_screen.dart';
 import 'package:pody/main.dart'; // To navigate to home after login
 
 class SignInScreen extends StatefulWidget {
@@ -137,7 +138,14 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(

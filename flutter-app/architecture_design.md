@@ -1,6 +1,7 @@
 # Kiến Trúc Hệ Thống Pody (Microservices Architecture)
 
-Thay vì một cơ sở dữ liệu nguyên khối (Monolithic Database) khổng lồ chứa mọi thứ, Pody được thiết kế theo kiến trúc **Microservices (Đa dịch vụ)**. Mỗi dịch vụ ranh giới (Domain) sẽ tự quản lý vòng đời và cơ sở dữ liệu riêng của nó (Database-per-service). Điều này giúp hệ thống chịu tải tốt (Scale independent), không bị "chết chùm", và tối ưu hóa loại CSDL (SQL/NoSQL) cho đúng ngữ cảnh.
+Thay vì một cơ sở dữ liệu nguyên khối (Monolithic Database) khổng lồ chứa mọi thứ, Pody được thiết kế theo kiến trúc **Microservices (Đa dịch vụ)**. Mỗi dịch vụ ranh giới (Domain) sẽ tự quản lý vòng đời và cơ sở dữ liệu riêng của nó (Database-per-service). Điều này giúp hệ thống chịu tải tốt (Scale independø
+ent), không bị "chết chùm", và tối ưu hóa loại CSDL (SQL/NoSQL) cho đúng ngữ cảnh.
 
 ## 1. Sơ Đồ Kiến Trúc Tổng Thể
 
