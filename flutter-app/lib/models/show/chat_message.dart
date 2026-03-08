@@ -26,7 +26,7 @@ class ChatMessage {
   bool get hasAttachments => attachments.isNotEmpty;
 }
 
-/// The full conversation thread for creating a podcast.
+/// The full conversation thread for creating a show.
 class ChatThread {
   final String id;
   final String title;

@@ -5,10 +5,10 @@ import 'package:pody/utils/player_utils.dart';
 import 'package:pody/widgets/episode_companion_section.dart';
 
 class PlayerScreen extends StatefulWidget {
-  final Podcast? podcast;
+  final Show? show;
   final Episode? episode;
 
-  const PlayerScreen({super.key, this.podcast, this.episode});
+  const PlayerScreen({super.key, this.show, this.episode});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -26,8 +26,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   double _dragStart = 0;
   int _lastActiveIndex = -1;
 
-  Episode get episode => widget.episode ?? podcast.episodes.first;
-  Podcast get podcast => widget.podcast ?? MockData.podcasts.first;
+  Episode get episode => widget.episode ?? show.episodes.first;
+  Show get show => widget.show ?? MockData.shows.first;
 
   String get _currentTime {
     final total = episode.duration.inSeconds;
@@ -107,7 +107,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  podcast.title,
+                                  show.title,
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
@@ -323,7 +323,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                               GestureDetector(
                                 onTap: () {
                                   final user = MockData.getUserById(
-                                    podcast.primaryHost.id,
+                                    show.primaryHost.id,
                                   );
                                   if (user != null) {
                                     openUserDetail(context, user);
@@ -349,7 +349,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      podcast.primaryHost.name,
+                                      show.primaryHost.name,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.white.withValues(
@@ -408,7 +408,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  EpisodeCompanionSection(podcast: podcast, episode: episode),
+                  EpisodeCompanionSection(show: show, episode: episode),
                   Container(
                     height: 1,
                     margin: const EdgeInsets.symmetric(horizontal: 28),
@@ -443,7 +443,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: GestureDetector(
-                      onTap: () => openPodcastDetail(context, podcast),
+                      onTap: () => openShowDetail(context, show),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -475,7 +475,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    podcast.title,
+                                    show.title,
                                     style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
@@ -484,7 +484,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${podcast.episodes.length} tập • ${podcast.category}',
+                                    '${show.episodes.length} tập • ${show.category}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.white.withValues(

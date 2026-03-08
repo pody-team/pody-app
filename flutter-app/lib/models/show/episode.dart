@@ -17,7 +17,7 @@ class ChatBubble {
 
 class Episode {
   final String id;
-  final String podcastId;
+  final String showId;
   final String title;
   final String description;
   final Duration duration;
@@ -29,7 +29,7 @@ class Episode {
 
   const Episode({
     required this.id,
-    required this.podcastId,
+    required this.showId,
     required this.title,
     required this.description,
     required this.duration,

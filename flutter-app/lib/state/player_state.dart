@@ -14,24 +14,24 @@ class PlayerState extends ChangeNotifier {
     _episode = progress != null
         ? MockData.getEpisodeById(progress.episodeId)
         : MockData.allEpisodes.first;
-    _podcast = progress != null
-        ? MockData.getPodcastById(progress.podcastId)
-        : MockData.podcasts.first;
+    _show = progress != null
+        ? MockData.getShowById(progress.showId)
+        : MockData.shows.first;
     _progress = progress?.progress ?? 0.0;
   }
 
   Episode? _episode;
-  Podcast? _podcast;
+  Show? _show;
   double _progress = 0.0;
   bool _isPlaying = true;
 
   Episode? get episode => _episode;
-  Podcast? get podcast => _podcast;
+  Show? get show => _show;
   double get progress => _progress;
   bool get isPlaying => _isPlaying;
 
-  void play({required Podcast podcast, required Episode episode}) {
-    _podcast = podcast;
+  void play({required Show show, required Episode episode}) {
+    _show = show;
     _episode = episode;
     _progress = 0.0;
     _isPlaying = true;

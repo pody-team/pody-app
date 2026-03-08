@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/utils/player_utils.dart';
 
-class MyPodcastsScreen extends StatelessWidget {
-  const MyPodcastsScreen({super.key});
+class MyShowsScreen extends StatelessWidget {
+  const MyShowsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final podcasts = MockData.podcasts;
+    final shows = MockData.shows;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F0E13),
@@ -34,12 +34,12 @@ class MyPodcastsScreen extends StatelessWidget {
       ),
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-        itemCount: podcasts.length,
+        itemCount: shows.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          final podcast = podcasts[index];
+          final show = shows[index];
           return GestureDetector(
-            onTap: () => openPodcastDetail(context, podcast),
+            onTap: () => openShowDetail(context, show),
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -53,7 +53,7 @@ class MyPodcastsScreen extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
-                      podcast.imageUrl,
+                      show.imageUrl,
                       width: 64,
                       height: 64,
                       fit: BoxFit.cover,
@@ -66,7 +66,7 @@ class MyPodcastsScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          podcast.title,
+                          show.title,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -75,7 +75,7 @@ class MyPodcastsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${podcast.episodes.length} tập • ${podcast.subscriberCount} theo dõi',
+                          '${show.episodes.length} tập • ${show.subscriberCount} theo dõi',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.white.withValues(alpha: 0.4),
@@ -93,7 +93,7 @@ class MyPodcastsScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            podcast.category,
+                            show.category,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,

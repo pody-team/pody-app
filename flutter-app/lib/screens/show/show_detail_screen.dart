@@ -5,10 +5,10 @@ import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
 
-class PodcastDetailScreen extends StatelessWidget {
-  final Podcast podcast;
+class ShowDetailScreen extends StatelessWidget {
+  final Show show;
 
-  const PodcastDetailScreen({super.key, required this.podcast});
+  const ShowDetailScreen({super.key, required this.show});
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +65,7 @@ class PodcastDetailScreen extends StatelessWidget {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(24),
                                 child: Image.network(
-                                  podcast.imageUrl,
+                                  show.imageUrl,
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -75,7 +75,7 @@ class PodcastDetailScreen extends StatelessWidget {
 
                           // Podcast Title
                           Text(
-                            podcast.title,
+                            show.title,
                             style: const TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -87,7 +87,7 @@ class PodcastDetailScreen extends StatelessWidget {
 
                           // Hosted by
                           Text(
-                            'Hosted by ${podcast.hostsLabel}',
+                            'Hosted by ${show.hostsLabel}',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -99,7 +99,7 @@ class PodcastDetailScreen extends StatelessWidget {
                           // Author row
                           Builder(
                             builder: (context) {
-                              final author = MockData.getUserById(podcast.authorId);
+                              final author = MockData.getUserById(show.authorId);
                               if (author == null) return const SizedBox.shrink();
                               return GestureDetector(
                                 onTap: () {
@@ -284,13 +284,13 @@ class PodcastDetailScreen extends StatelessWidget {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      if (index > podcast.episodes.length * 2 - 2) return null;
+                      if (index > show.episodes.length * 2 - 2) return null;
                       if (index.isOdd) return const SizedBox(height: 16);
                       
                       final epIndex = index ~/ 2;
-                      final ep = podcast.episodes[epIndex];
+                      final ep = show.episodes[epIndex];
                       return _buildEpisodeCard(
-                        number: '${podcast.episodes.length - epIndex}',
+                        number: '${show.episodes.length - epIndex}',
                         title: ep.title,
                         desc: ep.description,
                         duration: ep.formattedDuration,
@@ -300,11 +300,11 @@ class PodcastDetailScreen extends StatelessWidget {
                         trailing: epIndex == 0 ? Icons.download : Icons.add_circle,
                         trailingColor: epIndex == 0 ? Colors.white38 : Colors.white38,
                         onTap: () {
-                          openPlayerScreen(context, podcast: podcast, episode: ep);
+                          openPlayerScreen(context, show: show, episode: ep);
                         },
                       );
                     },
-                    childCount: podcast.episodes.isEmpty ? 0 : podcast.episodes.length * 2 - 1,
+                    childCount: show.episodes.isEmpty ? 0 : show.episodes.length * 2 - 1,
                   ),
                 ),
               ),

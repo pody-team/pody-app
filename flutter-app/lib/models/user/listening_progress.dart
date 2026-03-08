@@ -2,7 +2,7 @@
 /// This is per-user data, separate from episode metadata.
 class ListeningProgress {
   final String episodeId;
-  final String podcastId;
+  final String showId;
   final double progress;        // 0.0 – 1.0
   final Duration position;      // exact seek position
   final Duration totalDuration;
@@ -11,7 +11,7 @@ class ListeningProgress {
 
   const ListeningProgress({
     required this.episodeId,
-    required this.podcastId,
+    required this.showId,
     this.progress = 0.0,
     this.position = Duration.zero,
     this.totalDuration = Duration.zero,
@@ -28,7 +28,7 @@ class ListeningProgress {
   }) {
     return ListeningProgress(
       episodeId: episodeId,
-      podcastId: podcastId,
+      showId: showId,
       progress: progress ?? this.progress,
       position: position ?? this.position,
       totalDuration: totalDuration ?? this.totalDuration,

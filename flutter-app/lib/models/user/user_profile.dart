@@ -4,7 +4,7 @@ class UserProfile {
   final String avatarUrl;
   final String bio;
   final int listeningHours;
-  final int podcastCount;
+  final int showCount;
   final int followingCount;
   final int followerCount;
   final bool isFollowing;
@@ -15,7 +15,7 @@ class UserProfile {
     required this.avatarUrl,
     this.bio = '',
     this.listeningHours = 0,
-    this.podcastCount = 0,
+    this.showCount = 0,
     this.followingCount = 0,
     this.followerCount = 0,
     this.isFollowing = false,

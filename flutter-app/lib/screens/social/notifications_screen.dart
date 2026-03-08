@@ -26,17 +26,17 @@ class NotificationsScreen extends StatelessWidget {
   void _handleNotificationTap(BuildContext context, AppNotification notification) {
     switch (notification.targetType) {
       case NotificationTargetType.episode:
-        // Find the episode and its parent podcast
+        // Find the episode and its parent show
         final episode = MockData.getEpisodeById(notification.targetId ?? '');
-        final podcast = MockData.getPodcastById(episode?.podcastId ?? '');
-        if (episode != null && podcast != null) {
-          openPlayerScreen(context, podcast: podcast, episode: episode);
+        final show = MockData.getShowById(episode?.showId ?? '');
+        if (episode != null && show != null) {
+          openPlayerScreen(context, show: show, episode: episode);
         }
         break;
-      case NotificationTargetType.podcast:
-        final podcast = MockData.getPodcastById(notification.targetId ?? '');
-        if (podcast != null) {
-          openPodcastDetail(context, podcast);
+      case NotificationTargetType.show:
+        final show = MockData.getShowById(notification.targetId ?? '');
+        if (show != null) {
+          openShowDetail(context, show);
         }
         break;
       case NotificationTargetType.profile:

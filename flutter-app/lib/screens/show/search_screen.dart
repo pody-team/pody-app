@@ -25,20 +25,20 @@ class _SearchScreenState extends State<SearchScreen> {
 
   final List<Map<String, dynamic>> _topResults = [
     {
-      'title': MockData.podcasts[0].title,
-      'subtitle': 'Hosted by ${MockData.podcasts[0].hostsLabel}',
-      'tag': MockData.podcasts[0].category.toUpperCase(),
-      'eps': '${MockData.podcasts[0].totalEpisodeCount} eps',
-      'image': MockData.podcasts[0].imageUrl,
+      'title': MockData.shows[0].title,
+      'subtitle': 'Hosted by ${MockData.shows[0].hostsLabel}',
+      'tag': MockData.shows[0].category.toUpperCase(),
+      'eps': '${MockData.shows[0].totalEpisodeCount} eps',
+      'image': MockData.shows[0].imageUrl,
       'isImage': true,
       'podcastIndex': 0,
     },
     {
-      'title': MockData.podcasts[1].title,
-      'subtitle': 'Hosted by ${MockData.podcasts[1].hostsLabel}',
-      'tag': MockData.podcasts[1].category.toUpperCase(),
-      'eps': '${MockData.podcasts[1].totalEpisodeCount} eps',
-      'image': MockData.podcasts[1].imageUrl,
+      'title': MockData.shows[1].title,
+      'subtitle': 'Hosted by ${MockData.shows[1].hostsLabel}',
+      'tag': MockData.shows[1].category.toUpperCase(),
+      'eps': '${MockData.shows[1].totalEpisodeCount} eps',
+      'image': MockData.shows[1].imageUrl,
       'isImage': true,
       'podcastIndex': 1,
     },
@@ -383,8 +383,8 @@ class _SearchScreenState extends State<SearchScreen> {
     return GestureDetector(
       onTap: () {
         if (item.containsKey('podcastIndex')) {
-          final podcast = MockData.podcasts[item['podcastIndex'] as int];
-          openPodcastDetail(context, podcast);
+          final show = MockData.shows[item['podcastIndex'] as int];
+          openShowDetail(context, show);
         }
       },
       child: Container(

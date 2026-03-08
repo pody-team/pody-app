@@ -18,15 +18,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     // Pull data from MockData
-    final allPodcasts = MockData.podcasts;
+    final allPodcasts = MockData.shows;
     final progress = MockData.currentUserProgress;
 
     // "Recently Played" = episodes with listening progress
     final recentlyPlayed = progress.map((p) {
       final ep = MockData.getEpisodeById(p.episodeId);
-      final pod = MockData.getPodcastById(p.podcastId);
-      return {'episode': ep, 'podcast': pod, 'progress': p};
-    }).where((m) => m['episode'] != null && m['podcast'] != null).toList();
+      final pod = MockData.getShowById(p.showId);
+      return {'episode': ep, 'show': pod, 'progress': p};
+    }).where((m) => m['episode'] != null && m['show'] != null).toList();
 
     return ListView(
       padding: const EdgeInsets.only(top: 16, bottom: 100),
@@ -81,10 +81,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             separatorBuilder: (context, index) => const SizedBox(width: 16),
             itemBuilder: (context, index) {
               final ep = recentlyPlayed[index]['episode'] as Episode;
-              final pod = recentlyPlayed[index]['podcast'] as Podcast;
+              final pod = recentlyPlayed[index]['show'] as Show;
               return GestureDetector(
                 onTap: () {
-                  openPlayerScreen(context, podcast: pod, episode: ep);
+                  openPlayerScreen(context, show: pod, episode: ep);
                 },
                 child: SizedBox(
                   width: 120,
@@ -126,10 +126,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
-            children: allPodcasts.map((podcast) {
+            children: allPodcasts.map((show) {
               return GestureDetector(
                 onTap: () {
-                  openPodcastDetail(context, podcast);
+                  openShowDetail(context, show);
                 },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -143,7 +143,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          podcast.imageUrl,
+                          show.imageUrl,
                           width: 50,
                           height: 50,
                           fit: BoxFit.cover,
@@ -155,7 +155,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              podcast.title,
+                              show.title,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -166,7 +166,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${podcast.episodes.length} episodes available',
+                              '${show.episodes.length} episodes available',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.white54,

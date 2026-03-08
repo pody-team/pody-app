@@ -146,7 +146,7 @@ class _SignInScreenState extends State<SignInScreen>
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Đăng nhập để tiếp tục nghe, tạo và quản lý podcast.',
+                          'Đăng nhập để tiếp tục nghe, tạo và quản lý show.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 15,

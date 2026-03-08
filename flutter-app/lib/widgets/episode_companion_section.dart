@@ -7,11 +7,11 @@ import 'package:pody/models/models.dart';
 class EpisodeCompanionSection extends StatefulWidget {
   const EpisodeCompanionSection({
     super.key,
-    required this.podcast,
+    required this.show,
     required this.episode,
   });
 
-  final Podcast podcast;
+  final Show show;
   final Episode episode;
 
   @override
@@ -126,7 +126,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
   }
 
   List<EpisodeCompanionBlock> _buildBlocksForPodcast() {
-    switch (widget.podcast.category) {
+    switch (widget.show.category) {
       case 'Điều tra':
         return _storyBlocks();
       case 'Công nghệ':
@@ -198,7 +198,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
               'Mockup cho block so do dieu tra, co the mo fullscreen sau.',
           imageUrl: widget.episode.images.length > 1
               ? widget.episode.images[1]
-              : widget.podcast.imageUrl,
+              : widget.show.imageUrl,
           chips: const [
             'Nan nhan',
             'DNA',
@@ -283,7 +283,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
           subtitle: 'Mockup cho block so do, hop voi podcast hoc va cong nghe.',
           imageUrl: widget.episode.images.length > 1
               ? widget.episode.images[1]
-              : widget.podcast.imageUrl,
+              : widget.show.imageUrl,
           chips: const [
             'View',
             'Controller',
@@ -354,7 +354,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
           title: 'Diem noi bat',
           items: [
             widget.episode.description,
-            'Block dang anh, timeline, quiz co the bat tuy tung podcast.',
+            'Block dang anh, timeline, quiz co the bat tuy tung show.',
           ],
         ),
       ),
@@ -363,7 +363,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
         data: const QuoteBlockData(
           title: 'Quote',
           quote:
-              'Companion blocks nen duoc chon theo tung loai podcast, khong nen dung mot bo cho tat ca.',
+              'Companion blocks nen duoc chon theo tung loai show, khong nen dung mot bo cho tat ca.',
           attribution: 'Pody Companion',
         ),
       ),
@@ -374,7 +374,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
           subtitle: 'Block anh mac dinh cho cac podcast chua co pack rieng.',
           imageUrl: widget.episode.images.isNotEmpty
               ? widget.episode.images.first
-              : widget.podcast.imageUrl,
+              : widget.show.imageUrl,
           chips: widget.episode.tags.take(3).toList(),
         ),
       ),

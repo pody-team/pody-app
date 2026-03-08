@@ -110,15 +110,15 @@ class ListeningHistoryScreen extends StatelessWidget {
               itemBuilder: (context, index) {
                 final p = progress[index];
                 final episode = MockData.getEpisodeById(p.episodeId);
-                final podcast = MockData.getPodcastById(p.podcastId);
-                if (episode == null || podcast == null) {
+                final show = MockData.getShowById(p.showId);
+                if (episode == null || show == null) {
                   return const SizedBox.shrink();
                 }
 
                 return GestureDetector(
                   onTap: () => openPlayerScreen(
                     context,
-                    podcast: podcast,
+                    show: show,
                     episode: episode,
                   ),
                   child: Container(
@@ -139,7 +139,7 @@ class ListeningHistoryScreen extends StatelessWidget {
                           child: Image.network(
                             episode.images.isNotEmpty
                                 ? episode.images.first
-                                : podcast.imageUrl,
+                                : show.imageUrl,
                             width: 52,
                             height: 52,
                             fit: BoxFit.cover,
@@ -163,7 +163,7 @@ class ListeningHistoryScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                podcast.title,
+                                show.title,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white.withValues(alpha: 0.4),

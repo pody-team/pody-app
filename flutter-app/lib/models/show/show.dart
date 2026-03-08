@@ -1,7 +1,7 @@
 import 'host.dart';
 import 'episode.dart';
 
-class Podcast {
+class Show {
   final String id;
   final String title;
   final List<Host> hosts;
@@ -11,9 +11,9 @@ class Podcast {
   final String subscriberCount;
   final int totalEpisodeCount;
   final bool isFollowing;
-  final String authorId; // ID of the user who created this podcast
+  final String authorId; // ID of the user who created this show
 
-  const Podcast({
+  const Show({
     required this.id,
     required this.title,
     required this.hosts,
@@ -32,8 +32,8 @@ class Podcast {
   /// Formatted hosts label: "Anh Ba & Linh"
   String get hostsLabel => hosts.map((h) => h.name).join(' & ');
 
-  Podcast copyWith({bool? isFollowing}) {
-    return Podcast(
+  Show copyWith({bool? isFollowing}) {
+    return Show(
       id: id,
       title: title,
       hosts: hosts,

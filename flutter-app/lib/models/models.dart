@@ -1,10 +1,10 @@
-// Podcast domain
-export 'podcast/host.dart';
-export 'podcast/podcast.dart';
-export 'podcast/episode.dart';
-export 'podcast/attachment.dart';
-export 'podcast/chat_message.dart';
-export 'podcast/production_plan.dart';
+// Show domain
+export 'show/host.dart';
+export 'show/show.dart';
+export 'show/episode.dart';
+export 'show/attachment.dart';
+export 'show/chat_message.dart';
+export 'show/production_plan.dart';
 
 // User domain
 export 'user/user_profile.dart';

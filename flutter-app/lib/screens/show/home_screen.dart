@@ -54,9 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  List<Podcast> get _filteredPodcasts {
+  List<Show> get _filteredPodcasts {
     final query = _searchController.text.toLowerCase();
-    var podcasts = MockData.podcasts.where((p) {
+    var shows = MockData.shows.where((p) {
       if (_selectedCategory == 'Tất cả') {
         return true;
       }
@@ -75,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
 
     if (query.isNotEmpty) {
-      podcasts = podcasts.where((p) {
+      shows = shows.where((p) {
         return p.title.toLowerCase().contains(query) ||
             p.category.toLowerCase().contains(query) ||
             p.hostsLabel.toLowerCase().contains(query) ||
@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }).toList();
     }
 
-    return podcasts;
+    return shows;
   }
 
   void _clearSearch() {
@@ -116,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final podcasts = _filteredPodcasts;
+    final shows = _filteredPodcasts;
     final query = _searchController.text;
     final showSearchResults = _isSearching || query.isNotEmpty;
     final showHeader = _isHeaderVisible || _searchFocus.hasFocus;
@@ -142,8 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: NotificationListener<UserScrollNotification>(
                 onNotification: _handleScroll,
                 child: showSearchResults
-                    ? _buildSearchResults(podcasts)
-                    : _buildHomeContent(podcasts),
+                    ? _buildSearchResults(shows)
+                    : _buildHomeContent(shows),
               ),
             ),
           ],
@@ -180,7 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(fontSize: 14, color: Colors.white),
                 decoration: const InputDecoration(
                   filled: false,
-                  hintText: 'Tìm podcasts, episodes...',
+                  hintText: 'Tìm shows, episodes...',
                   hintStyle: TextStyle(color: Colors.white30, fontSize: 14),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ────────────────────────────────────────────
   // HOME CONTENT (default view)
   // ────────────────────────────────────────────
-  Widget _buildHomeContent(List<Podcast> podcasts) {
+  Widget _buildHomeContent(List<Show> shows) {
     return ListView(
       padding: const EdgeInsets.only(bottom: 100),
       children: [
@@ -231,19 +231,19 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 14),
 
         // Podcast Cards
-        ...podcasts.map(
-          (podcast) => Padding(
+        ...shows.map(
+          (show) => Padding(
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-            child: _buildPodcastCard(context, podcast),
+            child: _buildPodcastCard(context, show),
           ),
         ),
 
-        if (podcasts.isEmpty)
+        if (shows.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 40),
             child: Center(
               child: Text(
-                'Không có podcast nào phù hợp.',
+                'Không có show nào phù hợp.',
                 style: TextStyle(color: Colors.white54),
               ),
             ),
@@ -285,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ────────────────────────────────────────────
   // SEARCH RESULTS
   // ────────────────────────────────────────────
-  Widget _buildSearchResults(List<Podcast> podcasts) {
+  Widget _buildSearchResults(List<Show> shows) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
@@ -364,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Results header
         Text(
-          'KẾT QUẢ (${podcasts.length})',
+          'KẾT QUẢ (${shows.length})',
           style: const TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.bold,
@@ -375,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 12),
 
         // Result cards
-        if (podcasts.isEmpty)
+        if (shows.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 40),
             child: Column(
@@ -394,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           )
         else
-          ...podcasts.map((podcast) => _buildSearchResultCard(podcast)),
+          ...shows.map((show) => _buildSearchResultCard(show)),
       ],
     );
   }
@@ -431,10 +431,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPodcastCard(BuildContext context, Podcast podcast) {
+  Widget _buildPodcastCard(BuildContext context, Show show) {
     return GestureDetector(
       onTap: () {
-        openPodcastDetail(context, podcast);
+        openShowDetail(context, show);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -453,7 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(podcast.imageUrl, fit: BoxFit.cover),
+                  Image.network(show.imageUrl, fit: BoxFit.cover),
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -488,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  podcast.category,
+                                  show.category,
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
@@ -499,7 +499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                podcast.title,
+                                show.title,
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -509,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                podcast.hostsLabel,
+                                show.hostsLabel,
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.white.withValues(alpha: 0.6),
@@ -530,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                             child: Text(
-                              podcast.isFollowing
+                              show.isFollowing
                                   ? 'Đang theo dõi'
                                   : 'Theo dõi',
                               style: const TextStyle(
@@ -552,8 +552,8 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
               child: Column(
                 children: [
-                  ...List.generate(podcast.episodes.length, (index) {
-                    final ep = podcast.episodes[index];
+                  ...List.generate(show.episodes.length, (index) {
+                    final ep = show.episodes[index];
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
                       child: Row(
@@ -608,7 +608,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${podcast.subscriberCount} theo dõi',
+                        '${show.subscriberCount} theo dõi',
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white38,
@@ -622,7 +622,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${podcast.totalEpisodeCount} tập',
+                        '${show.totalEpisodeCount} tập',
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.white38,
@@ -648,9 +648,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchResultCard(Podcast podcast) {
+  Widget _buildSearchResultCard(Show show) {
     return GestureDetector(
-      onTap: () => openPodcastDetail(context, podcast),
+      onTap: () => openShowDetail(context, show),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
@@ -664,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.network(
-                podcast.imageUrl,
+                show.imageUrl,
                 width: 56,
                 height: 56,
                 fit: BoxFit.cover,
@@ -676,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    podcast.title,
+                    show.title,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -687,7 +687,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    podcast.hostsLabel,
+                    show.hostsLabel,
                     style: const TextStyle(fontSize: 12, color: Colors.white38),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -705,7 +705,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          podcast.category.toUpperCase(),
+                          show.category.toUpperCase(),
                           style: const TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
@@ -716,7 +716,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '• ${podcast.totalEpisodeCount} tập',
+                        '• ${show.totalEpisodeCount} tập',
                         style: const TextStyle(
                           fontSize: 10,
                           color: Colors.white24,

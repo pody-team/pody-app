@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:pody/screens/podcast/home_screen.dart';
+import 'package:pody/screens/show/home_screen.dart';
 import 'package:pody/screens/news/news_screen.dart';
 import 'package:pody/screens/creation/create_screen.dart';
 import 'package:pody/screens/social/notifications_screen.dart';

@@ -1,7 +1,7 @@
 enum NotificationType { like, comment, follow, milestone, newEpisode, mention }
 
 /// What the notification links to when tapped.
-enum NotificationTargetType { episode, podcast, profile, none }
+enum NotificationTargetType { episode, show, profile, none }
 
 class AppNotification {
   final String id;

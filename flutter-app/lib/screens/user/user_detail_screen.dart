@@ -25,19 +25,19 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   UserProfile get user => widget.user;
 
-  // Find podcasts hosted by this user
-  List<Podcast> get _userPodcasts {
-    return MockData.podcasts
+  // Find shows hosted by this user
+  List<Show> get _userPodcasts {
+    return MockData.shows
         .where((p) => p.hosts.any((h) => h.id == user.id))
         .toList();
   }
 
-  // Get all episodes from this user's podcasts
+  // Get all episodes from this user's shows
   List<Map<String, dynamic>> get _userEpisodes {
     final result = <Map<String, dynamic>>[];
-    for (final podcast in _userPodcasts) {
-      for (final episode in podcast.episodes) {
-        result.add({'podcast': podcast, 'episode': episode});
+    for (final show in _userPodcasts) {
+      for (final episode in show.episodes) {
+        result.add({'podcast': show, 'episode': episode});
       }
     }
     return result;
@@ -51,7 +51,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final podcasts = _userPodcasts;
+    final shows = _userPodcasts;
     final episodes = _userEpisodes;
 
     return Scaffold(
@@ -231,7 +231,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   _divider(),
                   _statItem(_formatCount(user.followingCount), 'Following'),
                   _divider(),
-                  _statItem('${user.podcastCount}', 'Podcasts'),
+                  _statItem('${user.showCount}', 'Podcasts'),
                 ],
               ),
             ),
@@ -298,7 +298,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           ),
 
           // Podcasts section
-          if (podcasts.isNotEmpty) ...[
+          if (shows.isNotEmpty) ...[
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(24, 32, 24, 12),
@@ -319,14 +319,14 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: podcasts.length,
+                  itemCount: shows.length,
                   separatorBuilder: (context, index) =>
                       const SizedBox(width: 16),
                   itemBuilder: (context, index) {
-                    final podcast = podcasts[index];
+                    final show = shows[index];
                     return GestureDetector(
                       onTap: () {
-                        openPodcastDetail(context, podcast);
+                        openShowDetail(context, show);
                       },
                       child: SizedBox(
                         width: 140,
@@ -336,7 +336,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(14),
                               child: Image.network(
-                                podcast.imageUrl,
+                                show.imageUrl,
                                 width: 140,
                                 height: 140,
                                 fit: BoxFit.cover,
@@ -344,7 +344,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              podcast.title,
+                              show.title,
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -384,15 +384,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final item = episodes[index];
-                  final podcast = item['podcast'] as Podcast;
+                  final show = item['podcast'] as Show;
                   final episode = item['episode'] as Episode;
                   return GestureDetector(
                     onTap: () {
-                      openPlayerScreen(
-                        context,
-                        podcast: podcast,
-                        episode: episode,
-                      );
+                      openPlayerScreen(context, show: show, episode: episode);
                     },
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -411,7 +407,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                             child: Image.network(
                               episode.images.isNotEmpty
                                   ? episode.images.first
-                                  : podcast.imageUrl,
+                                  : show.imageUrl,
                               width: 52,
                               height: 52,
                               fit: BoxFit.cover,
@@ -436,7 +432,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      podcast.title,
+                                      show.title,
                                       style: const TextStyle(
                                         fontSize: 11,
                                         color: Colors.white38,

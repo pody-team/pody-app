@@ -67,7 +67,7 @@ class MockData {
     avatarUrl: _avatarUser,
     bio: 'Podcast enthusiast 🎧',
     listeningHours: 142,
-    podcastCount: 12,
+    showCount: 12,
     followingCount: 186,
     followerCount: 2400,
   );
@@ -83,7 +83,7 @@ class MockData {
       avatarUrl: _avatarAnhBa,
       bio: 'Tech podcast host 🎙️ | Software architect | Coffee lover ☕',
       listeningHours: 520,
-      podcastCount: 3,
+      showCount: 3,
       followingCount: 342,
       followerCount: 15800,
     ),
@@ -93,7 +93,7 @@ class MockData {
       avatarUrl: _avatarLinh,
       bio: 'Co-host @FutureMinds | UX Designer | Sharing tech stories 💡',
       listeningHours: 380,
-      podcastCount: 1,
+      showCount: 1,
       followingCount: 215,
       followerCount: 8600,
     ),
@@ -103,7 +103,7 @@ class MockData {
       avatarUrl: _avatarHost,
       bio: 'True crime investigator 🔍 | Host of True Crime Daily',
       listeningHours: 890,
-      podcastCount: 2,
+      showCount: 2,
       followingCount: 128,
       followerCount: 42000,
     ),
@@ -113,7 +113,7 @@ class MockData {
       avatarUrl: _avatarMaiAnh,
       bio: 'Narrator & voice artist 🎤 | Storyteller',
       listeningHours: 210,
-      podcastCount: 1,
+      showCount: 1,
       followingCount: 95,
       followerCount: 3200,
     ),
@@ -169,8 +169,8 @@ class MockData {
   // PODCASTS + EPISODES
   // ══════════════════════════════════════════════════════════════════════════
 
-  static const podcasts = [
-    Podcast(
+  static const shows = [
+    Show(
       id: 'p001',
       title: 'Future Minds',
       hosts: [hostAnhBa, hostLinh],
@@ -182,7 +182,7 @@ class MockData {
       episodes: [
         Episode(
           id: 'e001',
-          podcastId: 'p001',
+          showId: 'p001',
           title: 'MVC thời hiện đại: Cũ nhưng không kỹ',
           description:
               'Tổng kết về ưu nhược điểm và cái nhìn nhanh về các \'họ hàng\' như MVVM hay MVP.',
@@ -275,7 +275,7 @@ class MockData {
         ),
         Episode(
           id: 'e002',
-          podcastId: 'p001',
+          showId: 'p001',
           title: 'Nhìn nhanh về MVVM và MVP',
           description:
               'So sánh hai pattern phổ biến nhất trong mobile development.',
@@ -287,7 +287,7 @@ class MockData {
         ),
         Episode(
           id: 'e003',
-          podcastId: 'p001',
+          showId: 'p001',
           title: 'Clean Architecture thực chiến',
           description: 'Hành trình apply Clean Architecture vào dự án thực tế.',
           duration: Duration(minutes: 35),
@@ -298,7 +298,7 @@ class MockData {
         ),
       ],
     ),
-    Podcast(
+    Show(
       id: 'p002',
       title: 'True Crime Daily',
       hosts: [hostDetective, hostNarrator],
@@ -310,7 +310,7 @@ class MockData {
       episodes: [
         Episode(
           id: 'e004',
-          podcastId: 'p002',
+          showId: 'p002',
           title: '"The evidence was right there."',
           description:
               'We looked at it a hundred times, but we didn\'t *see* it. A cold case from 1995 is finally solved using new DNA technology.',
@@ -321,7 +321,7 @@ class MockData {
         ),
         Episode(
           id: 'e005',
-          podcastId: 'p002',
+          showId: 'p002',
           title: 'Vụ án chưa có lời giải từ 1995.',
           description: 'Chi tiết vụ án từ những manh mối đầu tiên.',
           duration: Duration(minutes: 38),
@@ -331,7 +331,7 @@ class MockData {
         ),
         Episode(
           id: 'e006',
-          podcastId: 'p002',
+          showId: 'p002',
           title: 'Kết quả phá án bất ngờ từ DNA.',
           description:
               'Công nghệ DNA forensics đã thay đổi hoàn toàn cục diện.',
@@ -346,12 +346,12 @@ class MockData {
 
   // Convenience: get all episodes flat
   static List<Episode> get allEpisodes =>
-      podcasts.expand((p) => p.episodes).toList();
+      shows.expand((p) => p.episodes).toList();
 
   // Convenience: get podcast by id
-  static Podcast? getPodcastById(String id) {
+  static Show? getShowById(String id) {
     try {
-      return podcasts.firstWhere((p) => p.id == id);
+      return shows.firstWhere((p) => p.id == id);
     } catch (_) {
       return null;
     }
@@ -541,7 +541,7 @@ class MockData {
       actorName: 'Future Minds',
       actorAvatarUrl: _coverFutureMinds,
       action: 'reached 10K listens! 🎉',
-      targetType: NotificationTargetType.podcast,
+      targetType: NotificationTargetType.show,
       targetId: 'p001',
       createdAt: _now.subtract(const Duration(hours: 3)),
       readAt: _now.subtract(const Duration(hours: 2)),
@@ -646,7 +646,7 @@ class MockData {
   static final currentUserProgress = [
     ListeningProgress(
       episodeId: 'e001',
-      podcastId: 'p001',
+      showId: 'p001',
       progress: 0.33,
       position: const Duration(minutes: 10, seconds: 34),
       totalDuration: const Duration(minutes: 32),
@@ -654,7 +654,7 @@ class MockData {
     ),
     ListeningProgress(
       episodeId: 'e004',
-      podcastId: 'p002',
+      showId: 'p002',
       progress: 0.72,
       position: const Duration(minutes: 32, seconds: 24),
       totalDuration: const Duration(minutes: 45),

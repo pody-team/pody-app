@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
 import 'following_list_screen.dart';
-import 'my_podcasts_screen.dart';
+import 'my_shows_screen.dart';
 import 'listening_history_screen.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
@@ -120,8 +120,8 @@ class ProfileScreen extends StatelessWidget {
               _divider(),
               GestureDetector(
                 onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const MyPodcastsScreen())),
-                child: _statChip('${user.podcastCount}', 'Podcast'),
+                  MaterialPageRoute(builder: (_) => const MyShowsScreen())),
+                child: _statChip('${user.showCount}', 'Podcast'),
               ),
               _divider(),
               GestureDetector(
@@ -189,7 +189,7 @@ class _SavedTab extends StatelessWidget {
     // Find first episode with progress for "Continue Listening"
     final continueEp = progress.isNotEmpty ? progress.first : null;
     final continueEpisode = continueEp != null ? MockData.getEpisodeById(continueEp.episodeId) : null;
-    final continuePodcast = continueEp != null ? MockData.getPodcastById(continueEp.podcastId) : null;
+    final continuePodcast = continueEp != null ? MockData.getShowById(continueEp.showId) : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -199,7 +199,7 @@ class _SavedTab extends StatelessWidget {
           GestureDetector(
             onTap: () {
               if (continuePodcast != null) {
-                openPlayerScreen(context, podcast: continuePodcast, episode: continueEpisode);
+                openPlayerScreen(context, show: continuePodcast, episode: continueEpisode);
               }
             },
             child: Container(
@@ -294,11 +294,11 @@ class _EpisodeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final podcast = MockData.getPodcastById(episode.podcastId);
+    final show = MockData.getShowById(episode.showId);
     return GestureDetector(
       onTap: () {
-        if (podcast != null) {
-          openPlayerScreen(context, podcast: podcast, episode: episode);
+        if (show != null) {
+          openPlayerScreen(context, show: show, episode: episode);
         }
       },
       child: Container(
@@ -313,7 +313,7 @@ class _EpisodeRow extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                  episode.images.isNotEmpty ? episode.images.first : (podcast?.imageUrl ?? ''),
+                  episode.images.isNotEmpty ? episode.images.first : (show?.imageUrl ?? ''),
                   width: 50, height: 50, fit: BoxFit.cover),
             ),
             const SizedBox(width: 12),
@@ -327,7 +327,7 @@ class _EpisodeRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 3),
-                  Text('${podcast?.title ?? ''}  ·  ${episode.formattedDuration}',
+                  Text('${show?.title ?? ''}  ·  ${episode.formattedDuration}',
                       style: const TextStyle(fontSize: 11, color: Colors.white38)),
                 ],
               ),
@@ -361,10 +361,10 @@ class _FollowingTab extends StatelessWidget {
               final ch = following[i];
               return GestureDetector(
                 onTap: () {
-                  final podcast = MockData.podcasts.where(
+                  final show = MockData.shows.where(
                     (p) => p.title == ch['name']).firstOrNull;
-                  if (podcast != null) {
-                    openPodcastDetail(context, podcast);
+                  if (show != null) {
+                    openShowDetail(context, show);
                   }
                 },
                 child: Padding(
@@ -418,10 +418,10 @@ class _ChannelUpdateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        final podcast = MockData.podcasts.where(
+        final show = MockData.shows.where(
           (p) => p.title == channel['name']).firstOrNull;
-        if (podcast != null) {
-          openPodcastDetail(context, podcast);
+        if (show != null) {
+          openShowDetail(context, show);
         }
       },
       child: Container(

@@ -29,20 +29,20 @@ class _MiniPlayerState extends State<MiniPlayer> {
   }
 
   void _openFullPlayer(BuildContext context) {
-    final podcast = _playerState.podcast;
+    final show = _playerState.show;
     final episode = _playerState.episode;
-    if (podcast != null && episode != null) {
-      openPlayerScreen(context, podcast: podcast, episode: episode);
+    if (show != null && episode != null) {
+      openPlayerScreen(context, show: show, episode: episode);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final episode = _playerState.episode;
-    final podcast = _playerState.podcast;
+    final show = _playerState.show;
     final progressValue = _playerState.progress;
 
-    if (episode == null || podcast == null) return const SizedBox.shrink();
+    if (episode == null || show == null) return const SizedBox.shrink();
 
     return GestureDetector(
       onTap: () => _openFullPlayer(context),
@@ -73,7 +73,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
               child: Image.network(
                 episode.images.isNotEmpty
                     ? episode.images.first
-                    : podcast.imageUrl,
+                    : show.imageUrl,
                 width: 48,
                 height: 48,
                 fit: BoxFit.cover,
@@ -99,7 +99,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${podcast.title} • Ep. ${podcast.totalEpisodeCount}',
+                    '${show.title} • Ep. ${show.totalEpisodeCount}',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 12,
