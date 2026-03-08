@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:pody/utils/player_utils.dart';
 import 'package:pody/theme/app_colors.dart';
 import 'package:pody/data/mock_data.dart';
@@ -16,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   bool _isSearching = false;
+  bool _isHeaderVisible = true;
 
   final List<String> _recentSearches = [
     'Technology',
@@ -55,12 +57,20 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Podcast> get _filteredPodcasts {
     final query = _searchController.text.toLowerCase();
     var podcasts = MockData.podcasts.where((p) {
-      if (_selectedCategory == 'Tất cả') return true;
-      if (_selectedCategory == 'Công nghệ' && p.category == 'Công nghệ') return true;
-      if (_selectedCategory == 'Câu chuyện' && p.category == 'Điều tra') return true;
+      if (_selectedCategory == 'Tất cả') {
+        return true;
+      }
+      if (_selectedCategory == 'Công nghệ' && p.category == 'Công nghệ') {
+        return true;
+      }
+      if (_selectedCategory == 'Câu chuyện' && p.category == 'Điều tra') {
+        return true;
+      }
       if (_selectedCategory == 'Ngắn < 15p' &&
           p.episodes.isNotEmpty &&
-          p.episodes.first.duration.inMinutes < 15) return true;
+          p.episodes.first.duration.inMinutes < 15) {
+        return true;
+      }
       return p.category.contains(_selectedCategory);
     }).toList();
 
@@ -82,24 +92,62 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isSearching = false);
   }
 
+  bool _handleScroll(UserScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+
+    if (_searchFocus.hasFocus) {
+      if (!_isHeaderVisible) {
+        setState(() => _isHeaderVisible = true);
+      }
+      return false;
+    }
+
+    if (notification.direction == ScrollDirection.reverse && _isHeaderVisible) {
+      setState(() => _isHeaderVisible = false);
+    } else if (notification.direction == ScrollDirection.forward &&
+        !_isHeaderVisible) {
+      setState(() => _isHeaderVisible = true);
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final podcasts = _filteredPodcasts;
     final query = _searchController.text;
+    final showSearchResults = _isSearching || query.isNotEmpty;
+    final showHeader = _isHeaderVisible || _searchFocus.hasFocus;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: _isSearching && query.isNotEmpty
-            ? Column(
-                children: [
-                  // Keep search bar fixed when actively searching
-                  _buildSearchBar(query),
-                  const SizedBox(height: 10),
-                  Expanded(child: _buildSearchResults(podcasts)),
-                ],
-              )
-            : _buildHomeContent(podcasts),
+        child: Column(
+          children: [
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              child: showHeader
+                  ? Column(
+                      children: [
+                        _buildSearchBar(query),
+                        const SizedBox(height: 10),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            Expanded(
+              child: NotificationListener<UserScrollNotification>(
+                onNotification: _handleScroll,
+                child: showSearchResults
+                    ? _buildSearchResults(podcasts)
+                    : _buildHomeContent(podcasts),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -131,9 +179,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 focusNode: _searchFocus,
                 style: const TextStyle(fontSize: 14, color: Colors.white),
                 decoration: const InputDecoration(
+                  filled: false,
                   hintText: 'Tìm podcasts, episodes...',
                   hintStyle: TextStyle(color: Colors.white30, fontSize: 14),
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  isDense: true,
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
@@ -157,12 +212,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // ────────────────────────────────────────────
   Widget _buildHomeContent(List<Podcast> podcasts) {
     return ListView(
-      padding: const EdgeInsets.only(top: 4, bottom: 100),
+      padding: const EdgeInsets.only(bottom: 100),
       children: [
-        // Search bar (scrollable)
-        _buildSearchBar(_searchController.text),
-        const SizedBox(height: 10),
-
         // Filter chips (scrollable)
         SizedBox(
           height: 32,
@@ -220,7 +271,9 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
             childAspectRatio: 1.8,
-            children: _categories.map((cat) => _buildCategoryCard(cat)).toList(),
+            children: _categories
+                .map((cat) => _buildCategoryCard(cat))
+                .toList(),
           ),
         ),
 
@@ -254,7 +307,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => setState(() => _recentSearches.clear()),
                 child: const Text(
                   'Xóa tất cả',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white38),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white38,
+                  ),
                 ),
               ),
             ],
@@ -272,7 +329,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(20),
@@ -280,11 +340,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.history, size: 14, color: Colors.white30),
+                      const Icon(
+                        Icons.history,
+                        size: 14,
+                        color: Colors.white30,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         search,
-                        style: const TextStyle(fontSize: 12, color: Colors.white60),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white60,
+                        ),
                       ),
                     ],
                   ),
@@ -313,7 +380,11 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(top: 40),
             child: Column(
               children: [
-                Icon(Icons.search_off, color: Colors.white.withValues(alpha: 0.15), size: 48),
+                Icon(
+                  Icons.search_off,
+                  color: Colors.white.withValues(alpha: 0.15),
+                  size: 48,
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Không tìm thấy kết quả',
@@ -389,7 +460,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         stops: const [0.2, 1.0],
-                        colors: [Colors.transparent, Colors.black.withValues(alpha: 0.95)],
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.95),
+                        ],
                       ),
                     ),
                   ),
@@ -405,7 +479,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
@@ -444,13 +521,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         GestureDetector(
                           onTap: () {},
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 7,
+                            ),
                             decoration: BoxDecoration(
                               color: kTikRed,
                               borderRadius: BorderRadius.circular(30),
                             ),
                             child: Text(
-                              podcast.isFollowing ? 'Đang theo dõi' : 'Theo dõi',
+                              podcast.isFollowing
+                                  ? 'Đang theo dõi'
+                                  : 'Theo dõi',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -492,34 +574,59 @@ class _HomeScreenState extends State<HomeScreen> {
                           Expanded(
                             child: Text(
                               ep.title,
-                              style: const TextStyle(fontSize: 13, color: Colors.white, height: 1.3),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
+                                height: 1.3,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Icon(Icons.play_circle_outline_rounded, color: kTikTeal, size: 18),
+                          Icon(
+                            Icons.play_circle_outline_rounded,
+                            color: kTikTeal,
+                            size: 18,
+                          ),
                         ],
                       ),
                     );
                   }),
                   const SizedBox(height: 6),
-                  Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+                  Divider(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    height: 1,
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.people_outline, color: Colors.white38, size: 13),
+                      const Icon(
+                        Icons.people_outline,
+                        color: Colors.white38,
+                        size: 13,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${podcast.subscriberCount} theo dõi',
-                        style: const TextStyle(fontSize: 11, color: Colors.white38),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white38,
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      const Icon(Icons.queue_music_rounded, color: Colors.white38, size: 13),
+                      const Icon(
+                        Icons.queue_music_rounded,
+                        color: Colors.white38,
+                        size: 13,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${podcast.totalEpisodeCount} tập',
-                        style: const TextStyle(fontSize: 11, color: Colors.white38),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white38,
+                        ),
                       ),
                       const Spacer(),
                       const Text(
@@ -589,7 +696,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(4),
@@ -607,7 +717,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 8),
                       Text(
                         '• ${podcast.totalEpisodeCount} tập',
-                        style: const TextStyle(fontSize: 10, color: Colors.white24),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white24,
+                        ),
                       ),
                     ],
                   ),
@@ -615,7 +728,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.2), size: 20),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withValues(alpha: 0.2),
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -629,10 +746,7 @@ class _HomeScreenState extends State<HomeScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.2),
-            color.withValues(alpha: 0.05),
-          ],
+          colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
         ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withValues(alpha: 0.15)),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
-import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
 
 class ListeningHistoryScreen extends StatelessWidget {
@@ -18,7 +17,11 @@ class ListeningHistoryScreen extends StatelessWidget {
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
         title: const Text(
           'Lịch sử nghe',
@@ -51,11 +54,23 @@ class ListeningHistoryScreen extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _summaryItem(Icons.headphones, '${totalHours}h', 'Tổng giờ nghe'),
+                _summaryItem(
+                  Icons.headphones,
+                  '${totalHours}h',
+                  'Tổng giờ nghe',
+                ),
                 Container(width: 1, height: 36, color: Colors.white12),
-                _summaryItem(Icons.queue_music, '${progress.length}', 'Tập đã nghe'),
+                _summaryItem(
+                  Icons.queue_music,
+                  '${progress.length}',
+                  'Tập đã nghe',
+                ),
                 Container(width: 1, height: 36, color: Colors.white12),
-                _summaryItem(Icons.local_fire_department, '7', 'Ngày liên tiếp'),
+                _summaryItem(
+                  Icons.local_fire_department,
+                  '7',
+                  'Ngày liên tiếp',
+                ),
               ],
             ),
           ),
@@ -96,17 +111,25 @@ class ListeningHistoryScreen extends StatelessWidget {
                 final p = progress[index];
                 final episode = MockData.getEpisodeById(p.episodeId);
                 final podcast = MockData.getPodcastById(p.podcastId);
-                if (episode == null || podcast == null) return const SizedBox.shrink();
+                if (episode == null || podcast == null) {
+                  return const SizedBox.shrink();
+                }
 
                 return GestureDetector(
-                  onTap: () => openPlayerScreen(context, podcast: podcast, episode: episode),
+                  onTap: () => openPlayerScreen(
+                    context,
+                    podcast: podcast,
+                    episode: episode,
+                  ),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -114,7 +137,9 @@ class ListeningHistoryScreen extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Image.network(
-                            episode.images.isNotEmpty ? episode.images.first : podcast.imageUrl,
+                            episode.images.isNotEmpty
+                                ? episode.images.first
+                                : podcast.imageUrl,
                             width: 52,
                             height: 52,
                             fit: BoxFit.cover,
@@ -153,11 +178,16 @@ class ListeningHistoryScreen extends StatelessWidget {
                                       borderRadius: BorderRadius.circular(2),
                                       child: LinearProgressIndicator(
                                         value: p.progress,
-                                        backgroundColor: Colors.white.withValues(alpha: 0.08),
+                                        backgroundColor: Colors.white
+                                            .withValues(alpha: 0.08),
                                         valueColor: AlwaysStoppedAnimation(
                                           p.progress >= 1.0
-                                              ? Colors.green.withValues(alpha: 0.6)
-                                              : Colors.white.withValues(alpha: 0.5),
+                                              ? Colors.green.withValues(
+                                                  alpha: 0.6,
+                                                )
+                                              : Colors.white.withValues(
+                                                  alpha: 0.5,
+                                                ),
                                         ),
                                         minHeight: 3,
                                       ),
@@ -191,7 +221,9 @@ class ListeningHistoryScreen extends StatelessWidget {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            p.progress >= 1.0 ? Icons.replay : Icons.play_arrow_rounded,
+                            p.progress >= 1.0
+                                ? Icons.replay
+                                : Icons.play_arrow_rounded,
                             color: Colors.white,
                             size: 20,
                           ),

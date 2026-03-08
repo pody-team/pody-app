@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/screens/podcast/home_screen.dart';
 import 'package:pody/screens/news/news_screen.dart';
 import 'package:pody/screens/creation/create_screen.dart';
 import 'package:pody/screens/social/notifications_screen.dart';
 import 'package:pody/screens/user/profile_screen.dart';
 import 'package:pody/widgets/mini_player.dart';
-import 'package:pody/theme/app_colors.dart';
+import 'package:pody/theme/app_theme.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
 import 'package:pody/data/mock_data.dart';
 
@@ -20,44 +19,10 @@ class PodyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Colors.white;
-
-    // Create a dark theme matching the Stitch project theme configuration
-    final ThemeData darkTheme = ThemeData.dark(useMaterial3: true).copyWith(
-      primaryColor: primaryColor,
-      colorScheme: ColorScheme.dark(
-        primary: primaryColor,
-        secondary: primaryColor.withValues(alpha: 0.8),
-        surface: kBgBlack,
-      ),
-      textTheme: GoogleFonts.plusJakartaSansTextTheme(
-        ThemeData.dark().textTheme,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: const Color(0xFF1C1C1E),
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-      ),
-      // Round full for cards and dialogues
-      cardTheme: CardThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24.0), // Round full styling
-        ),
-      ),
-    );
-
     return MaterialApp(
-      title: 'Remix of Immersive Podcast Player',
+      title: 'Pody',
       debugShowCheckedModeBanner: false,
-      theme: darkTheme,
+      theme: buildAppTheme(),
       home: const SignInScreen(),
     );
   }
@@ -110,9 +75,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 return Navigator(
                   key: _navigatorKeys[index],
                   onGenerateRoute: (settings) {
-                    return MaterialPageRoute(
-                      builder: (_) => _screens[index],
-                    );
+                    return MaterialPageRoute(builder: (_) => _screens[index]);
                   },
                 );
               }),
@@ -126,56 +89,61 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
           ],
         ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.8),
-          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
-        ),
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                    _buildNavItem(
-                      1,
-                      Icons.newspaper_outlined,
-                      Icons.newspaper,
-                      'News',
-                    ),
-                    _buildNavItem(
-                      2,
-                      Icons.add_circle_outline,
-                      Icons.add_circle,
-                      'Create',
-                      isCreate: true,
-                    ),
-                    _buildNavItem(
-                      3,
-                      Icons.mail_outline,
-                      Icons.mail,
-                      'Notify',
-                      badgeCount: MockData.notifications.where((n) => n.isUnread).length,
-                    ),
-                    _buildNavItem(
-                      4,
-                      Icons.account_circle_outlined,
-                      Icons.account_circle,
-                      'Profile',
-                    ),
-                  ],
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.8),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+          ),
+          child: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+                      _buildNavItem(
+                        1,
+                        Icons.newspaper_outlined,
+                        Icons.newspaper,
+                        'News',
+                      ),
+                      _buildNavItem(
+                        2,
+                        Icons.add_circle_outline,
+                        Icons.add_circle,
+                        'Create',
+                        isCreate: true,
+                      ),
+                      _buildNavItem(
+                        3,
+                        Icons.mail_outline,
+                        Icons.mail,
+                        'Notify',
+                        badgeCount: MockData.notifications
+                            .where((n) => n.isUnread)
+                            .length,
+                      ),
+                      _buildNavItem(
+                        4,
+                        Icons.account_circle_outlined,
+                        Icons.account_circle,
+                        'Profile',
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildNavItem(
@@ -224,12 +192,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 top: 2,
                 right: 6,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFE2C55),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
                   child: Text(
                     badgeCount > 99 ? '99+' : '$badgeCount',
                     style: const TextStyle(

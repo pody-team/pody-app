@@ -17,7 +17,11 @@ class FollowingListScreen extends StatelessWidget {
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
         title: const Text(
           'Đang theo dõi',
@@ -32,10 +36,8 @@ class FollowingListScreen extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
         itemCount: users.length,
-        separatorBuilder: (_, __) => Divider(
-          color: Colors.white.withValues(alpha: 0.06),
-          height: 1,
-        ),
+        separatorBuilder: (context, index) =>
+            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
         itemBuilder: (context, index) {
           final user = users[index];
           return _UserTile(user: user);
@@ -108,7 +110,10 @@ class _UserTileState extends State<_UserTile> {
               onTap: () => setState(() => _isFollowing = !_isFollowing),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: _isFollowing
                       ? Colors.white.withValues(alpha: 0.08)

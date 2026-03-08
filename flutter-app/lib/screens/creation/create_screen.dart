@@ -141,7 +141,8 @@ class _CreateScreenState extends State<CreateScreen> {
                               alignment: Alignment.centerRight,
                               child: Container(
                                 constraints: BoxConstraints(
-                                  maxWidth: MediaQuery.of(context).size.width * 0.75,
+                                  maxWidth:
+                                      MediaQuery.of(context).size.width * 0.75,
                                 ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -308,11 +309,18 @@ class _CreateScreenState extends State<CreateScreen> {
                               ),
                               decoration: InputDecoration(
                                 hintText: 'Message Assistant...',
+                                filled: false,
                                 hintStyle: TextStyle(
                                   color: Colors.white54,
                                   fontSize: 16,
                                 ),
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                errorBorder: InputBorder.none,
+                                focusedErrorBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
+                                isDense: true,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12,
                                 ),
@@ -446,7 +454,11 @@ class _CreateScreenState extends State<CreateScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.edit_note, color: Colors.white70, size: 24),
+                  icon: const Icon(
+                    Icons.edit_note,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
                   onPressed: _showEditPlanDialog,
                   tooltip: 'Edit Plan',
                 ),
@@ -472,7 +484,10 @@ class _CreateScreenState extends State<CreateScreen> {
                       const SizedBox(width: 4),
                       Text(
                         plan.hosts.map((h) => h.name).join(' & '),
-                        style: const TextStyle(fontSize: 13, color: Colors.white54),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white54,
+                        ),
                       ),
                     ],
                   ),
@@ -488,10 +503,12 @@ class _CreateScreenState extends State<CreateScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ...visibleEps.map((ep) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildEpisodeRow('${ep.number}', ep.title),
-                )),
+                ...visibleEps.map(
+                  (ep) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildEpisodeRow('${ep.number}', ep.title),
+                  ),
+                ),
                 if (remaining > 0)
                   Text(
                     '+ $remaining more episode${remaining > 1 ? 's' : ''}',
@@ -515,7 +532,9 @@ class _CreateScreenState extends State<CreateScreen> {
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: const Row(
@@ -523,7 +542,10 @@ class _CreateScreenState extends State<CreateScreen> {
                 children: [
                   Icon(Icons.play_arrow, size: 20),
                   SizedBox(width: 8),
-                  Text('Start Production', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  Text(
+                    'Start Production',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
             ),

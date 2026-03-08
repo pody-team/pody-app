@@ -341,15 +341,7 @@ class PodcastDetailScreen extends StatelessWidget {
                     Icons.arrow_back_ios,
                     () => Navigator.pop(context),
                   ),
-                  const Text(
-                    'PODCAST DETAILS',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 2,
-                    ),
-                  ),
+                  const SizedBox(width: 40),
                   _buildHeaderButton(Icons.more_horiz, () {}),
                 ],
               ),

@@ -110,7 +110,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                             color: Colors.white.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
@@ -132,7 +136,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                           color: Colors.white.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.more_horiz,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -151,7 +159,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         height: 88,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFF0F0E13), width: 4),
+                          border: Border.all(
+                            color: const Color(0xFF0F0E13),
+                            width: 4,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.4),
@@ -161,7 +172,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(44),
-                          child: Image.network(user.avatarUrl, fit: BoxFit.cover),
+                          child: Image.network(
+                            user.avatarUrl,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -271,7 +285,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.white12),
                       ),
-                      child: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.chat_bubble_outline,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -302,7 +320,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   itemCount: podcasts.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 16),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 16),
                   itemBuilder: (context, index) {
                     final podcast = podcasts[index];
                     return GestureDetector(
@@ -363,89 +382,98 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
             SliverPadding(
               padding: const EdgeInsets.only(left: 24, right: 24, bottom: 100),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final item = episodes[index];
-                    final podcast = item['podcast'] as Podcast;
-                    final episode = item['episode'] as Episode;
-                    return GestureDetector(
-                      onTap: () {
-                        openPlayerScreen(context, podcast: podcast, episode: episode);
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: kBgCard,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                        ),
-                        child: Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(10),
-                              child: Image.network(
-                                episode.images.isNotEmpty ? episode.images.first : podcast.imageUrl,
-                                width: 52,
-                                height: 52,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    episode.title,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        podcast.title,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.white38,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '·  ${episode.formattedDuration}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.white24,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
-                            ),
-                          ],
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final item = episodes[index];
+                  final podcast = item['podcast'] as Podcast;
+                  final episode = item['episode'] as Episode;
+                  return GestureDetector(
+                    onTap: () {
+                      openPlayerScreen(
+                        context,
+                        podcast: podcast,
+                        episode: episode,
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: kBgCard,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                       ),
-                    );
-                  },
-                  childCount: episodes.length,
-                ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(
+                              episode.images.isNotEmpty
+                                  ? episode.images.first
+                                  : podcast.imageUrl,
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  episode.title,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      podcast.title,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white38,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '·  ${episode.formattedDuration}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }, childCount: episodes.length),
               ),
             ),
           ],

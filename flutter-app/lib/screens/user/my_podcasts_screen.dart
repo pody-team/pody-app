@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
-import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
 
 class MyPodcastsScreen extends StatelessWidget {
@@ -17,7 +16,11 @@ class MyPodcastsScreen extends StatelessWidget {
         elevation: 0,
         leading: GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
         title: const Text(
           'Podcast của tôi',
@@ -32,7 +35,7 @@ class MyPodcastsScreen extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
         itemCount: podcasts.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final podcast = podcasts[index];
           return GestureDetector(
@@ -81,7 +84,10 @@ class MyPodcastsScreen extends StatelessWidget {
                         const SizedBox(height: 6),
                         // Category chip
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
@@ -99,7 +105,11 @@ class MyPodcastsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.3), size: 24),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.white.withValues(alpha: 0.3),
+                    size: 24,
+                  ),
                 ],
               ),
             ),

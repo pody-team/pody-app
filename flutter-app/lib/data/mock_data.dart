@@ -40,10 +40,10 @@ class MockData {
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAebWbaJhEISYKavHmqyyfaTOnExvH26vkZtcZ1S5NZ7DFIbsovehIuGwXiL0jhEtaNLbErAn9aBfGgfnrPtlQl3NC6S2paFtaFLlbevFSpLqgILPbuzjwad2aZQC4uGD7nwXeOKnMkv9H1_4w8_rkbMQTayE9M0XST4j0vu5-LXlalPyFAMCXOV0Qf3puL9BXypPRRFPoboZALB8Wfw5JFmxqpcOLIAotCb3WzXfHozaVeC-xD6807djjSdOlOSYCaWL1TQGSUEp1R';
 
   // Unsplash extra imgs for episode carousel
-  static const _unsplash1 = 'https://images.unsplash.com/photo-1516280440502-861f1c7eb1ea?q=80&w=600&auto=format&fit=crop';
-  static const _unsplash2 = 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=600&auto=format&fit=crop';
-  static const _unsplash3 = 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=600&auto=format&fit=crop';
-  static const _unsplash4 = 'https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?q=80&w=600&auto=format&fit=crop';
+  static const _unsplash1 = 'https://picsum.photos/id/20/1200/675';
+  static const _unsplash2 = 'https://picsum.photos/id/48/1200/675';
+  static const _unsplash3 = 'https://picsum.photos/id/180/1200/675';
+  static const _unsplash4 = 'https://picsum.photos/id/1060/1200/675';
 
   // Comment avatars
   static const _avatarComment1 =
@@ -184,21 +184,91 @@ class MockData {
           id: 'e001',
           podcastId: 'p001',
           title: 'MVC thời hiện đại: Cũ nhưng không kỹ',
-          description: 'Tổng kết về ưu nhược điểm và cái nhìn nhanh về các \'họ hàng\' như MVVM hay MVP.',
+          description:
+              'Tổng kết về ưu nhược điểm và cái nhìn nhanh về các \'họ hàng\' như MVVM hay MVP.',
           duration: Duration(minutes: 32),
           images: [_coverFutureMinds, _unsplash1, _unsplash2, _unsplash3],
           tags: ['#AI', '#Tech', '#Future'],
           bubbles: [
-            ChatBubble(speakerId: 'h001', speaker: 'Anh Ba', text: 'Lùi lại một chút để nhìn bức tranh toàn cảnh hơn.', isRight: true, colorValue: 0xFFFFFFFF),
-            ChatBubble(speakerId: 'h002', speaker: 'Linh', text: '"Em hiểu rồi! Kiểu như là..." nhìn lại xem cụ tổ MVC của chúng ta bây giờ đang đứng ở đâu trong thế giới công nghệ thay đổi chóng mặt này đúng không anh?', isRight: false, colorValue: 0xFFCCCCCC),
-            ChatBubble(speakerId: 'h001', speaker: 'Anh Ba', text: 'Đúng rồi. MVC ra đời từ những năm 70, nhưng bản chất của nó vẫn rất solid. Chỉ là cách triển khai thay đổi theo thời gian thôi.', isRight: true, colorValue: 0xFFFFFFFF),
-            ChatBubble(speakerId: 'h002', speaker: 'Linh', text: 'Vậy anh có thể giải thích tại sao ngày nay người ta lại chuyển sang MVVM không? MVC có vấn đề gì?', isRight: false, colorValue: 0xFFCCCCCC),
-            ChatBubble(speakerId: 'h001', speaker: 'Anh Ba', text: 'Vấn đề chính là "Massive View Controller" — Controller phình to quá, chứa quá nhiều logic.', isRight: true, colorValue: 0xFFFFFFFF),
-            ChatBubble(speakerId: 'h002', speaker: 'Linh', text: 'À em gặp hoài cái này! Một file Controller mà mấy nghìn dòng, đọc muốn xỉu luôn!', isRight: false, colorValue: 0xFFCCCCCC),
-            ChatBubble(speakerId: 'h001', speaker: 'Anh Ba', text: 'Haha đúng vậy. MVVM giải quyết bằng cách tách logic ra ViewModel, View chỉ lo hiển thị thôi.', isRight: true, colorValue: 0xFFFFFFFF),
-            ChatBubble(speakerId: 'h002', speaker: 'Linh', text: 'Nghe hợp lý quá! Vậy còn MVP thì sao anh? Nó khác gì MVVM?', isRight: false, colorValue: 0xFFCCCCCC),
-            ChatBubble(speakerId: 'h001', speaker: 'Anh Ba', text: 'MVP dùng Presenter thay vì ViewModel. Presenter chủ động điều khiển View, trong khi ViewModel thì passive hơn — dùng data binding.', isRight: true, colorValue: 0xFFFFFFFF),
-            ChatBubble(speakerId: 'h002', speaker: 'Linh', text: 'Wow, bây giờ em thấy rõ sự khác biệt rồi. Cảm ơn anh Ba đã giải thích cặn kẽ!', isRight: false, colorValue: 0xFFCCCCCC),
+            ChatBubble(
+              speakerId: 'h001',
+              speaker: 'Anh Ba',
+              text: 'Lùi lại một chút để nhìn bức tranh toàn cảnh hơn.',
+              isRight: true,
+              colorValue: 0xFFFFFFFF,
+            ),
+            ChatBubble(
+              speakerId: 'h002',
+              speaker: 'Linh',
+              text:
+                  '"Em hiểu rồi! Kiểu như là..." nhìn lại xem cụ tổ MVC của chúng ta bây giờ đang đứng ở đâu trong thế giới công nghệ thay đổi chóng mặt này đúng không anh?',
+              isRight: false,
+              colorValue: 0xFFCCCCCC,
+            ),
+            ChatBubble(
+              speakerId: 'h001',
+              speaker: 'Anh Ba',
+              text:
+                  'Đúng rồi. MVC ra đời từ những năm 70, nhưng bản chất của nó vẫn rất solid. Chỉ là cách triển khai thay đổi theo thời gian thôi.',
+              isRight: true,
+              colorValue: 0xFFFFFFFF,
+            ),
+            ChatBubble(
+              speakerId: 'h002',
+              speaker: 'Linh',
+              text:
+                  'Vậy anh có thể giải thích tại sao ngày nay người ta lại chuyển sang MVVM không? MVC có vấn đề gì?',
+              isRight: false,
+              colorValue: 0xFFCCCCCC,
+            ),
+            ChatBubble(
+              speakerId: 'h001',
+              speaker: 'Anh Ba',
+              text:
+                  'Vấn đề chính là "Massive View Controller" — Controller phình to quá, chứa quá nhiều logic.',
+              isRight: true,
+              colorValue: 0xFFFFFFFF,
+            ),
+            ChatBubble(
+              speakerId: 'h002',
+              speaker: 'Linh',
+              text:
+                  'À em gặp hoài cái này! Một file Controller mà mấy nghìn dòng, đọc muốn xỉu luôn!',
+              isRight: false,
+              colorValue: 0xFFCCCCCC,
+            ),
+            ChatBubble(
+              speakerId: 'h001',
+              speaker: 'Anh Ba',
+              text:
+                  'Haha đúng vậy. MVVM giải quyết bằng cách tách logic ra ViewModel, View chỉ lo hiển thị thôi.',
+              isRight: true,
+              colorValue: 0xFFFFFFFF,
+            ),
+            ChatBubble(
+              speakerId: 'h002',
+              speaker: 'Linh',
+              text:
+                  'Nghe hợp lý quá! Vậy còn MVP thì sao anh? Nó khác gì MVVM?',
+              isRight: false,
+              colorValue: 0xFFCCCCCC,
+            ),
+            ChatBubble(
+              speakerId: 'h001',
+              speaker: 'Anh Ba',
+              text:
+                  'MVP dùng Presenter thay vì ViewModel. Presenter chủ động điều khiển View, trong khi ViewModel thì passive hơn — dùng data binding.',
+              isRight: true,
+              colorValue: 0xFFFFFFFF,
+            ),
+            ChatBubble(
+              speakerId: 'h002',
+              speaker: 'Linh',
+              text:
+                  'Wow, bây giờ em thấy rõ sự khác biệt rồi. Cảm ơn anh Ba đã giải thích cặn kẽ!',
+              isRight: false,
+              colorValue: 0xFFCCCCCC,
+            ),
           ],
           likes: 12500,
           comments: 842,
@@ -207,13 +277,13 @@ class MockData {
           id: 'e002',
           podcastId: 'p001',
           title: 'Nhìn nhanh về MVVM và MVP',
-          description: 'So sánh hai pattern phổ biến nhất trong mobile development.',
+          description:
+              'So sánh hai pattern phổ biến nhất trong mobile development.',
           duration: Duration(minutes: 28),
           images: [_coverFutureMinds, _unsplash2],
           tags: ['#Architecture', '#Mobile'],
           likes: 8300,
           comments: 421,
-
         ),
         Episode(
           id: 'e003',
@@ -225,7 +295,6 @@ class MockData {
           tags: ['#CleanArch'],
           likes: 6100,
           comments: 310,
-
         ),
       ],
     ),
@@ -243,12 +312,12 @@ class MockData {
           id: 'e004',
           podcastId: 'p002',
           title: '"The evidence was right there."',
-          description: 'We looked at it a hundred times, but we didn\'t *see* it. A cold case from 1995 is finally solved using new DNA technology.',
+          description:
+              'We looked at it a hundred times, but we didn\'t *see* it. A cold case from 1995 is finally solved using new DNA technology.',
           duration: Duration(minutes: 45),
           images: [_coverTrueCrime, _unsplash4],
           likes: 84200,
           comments: 5200,
-
         ),
         Episode(
           id: 'e005',
@@ -259,18 +328,17 @@ class MockData {
           images: [_coverTrueCrime],
           likes: 21300,
           comments: 1800,
-
         ),
         Episode(
           id: 'e006',
           podcastId: 'p002',
           title: 'Kết quả phá án bất ngờ từ DNA.',
-          description: 'Công nghệ DNA forensics đã thay đổi hoàn toàn cục diện.',
+          description:
+              'Công nghệ DNA forensics đã thay đổi hoàn toàn cục diện.',
           duration: Duration(minutes: 41),
           images: [_coverTrueCrime],
           likes: 15700,
           comments: 920,
-
         ),
       ],
     ),
@@ -305,24 +373,30 @@ class MockData {
   static final newsArticles = [
     NewsArticle(
       id: 'n001',
-      title: 'FPT giảm lao động sau nhiều năm tăng nóng: Hàng chục nghìn kỹ sư hiện hữu s...',
-      description: 'Ba điểm cốt lõi trong chính sách mới của FPT liên quan đến trí tuệ nhân tạo...',
+      title:
+          'FPT giảm lao động sau nhiều năm tăng nóng: Hàng chục nghìn kỹ sư hiện hữu s...',
+      description:
+          'Ba điểm cốt lõi trong chính sách mới của FPT liên quan đến trí tuệ nhân tạo...',
       imageUrl: _coverFutureMinds,
       publisher: 'CafeBiz',
       time: '9h',
     ),
     NewsArticle(
       id: 'n002',
-      title: 'Lãi 120 tỷ USD/năm, Nvidia trở thành cỗ máy in tiền khổng lồ, xóa tan hoài nghi v...',
-      description: 'Nvidia tiếp tục công bố mức lợi nhuận kỷ lục, khẳng định vị trí độc tôn trong mảng chip AI...',
+      title:
+          'Lãi 120 tỷ USD/năm, Nvidia trở thành cỗ máy in tiền khổng lồ, xóa tan hoài nghi v...',
+      description:
+          'Nvidia tiếp tục công bố mức lợi nhuận kỷ lục, khẳng định vị trí độc tôn trong mảng chip AI...',
       imageUrl: _coverTrueCrime,
       publisher: 'GenK',
       time: '8h',
     ),
     NewsArticle(
       id: 'n003',
-      title: 'Podcast industry trends: Why short-form audio is taking over social media platforms',
-      description: 'Analysis on how user behavior is shifting towards bite-sized audio content...',
+      title:
+          'Podcast industry trends: Why short-form audio is taking over social media platforms',
+      description:
+          'Analysis on how user behavior is shifting towards bite-sized audio content...',
       imageUrl: _coverAiNewsExtra,
       publisher: 'TechCrunch',
       time: '12h',
@@ -331,7 +405,8 @@ class MockData {
     NewsArticle(
       id: 'n004',
       title: 'AI Overview: Hàng loạt các startup công nghệ mọc lên như nấm',
-      description: 'Bức tranh khởi nghiệp đang thay đổi liên tục với sự trỗi dậy của AI...',
+      description:
+          'Bức tranh khởi nghiệp đang thay đổi liên tục với sự trỗi dậy của AI...',
       imageUrl: _coverVnExpress,
       publisher: 'VnExpress',
       time: '1 ngày',
@@ -517,9 +592,21 @@ class MockData {
   // ══════════════════════════════════════════════════════════════════════════
 
   static const followingChannels = [
-    {'name': 'Future Minds',     'category': 'Công nghệ', 'imageUrl': _coverFutureMinds},
-    {'name': 'True Crime Daily', 'category': 'Điều tra',  'imageUrl': _coverTrueCrime},
-    {'name': 'Mindful Hours',    'category': 'Sức khỏe',  'imageUrl': _coverMindful},
+    {
+      'name': 'Future Minds',
+      'category': 'Công nghệ',
+      'imageUrl': _coverFutureMinds,
+    },
+    {
+      'name': 'True Crime Daily',
+      'category': 'Điều tra',
+      'imageUrl': _coverTrueCrime,
+    },
+    {
+      'name': 'Mindful Hours',
+      'category': 'Sức khỏe',
+      'imageUrl': _coverMindful,
+    },
   ];
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -527,8 +614,20 @@ class MockData {
   // ══════════════════════════════════════════════════════════════════════════
 
   static const myCreations = [
-    {'title': 'Tech Trends 2024',   'subtitle': '24 Episodes', 'badge': 'Published', 'isPublished': true,  'imageUrl': _coverMindful},
-    {'title': 'UI Design Systems',  'subtitle': '8 Episodes',  'badge': 'Draft',     'isPublished': false, 'imageUrl': _avatarMaiAnh},
+    {
+      'title': 'Tech Trends 2024',
+      'subtitle': '24 Episodes',
+      'badge': 'Published',
+      'isPublished': true,
+      'imageUrl': _coverMindful,
+    },
+    {
+      'title': 'UI Design Systems',
+      'subtitle': '8 Episodes',
+      'badge': 'Draft',
+      'isPublished': false,
+      'imageUrl': _avatarMaiAnh,
+    },
   ];
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -648,13 +747,15 @@ class MockData {
       ChatMessage(
         id: 'msg_001',
         role: ChatRole.user,
-        text: 'Make it more professional and focus on the early investment years for the first episode.',
+        text:
+            'Make it more professional and focus on the early investment years for the first episode.',
         timestamp: DateTime(2026, 3, 1, 10, 25),
       ),
       ChatMessage(
         id: 'msg_002',
         role: ChatRole.assistant,
-        text: "Sure, I've refined the tone to be more analytical and adjusted the episode breakdown to emphasize the formative years. Here is the updated production plan:",
+        text:
+            "Sure, I've refined the tone to be more analytical and adjusted the episode breakdown to emphasize the formative years. Here is the updated production plan:",
         timestamp: DateTime(2026, 3, 1, 10, 26),
         plan: samplePlan,
       ),
