@@ -7,3 +7,8 @@ server/build/
 server/.env
 server/.env.*
 
+# Go artifacts
+server/api-gateway/bin/
+server/api-gateway/.env
+server/api-gateway/vendor/
+
