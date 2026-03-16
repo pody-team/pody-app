@@ -45,8 +45,8 @@ func TestLoadUsesDefaults(t *testing.T) {
 		t.Fatalf("expected default jwt secret, got %s", cfg.JWTSecret)
 	}
 
-	if len(cfg.AuthSkipPaths) == 0 {
-		t.Fatal("expected default auth skip paths")
+	if len(cfg.AuthSkipPaths) != 0 {
+		t.Fatalf("expected no default auth skip paths, got %#v", cfg.AuthSkipPaths)
 	}
 }
 
@@ -57,6 +57,7 @@ func TestLoadOverridesValues(t *testing.T) {
 	t.Setenv("JWT_SECRET", "super-secret")
 	t.Setenv("AUTH_EXCLUDED_PATHS", "/api/v1/_meta/routes,/api/v1/public")
 	t.Setenv("SOCIAL_SERVICE_URL", "http://localhost:9003")
+	t.Setenv("IDENTITY_SERVICE_URL", "http://localhost:9001")
 
 	cfg, err := Load()
 	if err != nil {
@@ -84,6 +85,8 @@ func TestLoadOverridesValues(t *testing.T) {
 	}
 
 	foundSocial := false
+	foundIdentityPublic := false
+	foundIdentityProtected := false
 	for _, route := range cfg.Routes {
 		if route.Name == "social" {
 			foundSocial = true
@@ -91,10 +94,34 @@ func TestLoadOverridesValues(t *testing.T) {
 				t.Fatalf("expected social target to be overridden, got %s", route.TargetURL)
 			}
 		}
+
+		if route.Name == "identity-public" {
+			foundIdentityPublic = true
+			if route.TargetURL != "http://localhost:9001/api/v1/public/identity" {
+				t.Fatalf("unexpected public identity target %s", route.TargetURL)
+			}
+			if route.RequiresAuth {
+				t.Fatal("expected public identity route to be unauthenticated")
+			}
+		}
+
+		if route.Name == "identity" {
+			foundIdentityProtected = true
+			if route.TargetURL != "http://localhost:9001/api/v1/identity" {
+				t.Fatalf("unexpected protected identity target %s", route.TargetURL)
+			}
+			if !route.RequiresAuth {
+				t.Fatal("expected protected identity route to require auth")
+			}
+		}
 	}
 
 	if !foundSocial {
 		t.Fatal("social route was not found")
+	}
+
+	if !foundIdentityPublic || !foundIdentityProtected {
+		t.Fatal("identity routes were not configured correctly")
 	}
 }
 

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -51,24 +52,46 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 		})
 	})
 
-	router.Route("/api/v1", func(api chi.Router) {
-		api.Use(withJWTAuth(cfg.JWTSecret, cfg.AuthSkipPaths))
+	proxies := buildServiceProxies(cfg.Routes, logger)
 
+	router.Route("/api/v1", func(api chi.Router) {
 		api.Get("/_meta/routes", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"routes": cfg.Routes,
 			})
 		})
 
-		for _, route := range cfg.Routes {
-			proxy, err := newServiceProxy(route, logger)
-			if err != nil {
-				logger.Error("failed to create proxy", "service", route.Name, "error", err)
-				continue
-			}
+		api.Group(func(public chi.Router) {
+			for _, route := range cfg.Routes {
+				if route.RequiresAuth {
+					continue
+				}
 
-			mountServiceRoute(api, route, proxy)
-		}
+				proxy := proxies[route.Name]
+				if proxy == nil {
+					continue
+				}
+
+				mountServiceRoute(public, route, proxy)
+			}
+		})
+
+		api.Group(func(protected chi.Router) {
+			protected.Use(withJWTAuth(cfg.JWTSecret, cfg.AuthSkipPaths))
+
+			for _, route := range cfg.Routes {
+				if !route.RequiresAuth {
+					continue
+				}
+
+				proxy := proxies[route.Name]
+				if proxy == nil {
+					continue
+				}
+
+				mountServiceRoute(protected, route, proxy)
+			}
+		})
 	})
 
 	return &http.Server{
@@ -78,6 +101,21 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 		WriteTimeout: cfg.WriteTimeout,
 		IdleTimeout:  cfg.IdleTimeout,
 	}
+}
+
+func buildServiceProxies(routes []config.ServiceRoute, logger *slog.Logger) map[string]http.Handler {
+	proxies := make(map[string]http.Handler, len(routes))
+	for _, route := range routes {
+		proxy, err := newServiceProxy(route, logger)
+		if err != nil {
+			logger.Error("failed to create proxy", "service", route.Name, "error", err)
+			continue
+		}
+
+		proxies[route.Name] = proxy
+	}
+
+	return proxies
 }
 
 func mountServiceRoute(router chi.Router, route config.ServiceRoute, handler http.Handler) {
@@ -93,4 +131,8 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	_ = encoder.Encode(payload)
+}
+
+func newDiscardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

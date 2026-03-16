@@ -1,0 +1,203 @@
+services:
+  kafka:
+    image: apache/kafka:4.0.0
+    container_name: pody-kafka
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  postgres:
+    build:
+      context: ./server
+      dockerfile: postgres/Dockerfile
+    container_name: pody-postgres
+    environment:
+      POSTGRES_DB: pody_identity
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pody_identity"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  notification-postgres:
+    build:
+      context: ./server
+      dockerfile: notification-postgres/Dockerfile
+    container_name: pody-notification-postgres
+    environment:
+      POSTGRES_DB: pody_notification
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pody_notification"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  migrations:
+    build:
+      context: ./server
+      dockerfile: migrations/Dockerfile
+    container_name: pody-migrations
+    environment:
+      IDENTITY_DATABASE_URL: postgres://postgres:postgres@postgres:5432/pody_identity?sslmode=disable
+      NOTIFICATION_DATABASE_URL: postgres://postgres:postgres@notification-postgres:5432/pody_notification?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notification-postgres:
+        condition: service_healthy
+    restart: "no"
+
+  identity-service:
+    build:
+      context: ./server/identity-service
+      dockerfile: Dockerfile
+    container_name: pody-identity-service
+    environment:
+      PORT: "8081"
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/pody_identity?sslmode=disable
+      JWT_SECRET: change-me
+      ACCESS_TOKEN_TTL: 15m
+      REFRESH_TOKEN_TTL: 720h
+      EMAIL_VERIFICATION_TTL: 24h
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: identity-service
+      KAFKA_WRITE_TIMEOUT: 5s
+      OUTBOX_POLL_INTERVAL: 1s
+      OUTBOX_BATCH_SIZE: "20"
+      OUTBOX_RETENTION: 168h
+      OUTBOX_CLEANUP_INTERVAL: 1h
+      OUTBOX_CLEANUP_BATCH_SIZE: "200"
+      VERIFICATION_EVENTS_TOPIC: identity.email.verification.requested
+      EMAIL_VERIFICATION_URL_BASE: http://localhost:8080/api/v1/public/identity/verify-email
+      GOOGLE_CLIENT_IDS: your-google-web-client-id.apps.googleusercontent.com
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  notification-service:
+    build:
+      context: ./server/notification-service
+      dockerfile: Dockerfile
+    container_name: pody-notification-service
+    environment:
+      PORT: "8087"
+      INTERNAL_API_KEY: change-me
+      EMAIL_SENDER_MODE: ${EMAIL_SENDER_MODE:-log}
+      EMAIL_FROM: ${EMAIL_FROM:-no-reply@pody.local}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-starttls}
+      SMTP_INSECURE_SKIP_VERIFY: ${SMTP_INSECURE_SKIP_VERIFY:-false}
+      SMTP_DIAL_TIMEOUT: ${SMTP_DIAL_TIMEOUT:-10s}
+      DATABASE_URL: postgres://postgres:postgres@notification-postgres:5432/pody_notification?sslmode=disable
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: notification-service
+      KAFKA_WRITE_TIMEOUT: 5s
+      VERIFICATION_EVENTS_TOPIC: identity.email.verification.requested
+      VERIFICATION_RETRY_TOPIC: identity.email.verification.requested.retry
+      VERIFICATION_DLQ_TOPIC: identity.email.verification.requested.dlq
+      VERIFICATION_CONSUMER_GROUP: notification-service
+      VERIFICATION_MAX_ATTEMPTS: "5"
+      PROCESSED_EVENTS_RETENTION: 168h
+      PROCESSED_EVENTS_CLEANUP_INTERVAL: 1h
+      PROCESSED_EVENTS_CLEANUP_BATCH_SIZE: "500"
+    ports:
+      - "8087:8087"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      notification-postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8087/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api-gateway:
+    build:
+      context: ./server/api-gateway
+      dockerfile: Dockerfile
+    container_name: pody-api-gateway
+    environment:
+      PORT: "8080"
+      ALLOWED_ORIGINS: "*"
+      READ_TIMEOUT: 5s
+      WRITE_TIMEOUT: 10s
+      IDLE_TIMEOUT: 30s
+      SHUTDOWN_TIMEOUT: 10s
+      JWT_SECRET: change-me
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      CONTENT_SERVICE_URL: http://content-service:8082
+      SOCIAL_SERVICE_URL: http://social-service:8083
+      NEWS_SERVICE_URL: http://news-service:8084
+      AI_SERVICE_URL: http://ai-service:8085
+      BILLING_SERVICE_URL: http://billing-service:8086
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+    ports:
+      - "8080:8080"
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  notification_postgres_data:

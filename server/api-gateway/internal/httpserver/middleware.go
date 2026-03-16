@@ -189,7 +189,20 @@ func bearerToken(headerValue string) string {
 
 func shouldSkipAuth(path string, skipPaths []string) bool {
 	for _, skipPath := range skipPaths {
-		if strings.TrimSpace(skipPath) == path {
+		skipPath = strings.TrimSpace(skipPath)
+		if skipPath == "" {
+			continue
+		}
+
+		if strings.HasSuffix(skipPath, "*") {
+			prefix := strings.TrimSuffix(skipPath, "*")
+			if strings.HasPrefix(path, prefix) {
+				return true
+			}
+			continue
+		}
+
+		if skipPath == path {
 			return true
 		}
 	}

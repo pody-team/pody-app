@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     CHECK (status IN ('active', 'pending_verification', 'suspended', 'deleted')),
   locale varchar(10) NOT NULL DEFAULT 'vi',
   timezone varchar(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
+  email_verified_at timestamptz,
   last_seen_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -67,6 +68,15 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS outbox_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   aggregate_type varchar(80) NOT NULL,
@@ -74,6 +84,8 @@ CREATE TABLE IF NOT EXISTS outbox_events (
   event_type varchar(120) NOT NULL,
   payload_version integer NOT NULL DEFAULT 1,
   payload jsonb NOT NULL,
+  attempts integer NOT NULL DEFAULT 0,
+  last_error text,
   status text NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending', 'published', 'failed')),
   available_at timestamptz NOT NULL DEFAULT now(),
@@ -97,6 +109,12 @@ CREATE INDEX IF NOT EXISTS ix_user_devices_user_last_seen
 
 CREATE INDEX IF NOT EXISTS ix_auth_sessions_user_expires
   ON auth_sessions (user_id, expires_at DESC);
+
+CREATE INDEX IF NOT EXISTS ix_email_verification_tokens_user_created
+  ON email_verification_tokens (user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS ix_email_verification_tokens_expires
+  ON email_verification_tokens (expires_at);
 
 CREATE INDEX IF NOT EXISTS ix_outbox_events_status_available
   ON outbox_events (status, available_at);

@@ -26,6 +26,23 @@ func TestJWTAuthAllowsSkippedPaths(t *testing.T) {
 	}
 }
 
+func TestJWTAuthAllowsWildcardSkippedPaths(t *testing.T) {
+	middleware := withJWTAuth("secret", []string{"/api/v1/public/*"})
+
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/public/healthz", nil)
+	recorder := httptest.NewRecorder()
+
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected wildcard skipped path to bypass auth, got %d", recorder.Code)
+	}
+}
+
 func TestJWTAuthRejectsMissingBearerToken(t *testing.T) {
 	middleware := withJWTAuth("secret", nil)
 

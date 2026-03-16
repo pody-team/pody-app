@@ -5,6 +5,7 @@ Thư mục này chỉ chứa schema cho các service dùng PostgreSQL.
 ## Danh sách
 
 - `services/identity_service.sql`
+- `services/notification_service.sql`
 - `services/content_service.sql`
 - `services/ai_service.sql`
 - `services/billing_service.sql`

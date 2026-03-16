@@ -6,6 +6,7 @@ Initial Go API Gateway / BFF scaffold for the Pody microservice architecture.
 
 - HTTP server using `chi` plus the Go standard library reverse proxy
 - Reverse proxy routing for:
+  - `/api/v1/public/identity`
   - `/api/v1/identity`
   - `/api/v1/content`
   - `/api/v1/social`
@@ -29,6 +30,12 @@ go run ./cmd/gateway
 
 The gateway listens on `http://localhost:8080` by default.
 
+## Run with Docker
+
+```bash
+docker compose up --build api-gateway
+```
+
 ## Environment variables
 
 ```bash
@@ -39,7 +46,7 @@ WRITE_TIMEOUT=10s
 IDLE_TIMEOUT=30s
 SHUTDOWN_TIMEOUT=10s
 JWT_SECRET=change-me
-AUTH_EXCLUDED_PATHS=/api/v1/_meta/routes,/api/v1/identity/sign-in,/api/v1/identity/sign-up,/api/v1/identity/forgot-password
+AUTH_EXCLUDED_PATHS=
 
 IDENTITY_SERVICE_URL=http://localhost:8081
 CONTENT_SERVICE_URL=http://localhost:8082
@@ -55,6 +62,8 @@ NOTIFICATION_SERVICE_URL=http://localhost:8087
 ```bash
 curl http://localhost:8080/healthz
 curl http://localhost:8080/api/v1/_meta/routes
+curl http://localhost:8080/api/v1/public/identity/healthz
+curl -X POST http://localhost:8080/api/v1/public/identity/sign-in
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/api/v1/social/comments
 ```
 
