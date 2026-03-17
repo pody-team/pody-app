@@ -4,7 +4,9 @@ import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/content/presentation/content_scope.dart';
 
 class CreateShowScreen extends StatefulWidget {
-  const CreateShowScreen({super.key});
+  const CreateShowScreen({this.initialSeed, super.key});
+
+  final ContentCreateShowSeed? initialSeed;
 
   @override
   State<CreateShowScreen> createState() => _CreateShowScreenState();
@@ -16,13 +18,41 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
   final _descriptionController = TextEditingController();
   final _categoryController = TextEditingController();
   final _coverImageUrlController = TextEditingController();
-  final _aiHostNameController = TextEditingController();
-  final _aiHostBioController = TextEditingController();
+  final List<_HostDraftForm> _hosts = [];
 
   bool _isSubmitting = false;
   bool _isLoadingCategories = false;
   bool _didLoadCategories = false;
+  String _contentType = 'podcast';
   List<String> _suggestedCategories = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    final initialSeed = widget.initialSeed;
+    if (initialSeed != null) {
+      _titleController.text = initialSeed.title;
+      _descriptionController.text = initialSeed.description ?? '';
+      _categoryController.text = initialSeed.primaryCategory;
+      _coverImageUrlController.text = initialSeed.coverImageUrl ?? '';
+      _contentType = initialSeed.contentType;
+      for (final host in initialSeed.hosts) {
+        _hosts.add(
+          _HostDraftForm(
+            displayName: host.displayName,
+            bio: host.bio ?? '',
+            role: host.role ?? 'host',
+            voiceProfileId: host.voiceProfileId,
+          ),
+        );
+      }
+    }
+
+    if (_hosts.isEmpty) {
+      _hosts.add(_HostDraftForm(displayName: '', bio: '', role: 'host'));
+    }
+    _normalizeHostsForContentType();
+  }
 
   @override
   void dispose() {
@@ -30,8 +60,9 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
     _descriptionController.dispose();
     _categoryController.dispose();
     _coverImageUrlController.dispose();
-    _aiHostNameController.dispose();
-    _aiHostBioController.dispose();
+    for (final host in _hosts) {
+      host.dispose();
+    }
     super.dispose();
   }
 
@@ -48,9 +79,7 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
   Future<void> _loadCategories() async {
     setState(() => _isLoadingCategories = true);
     try {
-      final categories = await ContentScope.of(
-        context,
-      ).listCreateShowCategories();
+      final categories = await ContentScope.of(context).listCreateShowCategories();
       if (!mounted) {
         return;
       }
@@ -61,7 +90,7 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
         }
       });
     } catch (_) {
-      // Fallback to manual input. The text field stays usable even if this fails.
+      // Manual input remains available.
     } finally {
       if (mounted) {
         setState(() => _isLoadingCategories = false);
@@ -69,9 +98,63 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
     }
   }
 
+  void _normalizeHostsForContentType() {
+    if (_contentType == 'storytelling') {
+      while (_hosts.length > 1) {
+        _hosts.removeLast().dispose();
+      }
+      if (_hosts.isEmpty) {
+        _hosts.add(_HostDraftForm(displayName: '', bio: '', role: 'narrator'));
+      }
+      _hosts.first.role = 'narrator';
+      return;
+    }
+
+    for (var index = 0; index < _hosts.length; index++) {
+      _hosts[index].role = index == 0 ? 'host' : 'co_host';
+    }
+  }
+
+  void _setContentType(String contentType) {
+    setState(() {
+      _contentType = contentType;
+      _normalizeHostsForContentType();
+    });
+  }
+
+  void _addHost() {
+    if (_contentType != 'podcast' || _hosts.length >= 3) {
+      return;
+    }
+    setState(() {
+      _hosts.add(
+        _HostDraftForm(displayName: '', bio: '', role: 'co_host'),
+      );
+      _normalizeHostsForContentType();
+    });
+  }
+
+  void _removeHost(int index) {
+    if (_hosts.length <= 1 || index < 0 || index >= _hosts.length) {
+      return;
+    }
+    setState(() {
+      _hosts.removeAt(index).dispose();
+      _normalizeHostsForContentType();
+    });
+  }
+
   Future<void> _submit() async {
     final form = _formKey.currentState;
     if (form == null || !form.validate()) {
+      return;
+    }
+
+    final hosts = _buildHostsInput();
+    if (hosts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Can it nhat 1 host hop le.')),
+      );
       return;
     }
 
@@ -85,10 +168,8 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
           description: _descriptionController.text.trim(),
           primaryCategory: _categoryController.text.trim(),
           coverImageUrl: _coverImageUrlController.text.trim(),
-          aiHost: ContentCreateAiHostInput(
-            displayName: _aiHostNameController.text.trim(),
-            bio: _aiHostBioController.text.trim(),
-          ),
+          contentType: _contentType,
+          hosts: hosts,
         ),
       );
 
@@ -110,6 +191,25 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
         setState(() => _isSubmitting = false);
       }
     }
+  }
+
+  List<ContentCreateHostInput> _buildHostsInput() {
+    final result = <ContentCreateHostInput>[];
+    for (final host in _hosts) {
+      final name = host.displayNameController.text.trim();
+      if (name.isEmpty) {
+        continue;
+      }
+      result.add(
+        ContentCreateHostInput(
+          displayName: name,
+          role: host.role,
+          voiceProfileId: host.voiceProfileId,
+          bio: host.bioController.text.trim(),
+        ),
+      );
+    }
+    return result;
   }
 
   String _humanizeError(Object error) {
@@ -173,6 +273,26 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
                 keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 24),
+              _buildSectionTitle('Dinh dang'),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTypeChip(
+                      label: 'Podcast',
+                      value: 'podcast',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildTypeChip(
+                      label: 'Storytelling',
+                      value: 'storytelling',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
               _buildSectionTitle('Phan loai'),
               const SizedBox(height: 12),
               _buildTextField(
@@ -231,26 +351,85 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
                   }).toList(),
                 ),
               const SizedBox(height: 24),
-              _buildSectionTitle('AI host'),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _aiHostNameController,
-                label: 'Ten AI host',
-                hintText: 'Vi du: Nova, Lumi, Mira...',
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Hay nhap ten AI host chinh cho show nay.';
-                  }
-                  return null;
-                },
+              Row(
+                children: [
+                  _buildSectionTitle(
+                    _contentType == 'storytelling' ? 'Narrator' : 'Hosts',
+                  ),
+                  const Spacer(),
+                  if (_contentType == 'podcast')
+                    TextButton.icon(
+                      onPressed: _hosts.length >= 3 || _isSubmitting ? null : _addHost,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Them host'),
+                    ),
+                ],
               ),
               const SizedBox(height: 12),
-              _buildTextField(
-                controller: _aiHostBioController,
-                label: 'Persona summary',
-                hintText: 'AI host nay se noi chuyen theo phong cach nao?',
-                maxLines: 4,
-              ),
+              ...List.generate(_hosts.length, (index) {
+                final host = _hosts[index];
+                final isStorytelling = _contentType == 'storytelling';
+                final roleLabel = isStorytelling
+                    ? 'Narrator'
+                    : (index == 0 ? 'Host chinh' : 'Co-host');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              roleLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (_contentType == 'podcast' && _hosts.length > 1)
+                              IconButton(
+                                onPressed: _isSubmitting ? null : () => _removeHost(index),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          controller: host.displayNameController,
+                          label: 'Ten host',
+                          hintText: index == 0 ? 'Vi du: Nova' : 'Vi du: Atlas',
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Hay nhap ten host.';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTextField(
+                          controller: host.bioController,
+                          label: 'Persona summary',
+                          hintText: 'Host nay noi chuyen theo phong cach nao?',
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 28),
               FilledButton(
                 onPressed: _isSubmitting ? null : _submit,
@@ -275,7 +454,9 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Show moi se duoc tao voi AI host chinh o cap show. Episode va logic AI service se duoc mo rong sau.',
+                _contentType == 'storytelling'
+                    ? 'Storytelling duoc tao voi 1 narrator o cap show. Episode se ke thua narrator nay.'
+                    : 'Podcast duoc tao voi 1 den 3 host o cap show. Episode se ke thua danh sach host nay.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.5),
@@ -284,6 +465,37 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeChip({required String label, required String value}) {
+    final selected = _contentType == value;
+    return InkWell(
+      onTap: _isSubmitting ? null : () => _setContentType(value),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFFE7C6A0)
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFFE7C6A0)
+                : Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? const Color(0xFF1A171E) : Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -340,5 +552,25 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
         ),
       ),
     );
+  }
+}
+
+class _HostDraftForm {
+  _HostDraftForm({
+    required String displayName,
+    required String bio,
+    required this.role,
+    this.voiceProfileId,
+  }) : displayNameController = TextEditingController(text: displayName),
+       bioController = TextEditingController(text: bio);
+
+  final TextEditingController displayNameController;
+  final TextEditingController bioController;
+  final String? voiceProfileId;
+  String role;
+
+  void dispose() {
+    displayNameController.dispose();
+    bioController.dispose();
   }
 }

@@ -1,5 +1,5 @@
-class ContentAiHost {
-  const ContentAiHost({
+class ContentHost {
+  const ContentHost({
     required this.id,
     required this.displayName,
     required this.avatarUrl,
@@ -15,8 +15,8 @@ class ContentAiHost {
   final String? voiceProfileId;
   final String? bio;
 
-  factory ContentAiHost.fromJson(Map<String, dynamic> json) {
-    return ContentAiHost(
+  factory ContentHost.fromJson(Map<String, dynamic> json) {
+    return ContentHost(
       id: _readString(json['id']),
       displayName: _readString(json['display_name']),
       avatarUrl: _readString(json['avatar_url']),
@@ -27,15 +27,17 @@ class ContentAiHost {
   }
 }
 
-class ContentCreateAiHostInput {
-  const ContentCreateAiHostInput({
+class ContentCreateHostInput {
+  const ContentCreateHostInput({
     required this.displayName,
+    this.role,
     this.avatarUrl,
     this.voiceProfileId,
     this.bio,
   });
 
   final String displayName;
+  final String? role;
   final String? avatarUrl;
   final String? voiceProfileId;
   final String? bio;
@@ -43,6 +45,7 @@ class ContentCreateAiHostInput {
   Map<String, dynamic> toJson() {
     return {
       'display_name': displayName,
+      if (role != null && role!.isNotEmpty) 'role': role,
       if (avatarUrl != null && avatarUrl!.isNotEmpty) 'avatar_url': avatarUrl,
       if (voiceProfileId != null && voiceProfileId!.isNotEmpty)
         'voice_profile_id': voiceProfileId,
@@ -51,11 +54,29 @@ class ContentCreateAiHostInput {
   }
 }
 
+class ContentCreateShowSeed {
+  const ContentCreateShowSeed({
+    required this.title,
+    required this.primaryCategory,
+    required this.hosts,
+    this.description,
+    this.coverImageUrl,
+    this.contentType = 'podcast',
+  });
+
+  final String title;
+  final String primaryCategory;
+  final List<ContentCreateHostInput> hosts;
+  final String? description;
+  final String? coverImageUrl;
+  final String contentType;
+}
+
 class ContentCreateShowInput {
   const ContentCreateShowInput({
     required this.title,
     required this.primaryCategory,
-    required this.aiHost,
+    required this.hosts,
     this.description,
     this.coverImageUrl,
     this.languageCode,
@@ -64,7 +85,7 @@ class ContentCreateShowInput {
 
   final String title;
   final String primaryCategory;
-  final ContentCreateAiHostInput aiHost;
+  final List<ContentCreateHostInput> hosts;
   final String? description;
   final String? coverImageUrl;
   final String? languageCode;
@@ -74,7 +95,7 @@ class ContentCreateShowInput {
     return {
       'title': title,
       'primary_category': primaryCategory,
-      'ai_host': aiHost.toJson(),
+      'hosts': hosts.map((host) => host.toJson()).toList(),
       if (description != null && description!.isNotEmpty)
         'description': description,
       if (coverImageUrl != null && coverImageUrl!.isNotEmpty)
@@ -142,7 +163,8 @@ class ContentShowSummary {
     required this.title,
     required this.coverImageUrl,
     required this.primaryCategory,
-    required this.aiHost,
+    required this.hosts,
+    required this.contentType,
     required this.subscriberCount,
     required this.totalEpisodeCount,
     required this.publishedAt,
@@ -153,23 +175,30 @@ class ContentShowSummary {
   final String title;
   final String coverImageUrl;
   final String primaryCategory;
-  final ContentAiHost aiHost;
+  final List<ContentHost> hosts;
+  final String contentType;
   final int subscriberCount;
   final int totalEpisodeCount;
   final DateTime publishedAt;
 
+  ContentHost? get primaryHost => hosts.isEmpty ? null : hosts.first;
+  String get hostNames => hosts.map((host) => host.displayName).join(', ');
+
   String get formattedSubscriberCount => _formatCount(subscriberCount);
 
   factory ContentShowSummary.fromJson(Map<String, dynamic> json) {
+    final rawHosts = json['hosts'] as List<dynamic>? ?? const [];
     return ContentShowSummary(
       id: _readString(json['id']),
       slug: _readString(json['slug']),
       title: _readString(json['title']),
       coverImageUrl: _readString(json['cover_image_url']),
       primaryCategory: _readString(json['primary_category']),
-      aiHost: ContentAiHost.fromJson(
-        (json['ai_host'] as Map<String, dynamic>?) ?? const {},
-      ),
+      hosts: rawHosts
+          .whereType<Map<String, dynamic>>()
+          .map(ContentHost.fromJson)
+          .toList(),
+      contentType: _readString(json['content_type'], fallback: 'podcast'),
       subscriberCount: _readInt(json['subscriber_count']),
       totalEpisodeCount: _readInt(json['total_episode_count']),
       publishedAt: _readDateTime(json['published_at']),
@@ -229,7 +258,7 @@ class ContentShowDetail {
     required this.coverImageUrl,
     required this.categories,
     required this.tags,
-    required this.aiHost,
+    required this.hosts,
     required this.owner,
     required this.subscriberCount,
     required this.totalEpisodeCount,
@@ -248,7 +277,7 @@ class ContentShowDetail {
   final String coverImageUrl;
   final List<String> categories;
   final List<String> tags;
-  final ContentAiHost aiHost;
+  final List<ContentHost> hosts;
   final ContentOwnerSummary owner;
   final int subscriberCount;
   final int totalEpisodeCount;
@@ -260,6 +289,8 @@ class ContentShowDetail {
   final DateTime publishedAt;
 
   String get primaryCategory => categories.isEmpty ? '' : categories.first;
+  ContentHost? get primaryHost => hosts.isEmpty ? null : hosts.first;
+  String get hostNames => hosts.map((host) => host.displayName).join(', ');
   String get formattedSubscriberCount => _formatCount(subscriberCount);
   String get formattedListenCount => _formatCount(totalListenCount);
 
@@ -270,7 +301,8 @@ class ContentShowDetail {
       title: title,
       coverImageUrl: coverImageUrl,
       primaryCategory: primaryCategory,
-      aiHost: aiHost,
+      hosts: hosts,
+      contentType: contentType,
       subscriberCount: subscriberCount,
       totalEpisodeCount: totalEpisodeCount,
       publishedAt: publishedAt,
@@ -278,6 +310,7 @@ class ContentShowDetail {
   }
 
   factory ContentShowDetail.fromJson(Map<String, dynamic> json) {
+    final rawHosts = json['hosts'] as List<dynamic>? ?? const [];
     return ContentShowDetail(
       id: _readString(json['id']),
       slug: _readString(json['slug']),
@@ -286,9 +319,10 @@ class ContentShowDetail {
       coverImageUrl: _readString(json['cover_image_url']),
       categories: _readStringList(json['categories']),
       tags: _readStringList(json['tags']),
-      aiHost: ContentAiHost.fromJson(
-        (json['ai_host'] as Map<String, dynamic>?) ?? const {},
-      ),
+      hosts: rawHosts
+          .whereType<Map<String, dynamic>>()
+          .map(ContentHost.fromJson)
+          .toList(),
       owner: ContentOwnerSummary.fromJson(
         (json['owner'] as Map<String, dynamic>?) ?? const {},
       ),

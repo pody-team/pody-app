@@ -164,7 +164,9 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
   Widget _buildHero(ContentShowDetail? show, ContentShowSummary? summary) {
     final title = show?.title ?? summary?.title ?? 'Dang tai';
     final coverImageUrl = show?.coverImageUrl ?? summary?.coverImageUrl ?? '';
-    final aiHost = show?.aiHost ?? summary?.aiHost;
+    final hosts = show?.hosts ?? summary?.hosts ?? const [];
+    final primaryHost = hosts.isEmpty ? null : hosts.first;
+    final hostLabel = hosts.map((host) => host.displayName).join(', ');
     final categoryChips =
         show?.categories ??
         <String>[if (summary != null) summary.primaryCategory];
@@ -200,18 +202,18 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          if (aiHost != null)
+          if (primaryHost != null)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundImage: NetworkImage(aiHost.avatarUrl),
+                  backgroundImage: NetworkImage(primaryHost.avatarUrl),
                 ),
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(
-                    'AI host: ${aiHost.displayName}',
+                    'Hosts: $hostLabel',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.74),
                       fontSize: 14,
@@ -360,7 +362,7 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
                 border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
               child: Text(
-                'Show nay da co AI host va metadata day du, nhung chua co episode nao duoc phat hanh.',
+                'Show nay da co hosts va metadata day du, nhung chua co episode nao duoc phat hanh.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.66),
                   height: 1.6,
@@ -515,13 +517,14 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
       id: show.id,
       title: show.title,
       hosts: [
-        Host(
-          id: show.aiHost.id,
-          name: show.aiHost.displayName,
-          avatarUrl: show.aiHost.avatarUrl,
-          voiceId: show.aiHost.voiceProfileId,
-          role: show.aiHost.role,
-        ),
+        for (final host in show.hosts)
+          Host(
+            id: host.id,
+            name: host.displayName,
+            avatarUrl: host.avatarUrl,
+            voiceId: host.voiceProfileId,
+            role: host.role,
+          ),
       ],
       category: show.primaryCategory,
       imageUrl: show.coverImageUrl,

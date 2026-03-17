@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 class AppEnvironment {
   AppEnvironment._();
 
+  static const _defaultApiBaseUrl = 'http://laihieu2714.ddns.net:8080';
   static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const _configuredGoogleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
@@ -16,12 +17,12 @@ class AppEnvironment {
     }
 
     if (kIsWeb) {
-      return 'http://localhost:8080';
+      return _defaultApiBaseUrl;
     }
 
     return switch (defaultTargetPlatform) {
-      TargetPlatform.android => 'http://10.0.2.2:8080',
-      _ => 'http://localhost:8080',
+      TargetPlatform.android => _defaultApiBaseUrl,
+      _ => _defaultApiBaseUrl,
     };
   }
 

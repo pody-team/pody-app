@@ -24,12 +24,12 @@ func TestPublicHomeFeedDoesNotRequireAuth(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), "\"ai_host\"") {
-		t.Fatalf("expected ai host in response body, got %q", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), "\"hosts\"") {
+		t.Fatalf("expected hosts in response body, got %q", recorder.Body.String())
 	}
 }
 
-func TestShowDetailIncludesAIHostWithoutEpisodes(t *testing.T) {
+func TestShowDetailIncludesHostsWithoutEpisodes(t *testing.T) {
 	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/content/shows/show-midnight-reset", nil)
@@ -42,7 +42,7 @@ func TestShowDetailIncludesAIHostWithoutEpisodes(t *testing.T) {
 	}
 	body := recorder.Body.String()
 	if !strings.Contains(body, "\"display_name\":\"Lumi\"") {
-		t.Fatalf("expected Lumi ai host in response, got %q", body)
+		t.Fatalf("expected Lumi host in response, got %q", body)
 	}
 }
 
@@ -65,7 +65,7 @@ func TestCreateShowRequiresAuthHeader(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/content/shows", bytes.NewBufferString(`{
 		"title":"Show moi",
 		"primary_category":"Cong nghe",
-		"ai_host":{"display_name":"Nova 2"}
+		"hosts":[{"display_name":"Nova 2"}]
 	}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -85,10 +85,18 @@ func TestCreateShowReturnsCreatedShow(t *testing.T) {
 		"description":"Show danh cho creator dang build dan AI service.",
 		"primary_category":"Cong nghe",
 		"cover_image_url":"https://example.com/builder-log.png",
-		"ai_host":{
-			"display_name":"Mira",
-			"bio":"AI host dong hanh voi creator."
-		}
+		"content_type":"podcast",
+		"hosts":[
+			{
+				"display_name":"Mira",
+				"bio":"AI host dong hanh voi creator."
+			},
+			{
+				"display_name":"Atlas",
+				"role":"co_host",
+				"bio":"Co-host dat cau hoi."
+			}
+		]
 	}`))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("X-Auth-User-ID", "creator-123")
@@ -106,7 +114,7 @@ func TestCreateShowReturnsCreatedShow(t *testing.T) {
 	if !strings.Contains(body, "\"title\":\"Builder's Log\"") {
 		t.Fatalf("expected created show title in response, got %q", body)
 	}
-	if !strings.Contains(body, "\"display_name\":\"Mira\"") {
-		t.Fatalf("expected ai host in response, got %q", body)
+	if !strings.Contains(body, "\"display_name\":\"Mira\"") || !strings.Contains(body, "\"display_name\":\"Atlas\"") {
+		t.Fatalf("expected hosts in response, got %q", body)
 	}
 }

@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/features/ai/data/ai_remote_data_source.dart';
+import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/auth/application/auth_controller.dart';
 import 'package:pody/features/auth/data/auth_local_data_source.dart';
 import 'package:pody/features/auth/data/auth_remote_data_source.dart';
@@ -41,6 +43,7 @@ void main() {
       await tester.pumpWidget(
         PodyApp(
           authController: authController,
+          aiRepository: AIRepository(AIRemoteDataSource(apiClient)),
           contentRepository: ContentRepository(
             _FakeContentRemoteDataSource(apiClient),
           ),
@@ -80,12 +83,15 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
             title: 'Future Minds',
             coverImageUrl: 'https://example.com/show-1.jpg',
             primaryCategory: 'Cong nghe',
-            aiHost: const ContentAiHost(
-              id: 'ai-1',
-              displayName: 'Nova',
-              avatarUrl: 'https://example.com/host-1.jpg',
-              role: 'host',
-            ),
+            hosts: const [
+              ContentHost(
+                id: 'ai-1',
+                displayName: 'Nova',
+                avatarUrl: 'https://example.com/host-1.jpg',
+                role: 'host',
+              ),
+            ],
+            contentType: 'podcast',
             subscriberCount: 1200,
             totalEpisodeCount: 1,
             publishedAt: DateTime(2026, 3, 17),

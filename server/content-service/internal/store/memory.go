@@ -33,7 +33,7 @@ type demoStore struct {
 func NewDemoStore() ContentStore {
 	now := time.Date(2026, time.March, 17, 8, 0, 0, 0, time.UTC)
 
-	futureMindsHost := domain.AIHost{
+	futureMindsHost := domain.Host{
 		ID:             "ai-host-nova",
 		DisplayName:    "Nova",
 		AvatarURL:      "https://picsum.photos/seed/nova-host/200/200",
@@ -41,7 +41,7 @@ func NewDemoStore() ContentStore {
 		Role:           "host",
 		Bio:            "AI host cua Future Minds, chuyen bien cac chu de cong nghe thanh nhung cuoc tro chuyen de nghe va de nho.",
 	}
-	detectiveHost := domain.AIHost{
+	detectiveHost := domain.Host{
 		ID:             "ai-host-minh-tra",
 		DisplayName:    "Minh Tra",
 		AvatarURL:      "https://picsum.photos/seed/minh-tra-host/200/200",
@@ -49,7 +49,7 @@ func NewDemoStore() ContentStore {
 		Role:           "host",
 		Bio:            "AI narrator chuyen ke cac ho so dieu tra, tap trung vao nhịp kể chậm va tạo không khí.",
 	}
-	lumiHost := domain.AIHost{
+	lumiHost := domain.Host{
 		ID:             "ai-host-lumi",
 		DisplayName:    "Lumi",
 		AvatarURL:      "https://picsum.photos/seed/lumi-host/200/200",
@@ -70,7 +70,8 @@ func NewDemoStore() ContentStore {
 		Title:             "Future Minds",
 		CoverImageURL:     "https://picsum.photos/seed/future-minds-cover/800/800",
 		PrimaryCategory:   "Cong nghe",
-		AIHost:            futureMindsHost,
+		Hosts:             []domain.Host{futureMindsHost},
+		ContentType:       "podcast",
 		SubscriberCount:   12500,
 		TotalEpisodeCount: 3,
 		PublishedAt:       now.Add(-72 * time.Hour),
@@ -81,7 +82,8 @@ func NewDemoStore() ContentStore {
 		Title:             "True Crime Daily",
 		CoverImageURL:     "https://picsum.photos/seed/true-crime-daily/800/800",
 		PrimaryCategory:   "Dieu tra",
-		AIHost:            detectiveHost,
+		Hosts:             []domain.Host{detectiveHost},
+		ContentType:       "storytelling",
 		SubscriberCount:   8200,
 		TotalEpisodeCount: 2,
 		PublishedAt:       now.Add(-96 * time.Hour),
@@ -92,7 +94,8 @@ func NewDemoStore() ContentStore {
 		Title:             "Midnight Reset",
 		CoverImageURL:     "https://picsum.photos/seed/midnight-reset/800/800",
 		PrimaryCategory:   "Cham soc ban than",
-		AIHost:            lumiHost,
+		Hosts:             []domain.Host{lumiHost},
+		ContentType:       "storytelling",
 		SubscriberCount:   5600,
 		TotalEpisodeCount: 0,
 		PublishedAt:       now.Add(-48 * time.Hour),
@@ -238,7 +241,7 @@ func NewDemoStore() ContentStore {
 			CoverImageURL:     futureMindsSummary.CoverImageURL,
 			Categories:        []string{"Cong nghe", "Giai thich de hieu"},
 			Tags:              []string{"AI", "Tech", "Weekly"},
-			AIHost:            futureMindsHost,
+			Hosts:             []domain.Host{futureMindsHost},
 			Owner:             podyOwner,
 			SubscriberCount:   futureMindsSummary.SubscriberCount,
 			TotalEpisodeCount: futureMindsSummary.TotalEpisodeCount,
@@ -257,7 +260,7 @@ func NewDemoStore() ContentStore {
 			CoverImageURL:     trueCrimeSummary.CoverImageURL,
 			Categories:        []string{"Dieu tra", "Chuyen ke"},
 			Tags:              []string{"Crime", "Case Files", "Night Listening"},
-			AIHost:            detectiveHost,
+			Hosts:             []domain.Host{detectiveHost},
 			Owner:             podyOwner,
 			SubscriberCount:   trueCrimeSummary.SubscriberCount,
 			TotalEpisodeCount: trueCrimeSummary.TotalEpisodeCount,
@@ -276,7 +279,7 @@ func NewDemoStore() ContentStore {
 			CoverImageURL:     mindfulSummary.CoverImageURL,
 			Categories:        []string{"Cham soc ban than", "Ngu ngon"},
 			Tags:              []string{"Night", "Reflection"},
-			AIHost:            lumiHost,
+			Hosts:             []domain.Host{lumiHost},
 			Owner:             podyOwner,
 			SubscriberCount:   mindfulSummary.SubscriberCount,
 			TotalEpisodeCount: mindfulSummary.TotalEpisodeCount,
@@ -349,9 +352,9 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 	category := strings.TrimSpace(input.PrimaryCategory)
 	ownerUserID := strings.TrimSpace(input.OwnerUserID)
 	ownerDisplayName := strings.TrimSpace(input.OwnerDisplayName)
-	aiHostName := strings.TrimSpace(input.AIHost.DisplayName)
-	if title == "" || category == "" || ownerUserID == "" || aiHostName == "" {
-		return domain.ShowDetail{}, errors.New("title, primary category, ai host display name, and owner user id are required")
+	contentType := fallbackString(strings.TrimSpace(input.ContentType), "podcast")
+	if title == "" || category == "" || ownerUserID == "" {
+		return domain.ShowDetail{}, errors.New("title, primary category, and owner user id are required")
 	}
 
 	if ownerDisplayName == "" {
@@ -365,9 +368,9 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 	if coverImageURL == "" {
 		coverImageURL = fallbackShowCoverURL(slug)
 	}
-	hostAvatarURL := strings.TrimSpace(input.AIHost.AvatarURL)
-	if hostAvatarURL == "" {
-		hostAvatarURL = fallbackHostAvatarURL(slug)
+	hosts, err := normalizeCreateHosts(contentType, input.Hosts, slug)
+	if err != nil {
+		return domain.ShowDetail{}, err
 	}
 	ownerAvatarURL := fallbackOwnerAvatarURL(ownerUserID)
 
@@ -379,14 +382,7 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 		CoverImageURL: coverImageURL,
 		Categories:    []string{category},
 		Tags:          nil,
-		AIHost: domain.AIHost{
-			ID:             fmt.Sprintf("host-%d", now.UnixNano()),
-			DisplayName:    aiHostName,
-			AvatarURL:      hostAvatarURL,
-			VoiceProfileID: strings.TrimSpace(input.AIHost.VoiceProfileID),
-			Role:           "host",
-			Bio:            strings.TrimSpace(input.AIHost.Bio),
-		},
+		Hosts:         hosts,
 		Owner: domain.OwnerSummary{
 			ID:          ownerUserID,
 			DisplayName: ownerDisplayName,
@@ -396,10 +392,13 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 		TotalEpisodeCount: 0,
 		TotalListenCount:  0,
 		LanguageCode:      fallbackString(strings.TrimSpace(input.LanguageCode), "vi"),
-		ContentType:       fallbackString(strings.TrimSpace(input.ContentType), "podcast"),
+		ContentType:       contentType,
 		Visibility:        "public",
 		MonetizationType:  "free",
 		PublishedAt:       now,
+	}
+	for index := range show.Hosts {
+		show.Hosts[index].ID = fmt.Sprintf("host-%d-%d", now.UnixNano(), index+1)
 	}
 
 	s.showDetails[show.ID] = show
@@ -410,7 +409,8 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 		Title:             show.Title,
 		CoverImageURL:     show.CoverImageURL,
 		PrimaryCategory:   category,
-		AIHost:            show.AIHost,
+		Hosts:             show.Hosts,
+		ContentType:       show.ContentType,
 		SubscriberCount:   show.SubscriberCount,
 		TotalEpisodeCount: show.TotalEpisodeCount,
 		PublishedAt:       show.PublishedAt,

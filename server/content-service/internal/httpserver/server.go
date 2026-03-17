@@ -26,13 +26,14 @@ type createShowRequest struct {
 	PrimaryCategory string                  `json:"primary_category"`
 	LanguageCode    string                  `json:"language_code"`
 	ContentType     string                  `json:"content_type"`
-	AIHost          createShowAIHostRequest `json:"ai_host"`
+	Hosts           []createShowHostRequest `json:"hosts"`
 }
 
-type createShowAIHostRequest struct {
+type createShowHostRequest struct {
 	DisplayName    string `json:"display_name"`
 	AvatarURL      string `json:"avatar_url"`
 	VoiceProfileID string `json:"voice_profile_id"`
+	Role           string `json:"role"`
 	Bio            string `json:"bio"`
 }
 
@@ -194,12 +195,7 @@ func (s *server) handleCreateShow(w http.ResponseWriter, r *http.Request) {
 		PrimaryCategory:  request.PrimaryCategory,
 		LanguageCode:     request.LanguageCode,
 		ContentType:      request.ContentType,
-		AIHost: domain.CreateAIHostInput{
-			DisplayName:    request.AIHost.DisplayName,
-			AvatarURL:      request.AIHost.AvatarURL,
-			VoiceProfileID: request.AIHost.VoiceProfileID,
-			Bio:            request.AIHost.Bio,
-		},
+		Hosts:            mapCreateHosts(request.Hosts),
 	})
 	if err != nil {
 		switch {
@@ -216,6 +212,20 @@ func (s *server) handleCreateShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{"show": show})
+}
+
+func mapCreateHosts(items []createShowHostRequest) []domain.CreateHostInput {
+	hosts := make([]domain.CreateHostInput, 0, len(items))
+	for _, item := range items {
+		hosts = append(hosts, domain.CreateHostInput{
+			DisplayName:    item.DisplayName,
+			AvatarURL:      item.AvatarURL,
+			VoiceProfileID: item.VoiceProfileID,
+			Role:           item.Role,
+			Bio:            item.Bio,
+		})
+	}
+	return hosts
 }
 
 func authContextFromRequest(r *http.Request) (authContext, bool) {

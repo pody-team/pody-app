@@ -181,7 +181,7 @@ class _MyShowsScreenState extends State<MyShowsScreen> {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Tao show dau tien de bat dau dinh hinh AI host, category va noi dung cho creator studio.',
+                    'Tao show dau tien de bat dau dinh hinh format, danh sach host, category va noi dung cho creator studio.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.6),

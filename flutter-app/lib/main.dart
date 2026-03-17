@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:ui';
+import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
 import 'package:pody/screens/show/content_home_screen.dart';
 import 'package:pody/screens/news/news_screen.dart';
@@ -12,6 +11,9 @@ import 'package:pody/widgets/mini_player.dart';
 import 'package:pody/theme/app_theme.dart';
 import 'package:pody/core/config/app_environment.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/features/ai/data/ai_remote_data_source.dart';
+import 'package:pody/features/ai/data/ai_repository.dart';
+import 'package:pody/features/ai/presentation/ai_scope.dart';
 import 'package:pody/features/auth/application/auth_controller.dart';
 import 'package:pody/features/auth/data/auth_local_data_source.dart';
 import 'package:pody/features/auth/data/auth_remote_data_source.dart';
@@ -46,6 +48,7 @@ void main() {
   final contentRepository = ContentRepository(
     ContentRemoteDataSource(apiClient),
   );
+  final aiRepository = AIRepository(AIRemoteDataSource(apiClient));
   final notificationRepository = NotificationRepository(
     NotificationRemoteDataSource(apiClient),
   );
@@ -53,6 +56,7 @@ void main() {
   runApp(
     PodyApp(
       authController: authController,
+      aiRepository: aiRepository,
       contentRepository: contentRepository,
       notificationRepository: notificationRepository,
     ),
@@ -62,30 +66,35 @@ void main() {
 class PodyApp extends StatelessWidget {
   PodyApp({
     required this.authController,
+    required this.aiRepository,
     required this.contentRepository,
     required this.notificationRepository,
     super.key,
   }) : navigatorKey = GlobalKey<NavigatorState>();
 
   final AuthController authController;
+  final AIRepository aiRepository;
   final ContentRepository contentRepository;
   final NotificationRepository notificationRepository;
   final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
-    return ContentScope(
-      repository: contentRepository,
-      child: AuthScope(
-        controller: authController,
-        child: MaterialApp(
-          navigatorKey: navigatorKey,
-          title: 'Pody',
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          home: AppShell(
+    return AIScope(
+      repository: aiRepository,
+      child: ContentScope(
+        repository: contentRepository,
+        child: AuthScope(
+          controller: authController,
+          child: MaterialApp(
             navigatorKey: navigatorKey,
-            notificationRepository: notificationRepository,
+            title: 'Pody',
+            debugShowCheckedModeBanner: false,
+            theme: buildAppTheme(),
+            home: AppShell(
+              navigatorKey: navigatorKey,
+              notificationRepository: notificationRepository,
+            ),
           ),
         ),
       ),
@@ -243,6 +252,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isCreateTab = _currentIndex == 2;
     final screens = [
       const ContentHomeScreen(),
       const NewsScreen(),
@@ -289,52 +299,62 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
           ],
         ),
-        bottomNavigationBar: Container(
+        bottomNavigationBar: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.8),
+            color: isCreateTab ? Colors.white : const Color(0xFF0F1115),
             border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+              top: BorderSide(
+                color: isCreateTab
+                    ? const Color(0xFFE5E7EB)
+                    : Colors.white.withValues(alpha: 0.08),
+              ),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: isCreateTab
+                    ? const Color(0x140F172A)
+                    : Colors.black.withValues(alpha: 0.32),
+                blurRadius: 18,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
-          child: ClipRRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                      _buildNavItem(
-                        1,
-                        Icons.newspaper_outlined,
-                        Icons.newspaper,
-                        'News',
-                      ),
-                      _buildNavItem(
-                        2,
-                        Icons.add_circle_outline,
-                        Icons.add_circle,
-                        'Create',
-                        isCreate: true,
-                      ),
-                      _buildNavItem(
-                        3,
-                        Icons.mail_outline,
-                        Icons.mail,
-                        'Notify',
-                      ),
-                      _buildNavItem(
-                        4,
-                        Icons.account_circle_outlined,
-                        Icons.account_circle,
-                        'Profile',
-                      ),
-                    ],
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+                  _buildNavItem(
+                    1,
+                    Icons.newspaper_outlined,
+                    Icons.newspaper,
+                    'News',
                   ),
-                ),
+                  _buildNavItem(
+                    2,
+                    Icons.add_circle_outline,
+                    Icons.add_circle,
+                    'Create',
+                    isCreate: true,
+                  ),
+                  _buildNavItem(
+                    3,
+                    Icons.mail_outline,
+                    Icons.mail,
+                    'Notify',
+                  ),
+                  _buildNavItem(
+                    4,
+                    Icons.account_circle_outlined,
+                    Icons.account_circle,
+                    'Profile',
+                  ),
+                ],
               ),
             ),
           ),
@@ -352,6 +372,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     int badgeCount = 0,
   }) {
     final isActive = _currentIndex == index;
+    final isCreateTab = _currentIndex == 2;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -374,13 +395,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               ),
               decoration: BoxDecoration(
                 color: isActive
-                    ? Colors.white.withValues(alpha: 0.12)
+                    ? (isCreateTab
+                        ? const Color(0xFFF3F4F6)
+                        : Colors.white.withValues(alpha: 0.12))
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Icon(
                 isActive ? activeIcon : icon,
-                color: isActive ? Colors.white : Colors.white54,
+                color: isActive
+                    ? (isCreateTab
+                        ? const Color(0xFF111827)
+                        : Colors.white)
+                    : (isCreateTab
+                        ? const Color(0xFF6B7280)
+                        : Colors.white54),
                 size: isCreate ? 32 : 28,
               ),
             ),

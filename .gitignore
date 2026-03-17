@@ -4,8 +4,6 @@
 server/node_modules/
 server/dist/
 server/build/
-server/.env
-server/.env.*
 
 # Go artifacts
 server/api-gateway/bin/

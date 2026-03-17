@@ -9,6 +9,8 @@ COPY ./sql/services/identity_service_password_reset.sql /migrations/identity_ser
 COPY ./sql/services/notification_service.sql /migrations/notification_service.sql
 COPY ./sql/services/content_service.sql /migrations/content_service.sql
 COPY ./sql/services/content_service_demo_seed.sql /migrations/content_service_demo_seed.sql
+COPY ./sql/services/ai_service.sql /migrations/ai_service.sql
+COPY ./sql/services/ai_service_demo_seed.sql /migrations/ai_service_demo_seed.sql
 COPY ./migrations/run-migrations.sh /usr/local/bin/run-migrations.sh
 
 RUN chmod +x /usr/local/bin/run-migrations.sh

@@ -15,8 +15,8 @@ class ApiClient {
         BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 15),
-          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 60),
+          sendTimeout: const Duration(seconds: 30),
           headers: const {'Accept': 'application/json'},
         ),
       ) {
@@ -208,6 +208,40 @@ class ApiClient {
       throw _mapDioException(error);
     } on FormatException {
       throw ApiException('May chu tra ve du lieu khong hop le.');
+    }
+  }
+
+  Future<ResponseBody> openEventStream(
+    String path, {
+    required String method,
+    Map<String, dynamic>? body,
+    String? bearerToken,
+    bool requiresAuth = false,
+  }) async {
+    try {
+      final response = await _dio.request<ResponseBody>(
+        path,
+        data: body,
+        options: Options(
+          method: method,
+          responseType: ResponseType.stream,
+          headers: {
+            'Accept': 'text/event-stream',
+            if (body != null) 'Content-Type': 'application/json',
+            if (bearerToken != null && bearerToken.isNotEmpty)
+              'Authorization': 'Bearer $bearerToken',
+          },
+          extra: {_requiresAuthKey: requiresAuth},
+        ),
+      );
+
+      final bodyStream = response.data;
+      if (bodyStream == null) {
+        throw ApiException('May chu khong tra ve du lieu stream hop le.');
+      }
+      return bodyStream;
+    } on DioException catch (error) {
+      throw _mapDioException(error);
     }
   }
 

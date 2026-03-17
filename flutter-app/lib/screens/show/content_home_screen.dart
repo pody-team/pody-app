@@ -106,7 +106,7 @@ class _ContentHomeScreenState extends State<ContentHomeScreen> {
 
           return card.show.title.toLowerCase().contains(query) ||
               card.show.primaryCategory.toLowerCase().contains(query) ||
-              card.show.aiHost.displayName.toLowerCase().contains(query) ||
+              card.show.hostNames.toLowerCase().contains(query) ||
               card.previewEpisodes.any(
                 (episode) => episode.title.toLowerCase().contains(query),
               );
@@ -223,7 +223,7 @@ class _ContentHomeScreenState extends State<ContentHomeScreen> {
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                hintText: 'Tim show, AI host, episode...',
+                hintText: 'Tim show, hosts, episode...',
                 hintStyle: TextStyle(color: Colors.white30),
                 border: InputBorder.none,
               ),
@@ -343,7 +343,7 @@ class _ContentHomeScreenState extends State<ContentHomeScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'AI host ${show.aiHost.displayName}',
+                              'Hosts ${show.hostNames}',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.72),
                                 fontSize: 13,
@@ -389,7 +389,7 @@ class _ContentHomeScreenState extends State<ContentHomeScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
-                        'Show nay da co AI host o cap show, episode dau tien dang duoc chuan bi.',
+                        'Show nay da co hosts o cap show, episode dau tien dang duoc chuan bi.',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.66),
                           height: 1.5,

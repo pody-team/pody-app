@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-type AIHost struct {
+type Host struct {
 	ID             string `json:"id"`
 	DisplayName    string `json:"display_name"`
 	AvatarURL      string `json:"avatar_url"`
@@ -11,10 +11,11 @@ type AIHost struct {
 	Bio            string `json:"bio,omitempty"`
 }
 
-type CreateAIHostInput struct {
+type CreateHostInput struct {
 	DisplayName    string `json:"display_name"`
 	AvatarURL      string `json:"avatar_url,omitempty"`
 	VoiceProfileID string `json:"voice_profile_id,omitempty"`
+	Role           string `json:"role,omitempty"`
 	Bio            string `json:"bio,omitempty"`
 }
 
@@ -28,7 +29,7 @@ type CreateShowInput struct {
 	PrimaryCategory  string            `json:"primary_category"`
 	LanguageCode     string            `json:"language_code,omitempty"`
 	ContentType      string            `json:"content_type,omitempty"`
-	AIHost           CreateAIHostInput `json:"ai_host"`
+	Hosts            []CreateHostInput `json:"hosts"`
 }
 
 type OwnerSummary struct {
@@ -51,7 +52,8 @@ type ShowSummary struct {
 	Title             string    `json:"title"`
 	CoverImageURL     string    `json:"cover_image_url"`
 	PrimaryCategory   string    `json:"primary_category"`
-	AIHost            AIHost    `json:"ai_host"`
+	Hosts             []Host    `json:"hosts"`
+	ContentType       string    `json:"content_type"`
 	SubscriberCount   int       `json:"subscriber_count"`
 	TotalEpisodeCount int       `json:"total_episode_count"`
 	PublishedAt       time.Time `json:"published_at"`
@@ -75,7 +77,7 @@ type ShowDetail struct {
 	CoverImageURL     string       `json:"cover_image_url"`
 	Categories        []string     `json:"categories"`
 	Tags              []string     `json:"tags"`
-	AIHost            AIHost       `json:"ai_host"`
+	Hosts             []Host       `json:"hosts"`
 	Owner             OwnerSummary `json:"owner"`
 	SubscriberCount   int          `json:"subscriber_count"`
 	TotalEpisodeCount int          `json:"total_episode_count"`

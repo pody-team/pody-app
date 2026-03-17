@@ -34,6 +34,7 @@ services:
       IDENTITY_DATABASE_URL: ${IDENTITY_DATABASE_URL:?IDENTITY_DATABASE_URL is required}
       NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL:?NOTIFICATION_DATABASE_URL is required}
       CONTENT_DATABASE_URL: ${CONTENT_DATABASE_URL:?CONTENT_DATABASE_URL is required}
+      AI_DATABASE_URL: ${AI_DATABASE_URL:?AI_DATABASE_URL is required}
     restart: "no"
 
   identity-service:
@@ -147,6 +148,35 @@ services:
       retries: 10
       start_period: 10s
 
+  ai-service:
+    build:
+      context: ./server/ai-service
+      dockerfile: Dockerfile
+    container_name: pody-ai-service
+    environment:
+      DATABASE_URL: ${AI_DATABASE_URL:?AI_DATABASE_URL is required}
+      PORT: "8085"
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_GENAI_MODEL: ${GOOGLE_GENAI_MODEL:-gemini-2.5-flash}
+      GOOGLE_GENAI_BASE_URL: ${GOOGLE_GENAI_BASE_URL:-}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      BRAVE_SEARCH_BASE_URL: ${BRAVE_SEARCH_BASE_URL:-https://api.search.brave.com/res/v1/web/search}
+      AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-auto}
+    ports:
+      - "8085:8085"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8085/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   api-gateway:
     build:
       context: ./server/api-gateway
@@ -155,8 +185,8 @@ services:
     environment:
       PORT: "8080"
       ALLOWED_ORIGINS: "*"
-      READ_TIMEOUT: 5s
-      WRITE_TIMEOUT: 10s
+      READ_TIMEOUT: 15s
+      WRITE_TIMEOUT: 60s
       IDLE_TIMEOUT: 30s
       SHUTDOWN_TIMEOUT: 10s
       JWT_SECRET: change-me
@@ -175,6 +205,8 @@ services:
       notification-service:
         condition: service_healthy
       content-service:
+        condition: service_healthy
+      ai-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]

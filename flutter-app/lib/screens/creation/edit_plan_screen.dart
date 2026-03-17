@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:pody/data/mock_data.dart';
-import 'package:pody/models/models.dart';
+import 'package:pody/features/ai/domain/ai_models.dart';
+import 'package:pody/features/content/domain/content_models.dart';
+import 'package:pody/screens/user/create_show_screen.dart';
 
 class EditPlanScreen extends StatefulWidget {
-  const EditPlanScreen({super.key});
+  const EditPlanScreen({required this.plan, super.key});
+
+  final AIProductionPlan plan;
 
   @override
   State<EditPlanScreen> createState() => _EditPlanScreenState();
 }
 
 class _EditPlanScreenState extends State<EditPlanScreen> {
-  late final ProductionPlan _plan = MockData.samplePlan;
-  late bool _autoGenerateImages = _plan.autoGenerateImages;
-  late bool _autoGenerateIntroMusic = _plan.autoGenerateIntroMusic;
-  final List<Host> _hosts = List.from(MockData.samplePlan.hosts);
+  late final TextEditingController _seriesTitleController;
+  late final TextEditingController _seriesDescriptionController;
+  late final TextEditingController _toneStyleController;
+  late bool _autoGenerateImages;
+  late bool _autoGenerateIntroMusic;
+  late final List<_EditableHost> _hosts;
 
-  // Available AI voices
   static const List<Map<String, String>> _availableVoices = [
     {
       'id': 'v_male_deep',
@@ -49,10 +53,69 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _seriesTitleController = TextEditingController(
+      text: widget.plan.seriesTitle,
+    );
+    _seriesDescriptionController = TextEditingController(
+      text: widget.plan.seriesDescription,
+    );
+    _toneStyleController = TextEditingController(
+      text: widget.plan.toneStyle ?? '',
+    );
+    _autoGenerateImages = true;
+    _autoGenerateIntroMusic = false;
+    final draftHosts = widget.plan.showDraft.hosts;
+    _hosts = draftHosts.isEmpty
+        ? [_EditableHost(name: 'Nova', voiceId: 'v_neutral', bio: '')]
+        : draftHosts
+              .map(
+                (host) => _EditableHost(
+                  name: host.displayName,
+                  voiceId: _normalizeVoiceId(host.voiceProfileId),
+                  role: host.role,
+                  bio:
+                      host.personaSummary?.trim().isNotEmpty == true
+                      ? host.personaSummary!
+                      : (host.bio ?? ''),
+                ),
+              )
+              .toList();
+  }
+
+  @override
+  void dispose() {
+    _seriesTitleController.dispose();
+    _seriesDescriptionController.dispose();
+    _toneStyleController.dispose();
+    super.dispose();
+  }
+
+  String _normalizeVoiceId(String? rawVoiceId) {
+    for (final voice in _availableVoices) {
+      if (voice['id'] == rawVoiceId) {
+        return rawVoiceId!;
+      }
+    }
+    return 'v_neutral';
+  }
+
+  String _voiceLabel(String? voiceId) {
+    for (final voice in _availableVoices) {
+      if (voice['id'] == voiceId) {
+        return voice['name']!;
+      }
+    }
+    return 'AI Voice';
+  }
+
   void _openHostEditor(int hostIndex) {
     final host = _hosts[hostIndex];
     final nameController = TextEditingController(text: host.name);
-    String selectedVoice = host.voiceId ?? 'v_male_deep';
+    final bioController = TextEditingController(text: host.bio);
+    String selectedVoice = host.voiceId;
 
     showModalBottomSheet(
       context: context,
@@ -76,7 +139,6 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Handle
                     Center(
                       child: Container(
                         width: 40,
@@ -88,8 +150,6 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Title
                     const Text(
                       'Chỉnh sửa giọng nói',
                       style: TextStyle(
@@ -99,8 +159,6 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Host name
                     const Text(
                       'Tên host',
                       style: TextStyle(color: Colors.white54, fontSize: 13),
@@ -127,9 +185,30 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Persona summary',
+                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: bioController,
+                      maxLines: 3,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.07),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
-
-                    // Voice selection
                     const Text(
                       'Chọn giọng nói AI',
                       style: TextStyle(color: Colors.white54, fontSize: 13),
@@ -214,8 +293,8 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                                   Icons.check_circle,
                                   color: Color(0xFFFE2C55),
                                   size: 22,
-                                ),
-                              if (!isSelected)
+                                )
+                              else
                                 Icon(
                                   Icons.play_circle_outline,
                                   color: Colors.white.withValues(alpha: 0.2),
@@ -227,22 +306,19 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                       );
                     }),
                     const SizedBox(height: 16),
-
-                    // Save button
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
                         onPressed: () {
                           setState(() {
-                            _hosts[hostIndex] = Host(
-                              id: host.id,
+                            _hosts[hostIndex] = _EditableHost(
                               name: nameController.text.trim().isNotEmpty
                                   ? nameController.text.trim()
                                   : host.name,
-                              avatarUrl: host.avatarUrl,
                               voiceId: selectedVoice,
                               role: host.role,
+                              bio: bioController.text.trim(),
                             );
                           });
                           Navigator.pop(ctx);
@@ -273,8 +349,54 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     );
   }
 
+  Future<void> _createShowFromDraft() async {
+    final title = _seriesTitleController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Series title khong duoc de trong.')),
+      );
+      return;
+    }
+
+    final result = await Navigator.of(context).push<dynamic>(
+      MaterialPageRoute(
+        builder: (_) => CreateShowScreen(initialSeed: _buildSeed()),
+      ),
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    Navigator.of(context).pop(result);
+  }
+
+  ContentCreateShowSeed _buildSeed() {
+    return ContentCreateShowSeed(
+      title: _seriesTitleController.text.trim(),
+      description: _seriesDescriptionController.text.trim(),
+      primaryCategory: widget.plan.showDraft.primaryCategory,
+      coverImageUrl: widget.plan.showDraft.coverImageUrl,
+      contentType: widget.plan.showDraft.contentType,
+      hosts: _hosts
+          .map(
+            (host) => ContentCreateHostInput(
+              displayName: host.name,
+              role: host.role,
+              voiceProfileId: host.voiceId,
+              bio: host.bio.trim().isEmpty ? null : host.bio.trim(),
+            ),
+          )
+          .toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tags = widget.plan.tags.isNotEmpty
+        ? widget.plan.tags
+        : widget.plan.showDraft.tags;
+
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
       appBar: AppBar(
@@ -317,14 +439,13 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Series Title
             const Text(
               'Series Title',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(text: _plan.seriesTitle),
+              controller: _seriesTitleController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
@@ -340,15 +461,13 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // Series Description
             const Text(
               'Series Description',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(text: _plan.seriesDescription),
+              controller: _seriesDescriptionController,
               maxLines: 3,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
@@ -364,9 +483,37 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                 ),
               ),
             ),
+            if (tags.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: tags
+                    .take(5)
+                    .map(
+                      (tag) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          tag,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
             const SizedBox(height: 16),
-
-            // Hosts & Voices
             const Text(
               'Hosts & Voices',
               style: TextStyle(color: Colors.white70, fontSize: 13),
@@ -377,14 +524,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               runSpacing: 12,
               children: List.generate(_hosts.length, (i) {
                 final host = _hosts[i];
-                // Resolve voice name
-                final voiceName =
-                    _availableVoices
-                        .where((v) => v['id'] == host.voiceId)
-                        .map((v) => v['name']!)
-                        .firstOrNull ??
-                    host.voiceId ??
-                    host.role;
+                final voiceName = _voiceLabel(host.voiceId);
                 return SizedBox(
                   width: (MediaQuery.of(context).size.width - 44) / 2,
                   child: _buildHostVoiceSelector(
@@ -396,15 +536,13 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               }),
             ),
             const SizedBox(height: 16),
-
-            // Tone & Style
             const Text(
               'Tone & Style',
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(text: _plan.toneStyle),
+              controller: _toneStyleController,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
@@ -420,8 +558,6 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // AI Generation
             const Text(
               'AI Generation',
               style: TextStyle(color: Colors.white70, fontSize: 13),
@@ -456,7 +592,6 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
             const Text(
               'Episodes',
               style: TextStyle(
@@ -466,17 +601,37 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               ),
             ),
             const SizedBox(height: 12),
-
-            // Episode cards from plan
-            ..._plan.episodes.map(
+            ...widget.plan.episodes.map(
               (ep) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _buildEpisodeEditorCard(
-                  num: '${ep.number}',
+                  num: '${ep.episodeNumber}',
                   title: ep.title,
                   description: ep.description,
-                  duration: '${ep.estimatedDuration.inMinutes}',
-                  notes: ep.notes,
+                  duration: '${ep.estimatedDurationSeconds ~/ 60}',
+                  notes: ep.notes ?? '',
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _createShowFromDraft,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFE2C55),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Tạo show từ bản draft này',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
             ),
@@ -685,4 +840,18 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
       ),
     );
   }
+}
+
+class _EditableHost {
+  const _EditableHost({
+    required this.name,
+    required this.voiceId,
+    required this.bio,
+    this.role = 'host',
+  });
+
+  final String name;
+  final String voiceId;
+  final String bio;
+  final String role;
 }

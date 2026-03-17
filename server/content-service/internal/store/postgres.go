@@ -30,15 +30,11 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 	ownerUserID := strings.TrimSpace(input.OwnerUserID)
 	ownerDisplayName := strings.TrimSpace(input.OwnerDisplayName)
 	ownerEmail := strings.TrimSpace(input.OwnerEmail)
-	aiHostName := strings.TrimSpace(input.AIHost.DisplayName)
-	aiHostAvatarURL := strings.TrimSpace(input.AIHost.AvatarURL)
-	aiHostVoiceProfileID := strings.TrimSpace(input.AIHost.VoiceProfileID)
-	aiHostBio := strings.TrimSpace(input.AIHost.Bio)
 	languageCode := sanitizeLanguageCode(strings.TrimSpace(input.LanguageCode))
 	contentType := sanitizeContentType(strings.TrimSpace(input.ContentType))
 
-	if title == "" || primaryCategory == "" || ownerUserID == "" || aiHostName == "" {
-		return domain.ShowDetail{}, errors.New("title, primary category, ai host display name, and owner user id are required")
+	if title == "" || primaryCategory == "" || ownerUserID == "" {
+		return domain.ShowDetail{}, errors.New("title, primary category, and owner user id are required")
 	}
 	if ownerDisplayName == "" {
 		ownerDisplayName = fallbackOwnerDisplayName(ownerEmail)
@@ -63,20 +59,17 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 	if coverImageURL == "" {
 		coverImageURL = fallbackShowCoverURL(slug)
 	}
-	if aiHostAvatarURL == "" {
-		aiHostAvatarURL = fallbackHostAvatarURL(slug)
-	}
 	ownerAvatarURL := fallbackOwnerAvatarURL(ownerUserID)
+	hosts, err := normalizeCreateHosts(contentType, input.Hosts, slug)
+	if err != nil {
+		return domain.ShowDetail{}, err
+	}
 
 	now := time.Now().UTC()
 	var (
-		showID         string
-		publishedAt    time.Time
-		voiceProfileID any
+		showID      string
+		publishedAt time.Time
 	)
-	if aiHostVoiceProfileID != "" {
-		voiceProfileID = aiHostVoiceProfileID
-	}
 
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO shows (
@@ -130,32 +123,41 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 		return domain.ShowDetail{}, err
 	}
 
-	var hostID string
-	err = tx.QueryRowContext(ctx, `
-		INSERT INTO show_hosts (
-			show_id,
-			linked_voice_profile_id,
-			display_name,
-			avatar_url,
-			role,
-			persona_type,
-			sort_order,
-			bio
+	for index, host := range hosts {
+		var (
+			hostID         string
+			voiceProfileID any
 		)
-		VALUES (
-			$1::uuid,
-			$2::uuid,
-			$3,
-			NULLIF($4, ''),
-			'host',
-			'ai',
-			0,
-			$5
-		)
-		RETURNING id::text
-	`, showID, voiceProfileID, aiHostName, aiHostAvatarURL, aiHostBio).Scan(&hostID)
-	if err != nil {
-		return domain.ShowDetail{}, err
+		if host.VoiceProfileID != "" {
+			voiceProfileID = host.VoiceProfileID
+		}
+		err = tx.QueryRowContext(ctx, `
+			INSERT INTO show_hosts (
+				show_id,
+				linked_voice_profile_id,
+				display_name,
+				avatar_url,
+				role,
+				persona_type,
+				sort_order,
+				bio
+			)
+			VALUES (
+				$1::uuid,
+				$2::uuid,
+				$3,
+				NULLIF($4, ''),
+				$5,
+				'ai',
+				$6,
+				$7
+			)
+			RETURNING id::text
+		`, showID, voiceProfileID, host.DisplayName, host.AvatarURL, host.Role, index, host.Bio).Scan(&hostID)
+		if err != nil {
+			return domain.ShowDetail{}, err
+		}
+		hosts[index].ID = hostID
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -170,14 +172,7 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 		CoverImageURL: coverImageURL,
 		Categories:    []string{categoryName},
 		Tags:          nil,
-		AIHost: domain.AIHost{
-			ID:             hostID,
-			DisplayName:    aiHostName,
-			AvatarURL:      aiHostAvatarURL,
-			VoiceProfileID: aiHostVoiceProfileID,
-			Role:           "host",
-			Bio:            aiHostBio,
-		},
+		Hosts:         hosts,
 		Owner: domain.OwnerSummary{
 			ID:          ownerUserID,
 			DisplayName: ownerDisplayName,
@@ -207,22 +202,15 @@ func (s *PostgresStore) GetHomeFeed(ctx context.Context) (domain.HomeFeed, error
 			s.title,
 			COALESCE(s.cover_image_url, ''),
 			COALESCE(c.name, ''),
+			s.content_type,
 			s.subscriber_count,
 			s.episode_count,
-			COALESCE(s.published_at, s.created_at),
-			COALESCE(h.id::text, ''),
-			COALESCE(h.display_name, ''),
-			COALESCE(h.avatar_url, ''),
-			COALESCE(h.linked_voice_profile_id::text, ''),
-			COALESCE(h.role, 'host'),
-			COALESCE(h.bio, '')
+			COALESCE(s.published_at, s.created_at)
 		FROM shows s
 		LEFT JOIN show_categories sc
 			ON sc.show_id = s.id AND sc.is_primary = true
 		LEFT JOIN categories c
 			ON c.id = sc.category_id
-		LEFT JOIN show_hosts h
-			ON h.show_id = s.id AND h.sort_order = 0
 		WHERE s.publish_status = 'published'
 			AND s.visibility = 'public'
 			AND s.deleted_at IS NULL
@@ -237,6 +225,10 @@ func (s *PostgresStore) GetHomeFeed(ctx context.Context) (domain.HomeFeed, error
 	shows := make([]domain.HomeShowCard, 0)
 	for rows.Next() {
 		summary, err := scanShowSummary(rows)
+		if err != nil {
+			return domain.HomeFeed{}, err
+		}
+		summary.Hosts, err = s.listShowHosts(ctx, summary.ID)
 		if err != nil {
 			return domain.HomeFeed{}, err
 		}
@@ -266,17 +258,10 @@ func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domai
 	showID = strings.TrimSpace(showID)
 	var (
 		show               domain.ShowDetail
-		host               domain.AIHost
 		ownerUserID        string
 		ownerDisplayName   string
 		ownerAvatarURL     string
 		coverImageURL      string
-		hostID             string
-		hostDisplayName    string
-		hostAvatarURL      string
-		hostVoiceProfileID string
-		hostRole           string
-		hostBio            string
 		subscriberCount    int64
 		totalEpisodeCount  int64
 		totalListenCount   int64
@@ -300,16 +285,8 @@ func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domai
 			COALESCE(s.published_at, s.created_at),
 			s.owner_user_id::text,
 			COALESCE(s.owner_display_name_snapshot, ''),
-			COALESCE(s.owner_avatar_url_snapshot, ''),
-			COALESCE(h.id::text, ''),
-			COALESCE(h.display_name, ''),
-			COALESCE(h.avatar_url, ''),
-			COALESCE(h.linked_voice_profile_id::text, ''),
-			COALESCE(h.role, 'host'),
-			COALESCE(h.bio, '')
+			COALESCE(s.owner_avatar_url_snapshot, '')
 		FROM shows s
-		LEFT JOIN show_hosts h
-			ON h.show_id = s.id AND h.sort_order = 0
 		WHERE s.id = $1::uuid
 			AND s.publish_status = 'published'
 			AND s.visibility = 'public'
@@ -331,12 +308,6 @@ func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domai
 		&ownerUserID,
 		&ownerDisplayName,
 		&ownerAvatarURL,
-		&hostID,
-		&hostDisplayName,
-		&hostAvatarURL,
-		&hostVoiceProfileID,
-		&hostRole,
-		&hostBio,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -355,21 +326,16 @@ func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domai
 		DisplayName: ownerDisplayName,
 		AvatarURL:   ownerAvatarURL,
 	}
-	host = domain.AIHost{
-		ID:             hostID,
-		DisplayName:    hostDisplayName,
-		AvatarURL:      hostAvatarURL,
-		VoiceProfileID: hostVoiceProfileID,
-		Role:           hostRole,
-		Bio:            hostBio,
-	}
-	show.AIHost = host
 
 	show.Categories, err = s.listShowCategoryNames(ctx, showID)
 	if err != nil {
 		return domain.ShowDetail{}, err
 	}
 	show.Tags, err = s.listShowTagNames(ctx, showID)
+	if err != nil {
+		return domain.ShowDetail{}, err
+	}
+	show.Hosts, err = s.listShowHosts(ctx, showID)
 	if err != nil {
 		return domain.ShowDetail{}, err
 	}
@@ -526,22 +492,15 @@ func (s *PostgresStore) ListCreatorShows(ctx context.Context, ownerUserID string
 			s.title,
 			COALESCE(s.cover_image_url, ''),
 			COALESCE(c.name, ''),
+			s.content_type,
 			s.subscriber_count,
 			s.episode_count,
-			COALESCE(s.published_at, s.created_at),
-			COALESCE(h.id::text, ''),
-			COALESCE(h.display_name, ''),
-			COALESCE(h.avatar_url, ''),
-			COALESCE(h.linked_voice_profile_id::text, ''),
-			COALESCE(h.role, 'host'),
-			COALESCE(h.bio, '')
+			COALESCE(s.published_at, s.created_at)
 		FROM shows s
 		LEFT JOIN show_categories sc
 			ON sc.show_id = s.id AND sc.is_primary = true
 		LEFT JOIN categories c
 			ON c.id = sc.category_id
-		LEFT JOIN show_hosts h
-			ON h.show_id = s.id AND h.sort_order = 0
 		WHERE s.owner_user_id = $1::uuid
 			AND s.deleted_at IS NULL
 		ORDER BY s.updated_at DESC, s.created_at DESC
@@ -554,6 +513,10 @@ func (s *PostgresStore) ListCreatorShows(ctx context.Context, ownerUserID string
 	shows := make([]domain.ShowSummary, 0)
 	for rows.Next() {
 		show, err := scanShowSummary(rows)
+		if err != nil {
+			return nil, err
+		}
+		show.Hosts, err = s.listShowHosts(ctx, show.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -711,12 +674,6 @@ func scanShowSummary(scanner interface {
 	var (
 		show              domain.ShowSummary
 		coverImageURL     string
-		hostID            string
-		hostDisplayName   string
-		hostAvatarURL     string
-		hostVoiceProfile  string
-		hostRole          string
-		hostBio           string
 		subscriberCount   int64
 		totalEpisodeCount int64
 		publishedAt       time.Time
@@ -728,15 +685,10 @@ func scanShowSummary(scanner interface {
 		&show.Title,
 		&coverImageURL,
 		&show.PrimaryCategory,
+		&show.ContentType,
 		&subscriberCount,
 		&totalEpisodeCount,
 		&publishedAt,
-		&hostID,
-		&hostDisplayName,
-		&hostAvatarURL,
-		&hostVoiceProfile,
-		&hostRole,
-		&hostBio,
 	); err != nil {
 		return domain.ShowSummary{}, err
 	}
@@ -745,16 +697,79 @@ func scanShowSummary(scanner interface {
 	show.SubscriberCount = int(subscriberCount)
 	show.TotalEpisodeCount = int(totalEpisodeCount)
 	show.PublishedAt = publishedAt
-	show.AIHost = domain.AIHost{
-		ID:             hostID,
-		DisplayName:    hostDisplayName,
-		AvatarURL:      hostAvatarURL,
-		VoiceProfileID: hostVoiceProfile,
-		Role:           hostRole,
-		Bio:            hostBio,
-	}
 
 	return show, nil
+}
+
+func (s *PostgresStore) listShowHosts(ctx context.Context, showID string) ([]domain.Host, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			id::text,
+			display_name,
+			COALESCE(avatar_url, ''),
+			COALESCE(linked_voice_profile_id::text, ''),
+			role,
+			COALESCE(bio, '')
+		FROM show_hosts
+		WHERE show_id = $1::uuid
+		ORDER BY sort_order ASC, created_at ASC
+	`, showID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hosts := make([]domain.Host, 0)
+	for rows.Next() {
+		var host domain.Host
+		if err := rows.Scan(
+			&host.ID,
+			&host.DisplayName,
+			&host.AvatarURL,
+			&host.VoiceProfileID,
+			&host.Role,
+			&host.Bio,
+		); err != nil {
+			return nil, err
+		}
+		hosts = append(hosts, host)
+	}
+
+	return hosts, rows.Err()
+}
+
+func normalizeCreateHosts(contentType string, inputs []domain.CreateHostInput, slug string) ([]domain.Host, error) {
+	if len(inputs) == 0 {
+		return nil, errors.New("at least one host is required")
+	}
+	if contentType == "storytelling" && len(inputs) != 1 {
+		return nil, errors.New("storytelling shows require exactly one host")
+	}
+	if contentType == "podcast" && len(inputs) > 3 {
+		return nil, errors.New("podcast shows support at most 3 hosts in v1")
+	}
+
+	hosts := make([]domain.Host, 0, len(inputs))
+	for index, input := range inputs {
+		displayName := strings.TrimSpace(input.DisplayName)
+		if displayName == "" {
+			return nil, errors.New("each host must have a display name")
+		}
+		avatarURL := strings.TrimSpace(input.AvatarURL)
+		if avatarURL == "" {
+			avatarURL = fallbackHostAvatarURL(fmt.Sprintf("%s-%d", slug, index+1))
+		}
+		role := sanitizeHostRole(contentType, strings.TrimSpace(input.Role), index)
+		hosts = append(hosts, domain.Host{
+			DisplayName:    displayName,
+			AvatarURL:      avatarURL,
+			VoiceProfileID: strings.TrimSpace(input.VoiceProfileID),
+			Role:           role,
+			Bio:            strings.TrimSpace(input.Bio),
+		})
+	}
+
+	return hosts, nil
 }
 
 func resolveShowCategory(ctx context.Context, tx *sql.Tx, value string) (string, string, error) {
@@ -851,6 +866,20 @@ func sanitizeContentType(value string) string {
 	default:
 		return "podcast"
 	}
+}
+
+func sanitizeHostRole(contentType string, role string, index int) string {
+	switch role {
+	case "host", "co_host", "guest", "narrator":
+		return role
+	}
+	if contentType == "storytelling" {
+		return "narrator"
+	}
+	if index == 0 {
+		return "host"
+	}
+	return "co_host"
 }
 
 func fallbackShowCoverURL(seed string) string {
