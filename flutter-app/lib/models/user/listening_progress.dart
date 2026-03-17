@@ -3,8 +3,8 @@
 class ListeningProgress {
   final String episodeId;
   final String showId;
-  final double progress;        // 0.0 – 1.0
-  final Duration position;      // exact seek position
+  final double progress; // 0.0 – 1.0
+  final Duration position; // exact seek position
   final Duration totalDuration;
   final DateTime lastPlayedAt;
   final bool isCompleted;

@@ -3,11 +3,11 @@ import 'host.dart';
 /// A draft episode inside a production plan (not yet produced).
 class EpisodeDraft {
   final String id;
-  final int number;         // episode order: 1, 2, 3...
+  final int number; // episode order: 1, 2, 3...
   final String title;
   final String description;
   final Duration estimatedDuration;
-  final String notes;       // production notes / instructions
+  final String notes; // production notes / instructions
 
   const EpisodeDraft({
     required this.id,
@@ -44,8 +44,8 @@ class ProductionPlan {
   final String seriesTitle;
   final String seriesDescription;
   final List<Host> hosts;
-  final List<String> tags;     // e.g. ['Analytical', 'Professional']
-  final String toneStyle;      // e.g. 'Analytical, Professional'
+  final List<String> tags; // e.g. ['Analytical', 'Professional']
+  final String toneStyle; // e.g. 'Analytical, Professional'
   final List<EpisodeDraft> episodes;
   final PlanStatus status;
   final DateTime createdAt;
@@ -69,10 +69,8 @@ class ProductionPlan {
   });
 
   /// Total estimated duration across all episodes.
-  Duration get totalDuration => episodes.fold(
-        Duration.zero,
-        (sum, ep) => sum + ep.estimatedDuration,
-      );
+  Duration get totalDuration =>
+      episodes.fold(Duration.zero, (sum, ep) => sum + ep.estimatedDuration);
 
   /// Formatted total: "45 min" or "1h 20m"
   String get formattedTotalDuration {
@@ -110,9 +108,8 @@ class ProductionPlan {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       autoGenerateImages: autoGenerateImages ?? this.autoGenerateImages,
-      autoGenerateIntroMusic: autoGenerateIntroMusic ?? this.autoGenerateIntroMusic,
+      autoGenerateIntroMusic:
+          autoGenerateIntroMusic ?? this.autoGenerateIntroMusic,
     );
   }
 }
-
-

@@ -35,6 +35,7 @@ func TestProducerSendVerification(t *testing.T) {
 	producer := newProducerWithWriter(DefaultVerificationTopic, writer)
 
 	err := producer.SendVerification(context.Background(), VerificationMessage{
+		UserID:          "user-1",
 		ToEmail:         "hello@pody.vn",
 		ToDisplayName:   "Promex",
 		VerificationURL: "http://localhost:8080/api/v1/public/identity/verify-email?token=abc",
@@ -61,6 +62,10 @@ func TestProducerSendVerification(t *testing.T) {
 		t.Fatalf("expected kafka key to match idempotency key, got %q", string(writer.messages[0].Key))
 	}
 
+	if writer.messages[0].Topic != DefaultVerificationTopic {
+		t.Fatalf("expected kafka topic %q, got %q", DefaultVerificationTopic, writer.messages[0].Topic)
+	}
+
 	if event.ToEmail != "hello@pody.vn" || event.VerificationURL == "" {
 		t.Fatalf("unexpected event payload: %+v", event)
 	}
@@ -70,11 +75,45 @@ func TestProducerSendVerificationPropagatesWriterError(t *testing.T) {
 	producer := newProducerWithWriter(DefaultVerificationTopic, &fakeWriter{err: errors.New("boom")})
 
 	err := producer.SendVerification(context.Background(), VerificationMessage{
+		UserID:          "user-1",
 		ToEmail:         "hello@pody.vn",
 		VerificationURL: "http://localhost:8080/api/v1/public/identity/verify-email?token=abc",
 		ExpiresAt:       time.Now().UTC().Add(time.Hour),
 	})
 	if err == nil {
 		t.Fatal("expected writer error")
+	}
+}
+
+func TestProducerSendPasswordReset(t *testing.T) {
+	writer := &fakeWriter{}
+	producer := newProducerWithWriter(DefaultVerificationTopic, writer)
+
+	err := producer.SendPasswordReset(context.Background(), PasswordResetMessage{
+		UserID:        "user-1",
+		ToEmail:       "hello@pody.vn",
+		ToDisplayName: "Promex",
+		ResetOTP:      "123456",
+		ExpiresAt:     time.Date(2026, time.March, 16, 12, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("SendPasswordReset() error = %v", err)
+	}
+
+	if len(writer.messages) != 1 {
+		t.Fatalf("expected one kafka message, got %d", len(writer.messages))
+	}
+
+	var event PasswordResetRequestedEvent
+	if err := json.Unmarshal(writer.messages[0].Value, &event); err != nil {
+		t.Fatalf("unmarshal event: %v", err)
+	}
+
+	if writer.messages[0].Topic != DefaultPasswordResetTopic {
+		t.Fatalf("expected kafka topic %q, got %q", DefaultPasswordResetTopic, writer.messages[0].Topic)
+	}
+
+	if event.UserID != "user-1" || event.ResetOTP == "" {
+		t.Fatalf("unexpected event payload: %+v", event)
 	}
 }

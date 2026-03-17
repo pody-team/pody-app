@@ -222,6 +222,10 @@ func enrichRequestWithClaims(r *http.Request, claims jwt.MapClaims) {
 	if email, ok := claims["email"].(string); ok && strings.TrimSpace(email) != "" {
 		r.Header.Set("X-Auth-Email", email)
 	}
+
+	if name, ok := claims["name"].(string); ok && strings.TrimSpace(name) != "" {
+		r.Header.Set("X-Auth-Name", name)
+	}
 }
 
 func newRequestID() string {

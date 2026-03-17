@@ -18,6 +18,7 @@ Initial Go API Gateway / BFF scaffold for the Pody microservice architecture.
 - JWT auth middleware for `/api/v1/*`
 - `GET /healthz`
 - `GET /readyz`
+- `GET /docs`
 - `GET /` and `GET /api/v1/_meta/routes` for route discovery
 
 ## Run locally
@@ -61,8 +62,11 @@ NOTIFICATION_SERVICE_URL=http://localhost:8087
 
 ```bash
 curl http://localhost:8080/healthz
+curl http://localhost:8080/docs
 curl http://localhost:8080/api/v1/_meta/routes
 curl http://localhost:8080/api/v1/public/identity/healthz
+curl http://localhost:8080/api/v1/public/identity/openapi.yaml
+curl http://localhost:8080/api/v1/public/notifications/openapi.yaml
 curl -X POST http://localhost:8080/api/v1/public/identity/sign-in
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/api/v1/social/comments
 ```

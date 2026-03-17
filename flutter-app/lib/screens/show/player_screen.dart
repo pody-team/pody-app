@@ -7,8 +7,9 @@ import 'package:pody/widgets/episode_companion_section.dart';
 class PlayerScreen extends StatefulWidget {
   final Show? show;
   final Episode? episode;
+  final VoidCallback? onOpenShow;
 
-  const PlayerScreen({super.key, this.show, this.episode});
+  const PlayerScreen({super.key, this.show, this.episode, this.onOpenShow});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -366,8 +367,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                                     onTap: () =>
                                         setState(() => _isLiked = !_isLiked),
                                     child: AnimatedSwitcher(
-                                      duration:
-                                          const Duration(milliseconds: 200),
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
                                       child: Icon(
                                         _isLiked
                                             ? Icons.favorite
@@ -375,8 +377,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                                         key: ValueKey(_isLiked),
                                         color: _isLiked
                                             ? const Color(0xFFFE2C55)
-                                            : Colors.white
-                                                .withValues(alpha: 0.5),
+                                            : Colors.white.withValues(
+                                                alpha: 0.5,
+                                              ),
                                         size: 22,
                                       ),
                                     ),
@@ -443,7 +446,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: GestureDetector(
-                      onTap: () => openShowDetail(context, show),
+                      onTap:
+                          widget.onOpenShow ??
+                          () => openShowDetail(context, show),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -542,18 +547,21 @@ class _PlayerScreenState extends State<PlayerScreen>
             final offset = renderBox
                 .localToGlobal(
                   Offset.zero,
-                  ancestor:
-                      _transcriptScrollController.position.context.storageContext
-                          .findRenderObject(),
+                  ancestor: _transcriptScrollController
+                      .position
+                      .context
+                      .storageContext
+                      .findRenderObject(),
                 )
                 .dy;
-            final target = (_transcriptScrollController.offset +
-                    offset -
-                    scrollable.viewportDimension * 0.3)
-                .clamp(
-                  0.0,
-                  _transcriptScrollController.position.maxScrollExtent,
-                );
+            final target =
+                (_transcriptScrollController.offset +
+                        offset -
+                        scrollable.viewportDimension * 0.3)
+                    .clamp(
+                      0.0,
+                      _transcriptScrollController.position.maxScrollExtent,
+                    );
             _transcriptScrollController.animateTo(
               target,
               duration: const Duration(milliseconds: 400),
@@ -568,7 +576,8 @@ class _PlayerScreenState extends State<PlayerScreen>
     final bubbleProgress = (_progress * bubbles.length) - activeBubbleIndex;
 
     // Check if there are multiple speakers (conversation style vs storytelling)
-    final hasMultipleSpeakers = bubbles.map((b) => b.speakerId).toSet().length > 1;
+    final hasMultipleSpeakers =
+        bubbles.map((b) => b.speakerId).toSet().length > 1;
 
     return ListView.builder(
       controller: _transcriptScrollController,
@@ -578,7 +587,8 @@ class _PlayerScreenState extends State<PlayerScreen>
         final bubble = bubbles[i];
         final isActive = i == activeBubbleIndex;
         final isPast = i < activeBubbleIndex;
-        final showSpeaker = hasMultipleSpeakers &&
+        final showSpeaker =
+            hasMultipleSpeakers &&
             (i == 0 || bubbles[i - 1].speakerId != bubble.speakerId);
 
         return Container(
@@ -636,8 +646,10 @@ class _PlayerScreenState extends State<PlayerScreen>
     required double progress,
   }) {
     final words = text.split(' ');
-    final currentWordIndex =
-        (progress * words.length).floor().clamp(0, words.length - 1);
+    final currentWordIndex = (progress * words.length).floor().clamp(
+      0,
+      words.length - 1,
+    );
 
     return Text.rich(
       TextSpan(
@@ -652,10 +664,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               alignment: PlaceholderAlignment.baseline,
               baseline: TextBaseline.alphabetic,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 1,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFAB40).withValues(alpha: 0.28),
                   borderRadius: BorderRadius.circular(6),

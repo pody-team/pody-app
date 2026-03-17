@@ -28,6 +28,7 @@ type VerificationRequestedEvent struct {
 	IdempotencyKey  string    `json:"idempotency_key"`
 	EventType       string    `json:"event_type"`
 	OccurredAt      time.Time `json:"occurred_at"`
+	UserID          string    `json:"user_id"`
 	ToEmail         string    `json:"to_email"`
 	ToDisplayName   string    `json:"to_display_name"`
 	VerificationURL string    `json:"verification_url"`
@@ -50,6 +51,7 @@ type VerificationConsumer struct {
 	retryWriter   messageWriter
 	dlqWriter     messageWriter
 	store         store.ProcessedEventStore
+	deliveryLogs  store.DeliveryLogStore
 	sender        email.Sender
 	logger        *slog.Logger
 	retryTopic    string
@@ -58,7 +60,7 @@ type VerificationConsumer struct {
 	sourceService string
 }
 
-func NewVerificationConsumer(cfg config.Config, logger *slog.Logger, sender email.Sender, processedStore store.ProcessedEventStore) (*VerificationConsumer, error) {
+func NewVerificationConsumer(cfg config.Config, logger *slog.Logger, sender email.Sender, processedStore store.ProcessedEventStore, deliveryLogs store.DeliveryLogStore) (*VerificationConsumer, error) {
 	topics := []string{
 		strings.TrimSpace(cfg.VerificationTopic),
 		strings.TrimSpace(cfg.VerificationRetryTopic),
@@ -86,6 +88,7 @@ func NewVerificationConsumer(cfg config.Config, logger *slog.Logger, sender emai
 		retryWriter,
 		dlqWriter,
 		processedStore,
+		deliveryLogs,
 		logger,
 		sender,
 		cfg.VerificationRetryTopic,
@@ -99,6 +102,7 @@ func newVerificationConsumer(
 	retryWriter messageWriter,
 	dlqWriter messageWriter,
 	processedStore store.ProcessedEventStore,
+	deliveryLogs store.DeliveryLogStore,
 	logger *slog.Logger,
 	sender email.Sender,
 	retryTopic string,
@@ -114,6 +118,7 @@ func newVerificationConsumer(
 		retryWriter:   retryWriter,
 		dlqWriter:     dlqWriter,
 		store:         processedStore,
+		deliveryLogs:  deliveryLogs,
 		sender:        sender,
 		logger:        logger,
 		retryTopic:    strings.TrimSpace(retryTopic),
@@ -235,11 +240,19 @@ func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.
 	if err := c.sender.SendVerification(ctx, email.VerificationMessage{
 		EventID:         event.EventID,
 		IdempotencyKey:  event.IdempotencyKey,
+		UserID:          event.UserID,
 		ToEmail:         event.ToEmail,
 		ToDisplayName:   event.ToDisplayName,
 		VerificationURL: event.VerificationURL,
 		ExpiresAt:       event.ExpiresAt,
 	}); err != nil {
+		_ = c.deliveryLogs.CreateEmailDeliveryLog(ctx, store.CreateDeliveryLogInput{
+			UserID:            event.UserID,
+			Provider:          c.sender.ProviderName(),
+			DeliveryStatus:    "failed",
+			ProviderMessageID: event.EventID,
+			ErrorMessage:      err.Error(),
+		})
 		if attempt >= c.maxAttempts {
 			if err := c.publishDLQ(ctx, message, attempt, event.IdempotencyKey, err); err != nil {
 				return err
@@ -273,6 +286,17 @@ func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.
 	}
 
 	if err := c.store.MarkProcessedEvent(ctx, event.EventID, c.sourceService, event.EventType); err != nil {
+		return err
+	}
+
+	deliveredAt := time.Now().UTC()
+	if err := c.deliveryLogs.CreateEmailDeliveryLog(ctx, store.CreateDeliveryLogInput{
+		UserID:            event.UserID,
+		Provider:          c.sender.ProviderName(),
+		DeliveryStatus:    "sent",
+		ProviderMessageID: event.EventID,
+		DeliveredAt:       &deliveredAt,
+	}); err != nil {
 		return err
 	}
 

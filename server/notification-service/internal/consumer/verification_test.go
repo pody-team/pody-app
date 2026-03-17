@@ -64,8 +64,9 @@ func (f *fakeWriter) Close() error {
 }
 
 type fakeEmailSender struct {
-	messages []email.VerificationMessage
-	err      error
+	messages       []email.VerificationMessage
+	passwordResets []email.PasswordResetMessage
+	err            error
 }
 
 func (f *fakeEmailSender) SendVerification(_ context.Context, message email.VerificationMessage) error {
@@ -75,6 +76,19 @@ func (f *fakeEmailSender) SendVerification(_ context.Context, message email.Veri
 
 	f.messages = append(f.messages, message)
 	return nil
+}
+
+func (f *fakeEmailSender) SendPasswordReset(_ context.Context, message email.PasswordResetMessage) error {
+	if f.err != nil {
+		return f.err
+	}
+
+	f.passwordResets = append(f.passwordResets, message)
+	return nil
+}
+
+func (f *fakeEmailSender) ProviderName() string {
+	return "smtp"
 }
 
 type fakeProcessedStore struct {
@@ -98,6 +112,15 @@ func (f *fakeProcessedStore) DeleteProcessedEventsBefore(_ context.Context, _ ti
 	return 0, nil
 }
 
+type fakeDeliveryLogStore struct {
+	logs []store.CreateDeliveryLogInput
+}
+
+func (f *fakeDeliveryLogStore) CreateEmailDeliveryLog(_ context.Context, input store.CreateDeliveryLogInput) error {
+	f.logs = append(f.logs, input)
+	return nil
+}
+
 func TestVerificationConsumerRun(t *testing.T) {
 	reader := &fakeReader{
 		messages: []kafka.Message{{
@@ -105,11 +128,13 @@ func TestVerificationConsumerRun(t *testing.T) {
 		}},
 	}
 	sender := &fakeEmailSender{}
+	deliveryLogs := &fakeDeliveryLogStore{}
 	consumer := newVerificationConsumer(
 		reader,
 		&fakeWriter{},
 		&fakeWriter{},
 		newFakeProcessedStore(),
+		deliveryLogs,
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		sender,
 		"retry-topic",
@@ -128,6 +153,10 @@ func TestVerificationConsumerRun(t *testing.T) {
 	if len(reader.committed) != 1 {
 		t.Fatalf("expected one committed kafka message, got %d", len(reader.committed))
 	}
+
+	if len(deliveryLogs.logs) != 1 || deliveryLogs.logs[0].DeliveryStatus != "sent" {
+		t.Fatalf("expected one sent delivery log, got %+v", deliveryLogs.logs)
+	}
 }
 
 func TestVerificationConsumerSkipsDuplicate(t *testing.T) {
@@ -144,6 +173,7 @@ func TestVerificationConsumerSkipsDuplicate(t *testing.T) {
 		&fakeWriter{},
 		&fakeWriter{},
 		processedStore,
+		&fakeDeliveryLogStore{},
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		sender,
 		"retry-topic",
@@ -169,11 +199,13 @@ func TestVerificationConsumerSendsRetryOnTemporaryFailure(t *testing.T) {
 	}
 	retryWriter := &fakeWriter{}
 	sender := &fakeEmailSender{err: errors.New("smtp failed")}
+	deliveryLogs := &fakeDeliveryLogStore{}
 	consumer := newVerificationConsumer(
 		reader,
 		retryWriter,
 		&fakeWriter{},
 		newFakeProcessedStore(),
+		deliveryLogs,
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		sender,
 		"retry-topic",
@@ -192,6 +224,10 @@ func TestVerificationConsumerSendsRetryOnTemporaryFailure(t *testing.T) {
 	if messageAttempt(retryWriter.messages[0]) != 2 {
 		t.Fatalf("expected retry attempt to be 2")
 	}
+
+	if len(deliveryLogs.logs) != 1 || deliveryLogs.logs[0].DeliveryStatus != "failed" {
+		t.Fatalf("expected one failed delivery log, got %+v", deliveryLogs.logs)
+	}
 }
 
 func TestVerificationConsumerSendsDLQWhenAttemptsExceeded(t *testing.T) {
@@ -204,11 +240,13 @@ func TestVerificationConsumerSendsDLQWhenAttemptsExceeded(t *testing.T) {
 	}
 	dlqWriter := &fakeWriter{}
 	sender := &fakeEmailSender{err: errors.New("smtp failed")}
+	deliveryLogs := &fakeDeliveryLogStore{}
 	consumer := newVerificationConsumer(
 		reader,
 		&fakeWriter{},
 		dlqWriter,
 		newFakeProcessedStore(),
+		deliveryLogs,
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		sender,
 		"retry-topic",
@@ -222,6 +260,10 @@ func TestVerificationConsumerSendsDLQWhenAttemptsExceeded(t *testing.T) {
 
 	if len(dlqWriter.messages) != 1 {
 		t.Fatalf("expected one dlq message, got %d", len(dlqWriter.messages))
+	}
+
+	if len(deliveryLogs.logs) != 1 || deliveryLogs.logs[0].DeliveryStatus != "failed" {
+		t.Fatalf("expected one failed delivery log, got %+v", deliveryLogs.logs)
 	}
 }
 
@@ -238,6 +280,7 @@ func TestVerificationConsumerMovesInvalidPayloadToDLQ(t *testing.T) {
 		&fakeWriter{},
 		dlqWriter,
 		newFakeProcessedStore(),
+		&fakeDeliveryLogStore{},
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		&fakeEmailSender{},
 		"retry-topic",
@@ -261,6 +304,7 @@ func TestVerificationConsumerStopsOnContextCancel(t *testing.T) {
 		&fakeWriter{},
 		&fakeWriter{},
 		newFakeProcessedStore(),
+		&fakeDeliveryLogStore{},
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 		&fakeEmailSender{},
 		"retry-topic",
@@ -281,4 +325,5 @@ func TestVerificationConsumerStopsOnContextCancel(t *testing.T) {
 }
 
 var _ store.ProcessedEventStore = (*fakeProcessedStore)(nil)
+var _ store.DeliveryLogStore = (*fakeDeliveryLogStore)(nil)
 var _ email.Sender = (*fakeEmailSender)(nil)

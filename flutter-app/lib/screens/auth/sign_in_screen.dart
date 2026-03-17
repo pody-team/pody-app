@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 
-import 'package:pody/main.dart';
+import 'package:pody/core/network/api_exception.dart';
+import 'package:pody/features/auth/presentation/auth_error_message.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
 import 'package:pody/screens/auth/forgot_password_screen.dart';
 import 'package:pody/screens/auth/sign_up_screen.dart';
 import 'package:pody/theme/app_colors.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({
+    this.noticeMessage,
+    this.onNoticeDismissed,
+    this.initialEmail,
+    super.key,
+  });
+
+  final String? noticeMessage;
+  final VoidCallback? onNoticeDismissed;
+  final String? initialEmail;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -25,8 +36,19 @@ class _SignInScreenState extends State<SignInScreen>
   bool _isSubmitting = false;
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
+    if ((widget.initialEmail ?? '').trim().isNotEmpty) {
+      _emailController.text = widget.initialEmail!.trim();
+    }
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -38,12 +60,11 @@ class _SignInScreenState extends State<SignInScreen>
     _fadeController.forward();
   }
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _fadeController.dispose();
-    super.dispose();
+  void _finishSuccessfulSignIn() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.popUntil((route) => route.isFirst);
+    }
   }
 
   String? _validateEmail(String? value) {
@@ -62,9 +83,6 @@ class _SignInScreenState extends State<SignInScreen>
     if (password.isEmpty) {
       return 'Nhập mật khẩu.';
     }
-    if (password.length < 6) {
-      return 'Mật khẩu cần ít nhất 6 ký tự.';
-    }
     return null;
   }
 
@@ -74,23 +92,114 @@ class _SignInScreenState extends State<SignInScreen>
       return;
     }
 
+    final authController = AuthScope.of(context);
     setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (!mounted) {
+    try {
+      await authController.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      _finishSuccessfulSignIn();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      await _showAuthError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    FocusScope.of(context).unfocus();
+
+    final authController = AuthScope.of(context);
+    setState(() => _isSubmitting = true);
+    try {
+      await authController.signInWithGoogle();
+      if (!mounted) {
+        return;
+      }
+
+      _finishSuccessfulSignIn();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      await _showAuthError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _showAuthError(Object error) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (error is ApiException &&
+        error.message == 'email is not verified' &&
+        _emailController.text.trim().isNotEmpty) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Email này chưa được xác thực. Bạn có muốn gửi lại email xác thực không?',
+          ),
+          action: SnackBarAction(
+            label: 'Gửi lại',
+            onPressed: () {
+              _resendVerification();
+            },
+          ),
+        ),
+      );
       return;
     }
 
-    setState(() => _isSubmitting = false);
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-      (route) => false,
-    );
+    messenger.showSnackBar(SnackBar(content: Text(humanizeAuthError(error))));
+  }
+
+  Future<void> _resendVerification() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      return;
+    }
+
+    final authController = AuthScope.of(context);
+    try {
+      await authController.resendVerification(email);
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Mình đã gửi lại email xác thực tới $email.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(humanizeAuthError(error))));
+    }
   }
 
   void _showPlaceholderAuthMessage(String provider) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Đăng nhập bằng $provider sẽ được nối backend sau.'),
+        content: Text(
+          'Đăng nhập bằng $provider sẽ được nối tiếp khi cấu hình native hoàn tất.',
+        ),
       ),
     );
   }
@@ -155,6 +264,24 @@ class _SignInScreenState extends State<SignInScreen>
                             height: 1.5,
                           ),
                         ),
+                        if ((widget.noticeMessage ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 24),
+                          AuthInfoCard(
+                            title: 'Bạn đã sẵn sàng đăng nhập',
+                            message: widget.noticeMessage!.trim(),
+                            icon: Icons.check_circle_outline,
+                            footer: Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton(
+                                onPressed: widget.onNoticeDismissed,
+                                child: const Text(
+                                  'Đã hiểu',
+                                  style: TextStyle(color: kTikTeal),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 48),
                         AuthTextField(
                           controller: _emailController,
@@ -220,9 +347,9 @@ class _SignInScreenState extends State<SignInScreen>
                             AuthSocialButton(
                               label: 'Google',
                               icon: Icons.g_mobiledata,
-                              onPressed: () {
-                                _showPlaceholderAuthMessage('Google');
-                              },
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : _loginWithGoogle,
                             ),
                             const SizedBox(width: 16),
                             AuthSocialButton(
@@ -244,7 +371,7 @@ class _SignInScreenState extends State<SignInScreen>
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pushReplacement(
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const SignUpScreen(),

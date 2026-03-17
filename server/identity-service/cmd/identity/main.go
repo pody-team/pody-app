@@ -53,7 +53,16 @@ func main() {
 	}
 	defer notificationProducer.Close()
 
-	authService := auth.NewService(repo, tokenManager, googleVerifier, cfg.VerificationTTL, cfg.VerificationURLBase, cfg.VerificationTopic)
+	authService := auth.NewService(
+		repo,
+		tokenManager,
+		googleVerifier,
+		cfg.VerificationTTL,
+		cfg.VerificationURLBase,
+		cfg.VerificationTopic,
+		cfg.PasswordResetTTL,
+		cfg.PasswordResetTopic,
+	)
 	outboxPublisher := outbox.NewPublisher(repo, notificationProducer, logger, cfg.OutboxPollInterval, cfg.OutboxBatchSize)
 	outboxCleanup := outbox.NewCleanupWorker(repo, logger, cfg.OutboxCleanupInterval, cfg.OutboxRetention, cfg.OutboxCleanupBatchSize)
 

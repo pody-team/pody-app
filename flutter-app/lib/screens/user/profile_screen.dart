@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
+import 'package:pody/screens/auth/sign_in_screen.dart';
+import 'package:pody/screens/auth/sign_up_screen.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
 import 'following_list_screen.dart';
@@ -10,10 +13,21 @@ import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({this.noticeMessage, this.onNoticeDismissed, super.key});
+
+  final String? noticeMessage;
+  final VoidCallback? onNoticeDismissed;
 
   @override
   Widget build(BuildContext context) {
+    final authController = AuthScope.of(context);
+    if (!authController.isAuthenticated) {
+      return _GuestProfileView(
+        noticeMessage: noticeMessage,
+        onNoticeDismissed: onNoticeDismissed,
+      );
+    }
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -34,8 +48,14 @@ class ProfileScreen extends StatelessWidget {
                     indicatorSize: TabBarIndicatorSize.label,
                     labelColor: kTikRed,
                     unselectedLabelColor: Colors.white38,
-                    labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                    unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    labelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    unselectedLabelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                     tabs: const [
                       Tab(text: 'Đã lưu'),
                       Tab(text: 'Theo dõi'),
@@ -45,11 +65,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const Expanded(
                   child: TabBarView(
-                    children: [
-                      _SavedTab(),
-                      _FollowingTab(),
-                      _MyCreationsTab(),
-                    ],
+                    children: [_SavedTab(), _FollowingTab(), _MyCreationsTab()],
                   ),
                 ),
               ],
@@ -61,7 +77,18 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final authUser = AuthScope.of(context).session?.user;
     final user = MockData.currentUser;
+    final displayName = authUser?.displayName.isNotEmpty == true
+        ? authUser!.displayName
+        : user.name;
+    final avatarUrl =
+        authUser?.avatarUrl != null && authUser!.avatarUrl!.isNotEmpty
+        ? authUser.avatarUrl!
+        : user.avatarUrl;
+    final handle =
+        authUser?.handle ?? user.name.toLowerCase().replaceAll(' ', '');
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       child: Column(
@@ -72,7 +99,9 @@ class ProfileScreen extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () => Navigator.push(
-                    context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
                 child: Container(
                   width: 38,
                   height: 38,
@@ -80,7 +109,11 @@ class ProfileScreen extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
               ),
             ],
@@ -96,37 +129,53 @@ class ProfileScreen extends StatelessWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(38),
-              child: Image.network(user.avatarUrl, fit: BoxFit.cover),
+              child: Image.network(avatarUrl, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            user.name,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            displayName,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 2),
-          Text('@${user.name.toLowerCase().replaceAll(' ', '')}',
-              style: const TextStyle(fontSize: 13, color: Colors.white38)),
+          Text(
+            '@$handle',
+            style: const TextStyle(fontSize: 13, color: Colors.white38),
+          ),
           const SizedBox(height: 16),
           // Stats Row
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               GestureDetector(
-                onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ListeningHistoryScreen())),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ListeningHistoryScreen(),
+                  ),
+                ),
                 child: _statChip('${user.listeningHours}h', 'Đã nghe'),
               ),
               _divider(),
               GestureDetector(
-                onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const MyShowsScreen())),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyShowsScreen()),
+                ),
                 child: _statChip('${user.showCount}', 'Podcast'),
               ),
               _divider(),
               GestureDetector(
-                onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const FollowingListScreen())),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const FollowingListScreen(),
+                  ),
+                ),
                 child: _statChip('${user.followingCount}', 'Theo dõi'),
               ),
             ],
@@ -135,7 +184,9 @@ class ProfileScreen extends StatelessWidget {
           // Edit Profile Button
           GestureDetector(
             onTap: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+            ),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 11),
@@ -144,9 +195,14 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               alignment: Alignment.center,
-              child: const Text('Chỉnh sửa hồ sơ',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+              child: const Text(
+                'Chỉnh sửa hồ sơ',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -158,22 +214,279 @@ class ProfileScreen extends StatelessWidget {
   static Widget _statChip(String value, String label) {
     return Column(
       children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label.toUpperCase(),
-            style: const TextStyle(
-                fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white38, letterSpacing: 1)),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            color: Colors.white38,
+            letterSpacing: 1,
+          ),
+        ),
       ],
     );
   }
 
   static Widget _divider() {
     return Container(
-      width: 1, height: 28,
+      width: 1,
+      height: 28,
       margin: const EdgeInsets.symmetric(horizontal: 20),
       color: Colors.white12,
+    );
+  }
+}
+
+class _GuestProfileView extends StatelessWidget {
+  const _GuestProfileView({this.noticeMessage, this.onNoticeDismissed});
+
+  final String? noticeMessage;
+  final VoidCallback? onNoticeDismissed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.08),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.person_outline,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Hồ sơ của bạn',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Đăng nhập để đồng bộ lịch sử nghe, lưu podcast yêu thích và quản lý hồ sơ của bạn trên Pody.',
+                style: TextStyle(
+                  color: kTextSec,
+                  fontSize: 14,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if ((noticeMessage ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: kTikTeal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: kTikTeal.withValues(alpha: 0.18)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_outline,
+                            color: kTikTeal,
+                            size: 20,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Thông báo tài khoản',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        noticeMessage!.trim(),
+                        style: const TextStyle(
+                          color: kTextSec,
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: onNoticeDismissed,
+                        child: const Text(
+                          'Đã hiểu',
+                          style: TextStyle(color: kTikTeal),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _GuestBenefitRow(
+                      icon: Icons.history,
+                      title: 'Đồng bộ lịch sử nghe',
+                      description:
+                          'Tiếp tục nghe trên nhiều thiết bị mà không mất tiến trình.',
+                    ),
+                    SizedBox(height: 14),
+                    _GuestBenefitRow(
+                      icon: Icons.bookmark_outline,
+                      title: 'Lưu tập yêu thích',
+                      description:
+                          'Giữ lại những podcast và tập bạn muốn quay lại sau.',
+                    ),
+                    SizedBox(height: 14),
+                    _GuestBenefitRow(
+                      icon: Icons.graphic_eq,
+                      title: 'Quản lý show của bạn',
+                      description:
+                          'Theo dõi và chỉnh sửa nội dung cá nhân hóa trong một chỗ.',
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SignInScreen(
+                        noticeMessage: noticeMessage,
+                        onNoticeDismissed: onNoticeDismissed,
+                      ),
+                    ),
+                  );
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: kTikRed,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Đăng nhập'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                  );
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                ),
+                child: const Text('Tạo tài khoản'),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Bạn vẫn có thể khám phá nội dung mà chưa cần đăng nhập.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: kTextSec, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GuestBenefitRow extends StatelessWidget {
+  const _GuestBenefitRow({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: kTikTeal.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, size: 18, color: kTikTeal),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: kTextSec,
+                  fontSize: 12,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -188,8 +501,12 @@ class _SavedTab extends StatelessWidget {
     final progress = MockData.currentUserProgress;
     // Find first episode with progress for "Continue Listening"
     final continueEp = progress.isNotEmpty ? progress.first : null;
-    final continueEpisode = continueEp != null ? MockData.getEpisodeById(continueEp.episodeId) : null;
-    final continuePodcast = continueEp != null ? MockData.getShowById(continueEp.showId) : null;
+    final continueEpisode = continueEp != null
+        ? MockData.getEpisodeById(continueEp.episodeId)
+        : null;
+    final continuePodcast = continueEp != null
+        ? MockData.getShowById(continueEp.showId)
+        : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
@@ -199,7 +516,11 @@ class _SavedTab extends StatelessWidget {
           GestureDetector(
             onTap: () {
               if (continuePodcast != null) {
-                openPlayerScreen(context, show: continuePodcast, episode: continueEpisode);
+                openPlayerScreen(
+                  context,
+                  show: continuePodcast,
+                  episode: continueEpisode,
+                );
               }
             },
             child: Container(
@@ -214,14 +535,21 @@ class _SavedTab extends StatelessWidget {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.history_rounded, color: Colors.white54, size: 14),
+                      Icon(
+                        Icons.history_rounded,
+                        color: Colors.white54,
+                        size: 14,
+                      ),
                       SizedBox(width: 6),
-                      Text('Nghe tiếp',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white54,
-                              letterSpacing: 0.5)),
+                      Text(
+                        'Nghe tiếp',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white54,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -230,8 +558,11 @@ class _SavedTab extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          continuePodcast?.imageUrl ?? continueEpisode.images.first,
-                          width: 52, height: 52, fit: BoxFit.cover,
+                          continuePodcast?.imageUrl ??
+                              continueEpisode.images.first,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -239,24 +570,36 @@ class _SavedTab extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(continueEpisode.title,
-                                style: const TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
+                            Text(
+                              continueEpisode.title,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             const SizedBox(height: 4),
                             ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
                                 value: continueEp.progress,
                                 backgroundColor: Colors.white12,
-                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                                 minHeight: 3,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(continueEp.remainingLabel,
-                                style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                            Text(
+                              continueEp.remainingLabel,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.white38,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -265,9 +608,14 @@ class _SavedTab extends StatelessWidget {
                         width: 36,
                         height: 36,
                         decoration: const BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle),
-                        child: const Icon(Icons.play_arrow_rounded,
-                            color: Colors.black, size: 20),
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.black,
+                          size: 20,
+                        ),
                       ),
                     ],
                   ),
@@ -276,13 +624,21 @@ class _SavedTab extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 20),
-        const Text('Đã lưu',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
+        const Text(
+          'Đã lưu',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.white54,
+          ),
+        ),
         const SizedBox(height: 10),
-        ...savedEps.map((ep) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _EpisodeRow(episode: ep),
-            )),
+        ...savedEps.map(
+          (ep) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _EpisodeRow(episode: ep),
+          ),
+        ),
       ],
     );
   }
@@ -313,27 +669,42 @@ class _EpisodeRow extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.network(
-                  episode.images.isNotEmpty ? episode.images.first : (show?.imageUrl ?? ''),
-                  width: 50, height: 50, fit: BoxFit.cover),
+                episode.images.isNotEmpty
+                    ? episode.images.first
+                    : (show?.imageUrl ?? ''),
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(episode.title,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    episode.title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 3),
-                  Text('${show?.title ?? ''}  ·  ${episode.formattedDuration}',
-                      style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                  Text(
+                    '${show?.title ?? ''}  ·  ${episode.formattedDuration}',
+                    style: const TextStyle(fontSize: 11, color: Colors.white38),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.play_circle_outline_rounded,
-                color: Colors.white.withValues(alpha: 0.5), size: 26),
+            Icon(
+              Icons.play_circle_outline_rounded,
+              color: Colors.white.withValues(alpha: 0.5),
+              size: 26,
+            ),
           ],
         ),
       ),
@@ -361,8 +732,9 @@ class _FollowingTab extends StatelessWidget {
               final ch = following[i];
               return GestureDetector(
                 onTap: () {
-                  final show = MockData.shows.where(
-                    (p) => p.title == ch['name']).firstOrNull;
+                  final show = MockData.shows
+                      .where((p) => p.title == ch['name'])
+                      .firstOrNull;
                   if (show != null) {
                     openShowDetail(context, show);
                   }
@@ -380,15 +752,23 @@ class _FollowingTab extends StatelessWidget {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(30),
-                          child: Image.network(ch['imageUrl']!, fit: BoxFit.cover),
+                          child: Image.network(
+                            ch['imageUrl']!,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(ch['name']!,
-                          style: const TextStyle(
-                              fontSize: 10, color: Colors.white70, fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
+                      Text(
+                        ch['name']!,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
@@ -397,14 +777,21 @@ class _FollowingTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        const Text('Cập nhật mới nhất',
-            style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
+        const Text(
+          'Cập nhật mới nhất',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.white54,
+          ),
+        ),
         const SizedBox(height: 10),
-        ...following.map((ch) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _ChannelUpdateRow(channel: ch),
-            )),
+        ...following.map(
+          (ch) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _ChannelUpdateRow(channel: ch),
+          ),
+        ),
       ],
     );
   }
@@ -418,8 +805,9 @@ class _ChannelUpdateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        final show = MockData.shows.where(
-          (p) => p.title == channel['name']).firstOrNull;
+        final show = MockData.shows
+            .where((p) => p.title == channel['name'])
+            .firstOrNull;
         if (show != null) {
           openShowDetail(context, show);
         }
@@ -435,21 +823,34 @@ class _ChannelUpdateRow extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(channel['imageUrl']!,
-                  width: 48, height: 48, fit: BoxFit.cover),
+              child: Image.network(
+                channel['imageUrl']!,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(channel['name']!,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                  Text(
+                    channel['name']!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text('Tập mới vừa phát hành',
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.white.withValues(alpha: 0.4))),
+                  Text(
+                    'Tập mới vừa phát hành',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -459,9 +860,14 @@ class _ChannelUpdateRow extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text('Xem',
-                  style: TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white70)),
+              child: const Text(
+                'Xem',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white70,
+                ),
+              ),
             ),
           ],
         ),
@@ -484,33 +890,59 @@ class _MyCreationsTab extends StatelessWidget {
         // Stats cards
         Row(
           children: [
-            _miniStat('${user.listeningHours}h', 'Tổng giờ nghe', Icons.headphones_rounded),
+            _miniStat(
+              '${user.listeningHours}h',
+              'Tổng giờ nghe',
+              Icons.headphones_rounded,
+            ),
             const SizedBox(width: 10),
             _miniStat('2.4k', 'Người theo dõi', Icons.people_outline),
           ],
         ),
         const SizedBox(height: 20),
-        const Text('Podcast của tôi',
-            style:
-                TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
+        const Text(
+          'Podcast của tôi',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.white54,
+          ),
+        ),
         const SizedBox(height: 10),
-        ...creations.map((c) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _CreationCard(creation: c),
-            )),
+        ...creations.map(
+          (c) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _CreationCard(creation: c),
+          ),
+        ),
         const SizedBox(height: 8),
         const Row(
           children: [
             Icon(Icons.history_rounded, color: Colors.white38, size: 13),
             SizedBox(width: 6),
-            Text('Hoạt động gần đây',
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white54)),
+            Text(
+              'Hoạt động gần đây',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Colors.white54,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 10),
-        _activityItem(Icons.favorite_rounded, 'Đã thích', 'The Joe Rogan Experience #2041', '2 giờ trước'),
-        _activityItem(Icons.mode_comment_outlined, 'Đã bình luận', 'Lex Fridman Podcast #402', 'Hôm qua'),
+        _activityItem(
+          Icons.favorite_rounded,
+          'Đã thích',
+          'The Joe Rogan Experience #2041',
+          '2 giờ trước',
+        ),
+        _activityItem(
+          Icons.mode_comment_outlined,
+          'Đã bình luận',
+          'Lex Fridman Podcast #402',
+          'Hôm qua',
+        ),
       ],
     );
   }
@@ -531,11 +963,18 @@ class _MyCreationsTab extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                Text(label,
-                    style: const TextStyle(fontSize: 10, color: Colors.white38)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 10, color: Colors.white38),
+                ),
               ],
             ),
           ],
@@ -544,7 +983,12 @@ class _MyCreationsTab extends StatelessWidget {
     );
   }
 
-  static Widget _activityItem(IconData icon, String action, String title, String time) {
+  static Widget _activityItem(
+    IconData icon,
+    String action,
+    String title,
+    String time,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -568,15 +1012,20 @@ class _MyCreationsTab extends StatelessWidget {
                     children: [
                       TextSpan(text: '$action  '),
                       TextSpan(
-                          text: title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, color: Colors.white)),
+                        text: title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(time,
-                    style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                Text(
+                  time,
+                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                ),
               ],
             ),
           ),
@@ -604,22 +1053,33 @@ class _CreationCard extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(creation['imageUrl']!,
-                width: 50, height: 50, fit: BoxFit.cover),
+            child: Image.network(
+              creation['imageUrl']!,
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(creation['title']!,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  creation['title']!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 3),
-                Text(creation['subtitle']!,
-                    style: const TextStyle(fontSize: 11, color: Colors.white38)),
+                Text(
+                  creation['subtitle']!,
+                  style: const TextStyle(fontSize: 11, color: Colors.white38),
+                ),
               ],
             ),
           ),
@@ -634,10 +1094,11 @@ class _CreationCard extends StatelessWidget {
             child: Text(
               (creation['badge']! as String).toUpperCase(),
               style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: isPublished ? Colors.white : Colors.white38,
-                  letterSpacing: 0.5),
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: isPublished ? Colors.white : Colors.white38,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
         ],

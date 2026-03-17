@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoadRequiresSMTPSettingsInSMTPMode(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/pody_notification?sslmode=disable")
+	t.Setenv("DATABASE_URL", "postgres://test-user:test-pass@example.com:5432/notification?sslmode=require")
 	t.Setenv("INTERNAL_API_KEY", "change-me")
 	t.Setenv("KAFKA_BROKERS", "localhost:9092")
 	t.Setenv("EMAIL_SENDER_MODE", "smtp")
@@ -23,7 +23,7 @@ func TestLoadRequiresSMTPSettingsInSMTPMode(t *testing.T) {
 }
 
 func TestLoadParsesSMTPSettings(t *testing.T) {
-	t.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/pody_notification?sslmode=disable")
+	t.Setenv("DATABASE_URL", "postgres://test-user:test-pass@example.com:5432/notification?sslmode=require")
 	t.Setenv("INTERNAL_API_KEY", "change-me")
 	t.Setenv("KAFKA_BROKERS", "localhost:9092")
 	t.Setenv("EMAIL_SENDER_MODE", "smtp")

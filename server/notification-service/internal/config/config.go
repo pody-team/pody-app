@@ -30,6 +30,11 @@ type Config struct {
 	VerificationDLQTopic            string
 	VerificationConsumerGroup       string
 	VerificationMaxAttempts         int
+	PasswordResetTopic              string
+	PasswordResetRetryTopic         string
+	PasswordResetDLQTopic           string
+	PasswordResetConsumerGroup      string
+	PasswordResetMaxAttempts        int
 	ProcessedEventsRetention        time.Duration
 	ProcessedEventsCleanupInterval  time.Duration
 	ProcessedEventsCleanupBatchSize int
@@ -62,7 +67,7 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		DatabaseURL:                     stringFromEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5433/pody_notification?sslmode=disable"),
+		DatabaseURL:                     stringFromEnv("DATABASE_URL", ""),
 		Port:                            stringFromEnv("PORT", "8087"),
 		ShutdownTimeout:                 shutdownTimeout,
 		InternalAPIKey:                  stringFromEnv("INTERNAL_API_KEY", "change-me"),
@@ -83,6 +88,11 @@ func Load() (Config, error) {
 		VerificationDLQTopic:            stringFromEnv("VERIFICATION_DLQ_TOPIC", "identity.email.verification.requested.dlq"),
 		VerificationConsumerGroup:       stringFromEnv("VERIFICATION_CONSUMER_GROUP", "notification-service"),
 		VerificationMaxAttempts:         intFromEnv("VERIFICATION_MAX_ATTEMPTS", 5),
+		PasswordResetTopic:              stringFromEnv("PASSWORD_RESET_EVENTS_TOPIC", "identity.password.reset.requested"),
+		PasswordResetRetryTopic:         stringFromEnv("PASSWORD_RESET_RETRY_TOPIC", "identity.password.reset.requested.retry"),
+		PasswordResetDLQTopic:           stringFromEnv("PASSWORD_RESET_DLQ_TOPIC", "identity.password.reset.requested.dlq"),
+		PasswordResetConsumerGroup:      stringFromEnv("PASSWORD_RESET_CONSUMER_GROUP", "notification-service-password-reset"),
+		PasswordResetMaxAttempts:        intFromEnv("PASSWORD_RESET_MAX_ATTEMPTS", 5),
 		ProcessedEventsRetention:        processedEventsRetention,
 		ProcessedEventsCleanupInterval:  processedEventsCleanupInterval,
 		ProcessedEventsCleanupBatchSize: intFromEnv("PROCESSED_EVENTS_CLEANUP_BATCH_SIZE", 500),

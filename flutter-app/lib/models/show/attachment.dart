@@ -5,8 +5,8 @@ class Attachment {
   final String id;
   final String fileName;
   final AttachmentType type;
-  final String? url;        // remote URL after upload
-  final String? localPath;  // local path before upload
+  final String? url; // remote URL after upload
+  final String? localPath; // local path before upload
   final int? sizeBytes;
 
   const Attachment({

@@ -38,3 +38,12 @@ type VerificationChallenge struct {
 	VerificationExpiresAt time.Time `json:"verification_expires_at"`
 	Message               string    `json:"message"`
 }
+
+type PasswordResetChallenge struct {
+	Email        string    `json:"email"`
+	Message      string    `json:"message"`
+	OTPRequired  bool      `json:"otp_required"`
+	OTPSentAt    time.Time `json:"otp_sent_at"`
+	OTPExpiresAt time.Time `json:"otp_expires_at"`
+	OTPLength    int       `json:"otp_length"`
+}

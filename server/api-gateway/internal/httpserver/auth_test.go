@@ -72,6 +72,10 @@ func TestJWTAuthAcceptsValidTokenAndForwardsClaims(t *testing.T) {
 			t.Fatalf("expected X-Auth-Role to be propagated, got %q", got)
 		}
 
+		if got := r.Header.Get("X-Auth-Name"); got != "Promex" {
+			t.Fatalf("expected X-Auth-Name to be propagated, got %q", got)
+		}
+
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -93,6 +97,7 @@ func signedTestToken(t *testing.T, secret string) string {
 		"sub":   "user-123",
 		"role":  "admin",
 		"email": "user@example.com",
+		"name":  "Promex",
 		"exp":   time.Now().Add(5 * time.Minute).Unix(),
 	})
 

@@ -116,11 +116,8 @@ class ListeningHistoryScreen extends StatelessWidget {
                 }
 
                 return GestureDetector(
-                  onTap: () => openPlayerScreen(
-                    context,
-                    show: show,
-                    episode: episode,
-                  ),
+                  onTap: () =>
+                      openPlayerScreen(context, show: show, episode: episode),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.all(12),

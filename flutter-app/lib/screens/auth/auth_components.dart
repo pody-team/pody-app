@@ -163,6 +163,102 @@ class AuthPrimaryButton extends StatelessWidget {
   }
 }
 
+class AuthInfoCard extends StatelessWidget {
+  const AuthInfoCard({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.icon,
+    this.accentColor = kTikTeal,
+    this.footer,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+  final Color accentColor;
+  final Widget? footer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accentColor.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: accentColor, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            style: const TextStyle(color: kTextSec, height: 1.5, fontSize: 13),
+          ),
+          if (footer != null) ...[const SizedBox(height: 14), footer!],
+        ],
+      ),
+    );
+  }
+}
+
+class AuthStepList extends StatelessWidget {
+  const AuthStepList({super.key, required this.items});
+
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: items
+          .map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(Icons.check_circle, color: kTikTeal, size: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: const TextStyle(
+                        color: kTextSec,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
 class AuthSocialButton extends StatelessWidget {
   const AuthSocialButton({
     super.key,

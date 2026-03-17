@@ -4,6 +4,7 @@ Go service for user identity in Pody, with:
 
 - email/password sign-up with email verification
 - email/password sign-in after verification
+- forgot-password and reset-password via email OTP
 - Google sign-in using Google ID token
 - access token + refresh token issuance
 - `GET /api/v1/identity/me`
@@ -12,13 +13,17 @@ Go service for user identity in Pody, with:
 
 - `GET /healthz`
 - `GET /api/v1/public/identity/healthz`
+- `GET /api/v1/public/identity/openapi.yaml`
+- `GET /api/v1/public/identity/docs`
 - `POST /api/v1/public/identity/sign-up`
 - `POST /api/v1/public/identity/sign-in`
 - `POST /api/v1/public/identity/google`
 - `POST /api/v1/public/identity/refresh`
 - `POST /api/v1/public/identity/sign-out`
-- `GET /api/v1/public/identity/verify-email`
+- `GET /verify-email/open`
 - `POST /api/v1/public/identity/resend-verification`
+- `POST /api/v1/public/identity/forgot-password`
+- `POST /api/v1/public/identity/reset-password`
 - `GET /api/v1/identity/me`
 
 ## Run locally
@@ -32,15 +37,22 @@ go run ./cmd/identity
 ## Run with Docker
 
 ```bash
-docker compose up --build postgres kafka notification-service identity-service
+docker compose up --build kafka notification-service identity-service
 ```
+
+## API Docs
+
+- OpenAPI spec: `http://localhost:8080/api/v1/public/identity/openapi.yaml`
+- Swagger UI: `http://localhost:8080/api/v1/public/identity/docs`
 
 ## Notes
 
 - Apply the schema in [identity_service.sql](/Users/promex04/Documents/Pody/Pody/server/sql/services/identity_service.sql) before running.
 - `GOOGLE_CLIENT_IDS` accepts a comma-separated list.
+- For Flutter Google Sign-In using `serverClientId`, the server/web client ID should be included here.
 - `JWT_SECRET` should match what your API Gateway uses to verify access tokens if you keep HMAC auth.
 - Email verification events are written to an outbox table first, then published to Kafka and consumed by [notification-service](/Users/promex04/Documents/Pody/Pody/server/notification-service).
+- Password reset uses the same outbox + Kafka flow as email verification.
 - Published outbox events are cleaned up in the background based on `OUTBOX_RETENTION`.
 
 ## Example sign-up request

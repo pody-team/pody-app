@@ -1,0 +1,462 @@
+openapi: 3.0.3
+info:
+  title: Pody Identity Service API
+  version: 1.0.0
+  description: Authentication and account lifecycle APIs for Pody.
+tags:
+  - name: Health
+  - name: Auth
+  - name: Account
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/public/identity/healthz:
+    get:
+      tags: [Health]
+      operationId: getIdentityHealth
+      summary: Public identity health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/public/identity/sign-up:
+    post:
+      tags: [Auth]
+      operationId: signUp
+      summary: Sign up with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '202':
+          description: Verification email queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationChallenge'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/sign-in:
+    post:
+      tags: [Auth]
+      operationId: signIn
+      summary: Sign in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: User authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/google:
+    post:
+      tags: [Auth]
+      operationId: signInWithGoogle
+      summary: Sign in with Google ID token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleSignInRequest'
+      responses:
+        '200':
+          description: User authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshSession
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/sign-out:
+    post:
+      tags: [Auth]
+      operationId: signOut
+      summary: Revoke refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/verify-email:
+    get:
+      tags: [Account]
+      operationId: verifyEmailByQuery
+      summary: Verify email with token
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageUserResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      tags: [Account]
+      operationId: verifyEmailByBody
+      summary: Verify email with token payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageUserResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/resend-verification:
+    post:
+      tags: [Account]
+      operationId: resendVerification
+      summary: Resend verification email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '202':
+          description: Verification email queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationChallenge'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/forgot-password:
+    post:
+      tags: [Account]
+      operationId: forgotPassword
+      summary: Request a password reset OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '202':
+          description: Generic accepted response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetChallenge'
+  /api/v1/public/identity/reset-password:
+    post:
+      tags: [Account]
+      operationId: resetPassword
+      summary: Reset password with email and OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageUserResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/identity/verify-reset-otp:
+    post:
+      tags: [Account]
+      operationId: verifyResetOTP
+      summary: Verify password reset OTP before showing the new password form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyResetOTPRequest'
+      responses:
+        '200':
+          description: OTP verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/identity/me:
+    get:
+      tags: [Account]
+      operationId: getCurrentUser
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ErrorResponse:
+      description: API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    SignUpRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        display_name:
+          type: string
+      required: [email, password, display_name]
+    SignInRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+    GoogleSignInRequest:
+      type: object
+      properties:
+        id_token:
+          type: string
+      required: [id_token]
+    RefreshRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required: [refresh_token]
+    EmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required: [email]
+    TokenRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    ResetPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+      required: [email, otp, new_password]
+    VerifyResetOTPRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+      required: [email, otp]
+    VerificationChallenge:
+      type: object
+      properties:
+        email:
+          type: string
+        verification_required:
+          type: boolean
+        verification_sent_at:
+          type: string
+          format: date-time
+        verification_expires_at:
+          type: string
+          format: date-time
+        message:
+          type: string
+      required: [email, verification_required, verification_sent_at, verification_expires_at, message]
+    PasswordResetChallenge:
+      type: object
+      properties:
+        email:
+          type: string
+        message:
+          type: string
+        otp_required:
+          type: boolean
+        otp_sent_at:
+          type: string
+          format: date-time
+        otp_expires_at:
+          type: string
+          format: date-time
+        otp_length:
+          type: integer
+      required: [email, message, otp_required, otp_sent_at, otp_expires_at, otp_length]
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+    Tokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+        access_token_expires_at:
+          type: string
+          format: date-time
+        refresh_token:
+          type: string
+        refresh_token_expires_at:
+          type: string
+          format: date-time
+        token_type:
+          type: string
+      required: [access_token, access_token_expires_at, refresh_token, refresh_token_expires_at, token_type]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        display_name:
+          type: string
+        username:
+          type: string
+        avatar_url:
+          type: string
+        bio:
+          type: string
+        account_type:
+          type: string
+        status:
+          type: string
+        locale:
+          type: string
+        timezone:
+          type: string
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, email, display_name, bio, account_type, status, locale, timezone, created_at, updated_at]
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/Tokens'
+      required: [user, tokens]
+    UserEnvelope:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      required: [user]
+    MessageUserResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required: [message, user]

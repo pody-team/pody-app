@@ -9,10 +9,9 @@ import (
 )
 
 type ServiceRoute struct {
-	Name         string `json:"name"`
-	Prefix       string `json:"prefix"`
-	TargetURL    string `json:"target_url"`
-	RequiresAuth bool   `json:"requires_auth"`
+	Name      string `json:"name"`
+	Prefix    string `json:"prefix"`
+	TargetURL string `json:"target_url"`
 }
 
 type Config struct {
@@ -33,18 +32,19 @@ type serviceEnv struct {
 	EnvKey       string
 	DefaultURL   string
 	UpstreamPath string
-	RequiresAuth bool
 }
 
 var serviceEnvs = []serviceEnv{
-	{Name: "identity-public", Prefix: "/api/v1/public/identity", EnvKey: "IDENTITY_SERVICE_URL", DefaultURL: "http://localhost:8081", UpstreamPath: "/api/v1/public/identity", RequiresAuth: false},
-	{Name: "identity", Prefix: "/api/v1/identity", EnvKey: "IDENTITY_SERVICE_URL", DefaultURL: "http://localhost:8081", UpstreamPath: "/api/v1/identity", RequiresAuth: true},
-	{Name: "content", Prefix: "/api/v1/content", EnvKey: "CONTENT_SERVICE_URL", DefaultURL: "http://localhost:8082", RequiresAuth: true},
-	{Name: "social", Prefix: "/api/v1/social", EnvKey: "SOCIAL_SERVICE_URL", DefaultURL: "http://localhost:8083", RequiresAuth: true},
-	{Name: "news", Prefix: "/api/v1/news", EnvKey: "NEWS_SERVICE_URL", DefaultURL: "http://localhost:8084", RequiresAuth: true},
-	{Name: "ai", Prefix: "/api/v1/ai", EnvKey: "AI_SERVICE_URL", DefaultURL: "http://localhost:8085", RequiresAuth: true},
-	{Name: "billing", Prefix: "/api/v1/billing", EnvKey: "BILLING_SERVICE_URL", DefaultURL: "http://localhost:8086", RequiresAuth: true},
-	{Name: "notifications", Prefix: "/api/v1/notifications", EnvKey: "NOTIFICATION_SERVICE_URL", DefaultURL: "http://localhost:8087", RequiresAuth: true},
+	{Name: "identity-public", Prefix: "/api/v1/public/identity", EnvKey: "IDENTITY_SERVICE_URL", DefaultURL: "http://localhost:8081", UpstreamPath: "/api/v1/public/identity"},
+	{Name: "notifications-public", Prefix: "/api/v1/public/notifications", EnvKey: "NOTIFICATION_SERVICE_URL", DefaultURL: "http://localhost:8087", UpstreamPath: "/api/v1/public/notifications"},
+	{Name: "content-public", Prefix: "/api/v1/public/content", EnvKey: "CONTENT_SERVICE_URL", DefaultURL: "http://localhost:8082", UpstreamPath: "/api/v1/public/content"},
+	{Name: "identity", Prefix: "/api/v1/identity", EnvKey: "IDENTITY_SERVICE_URL", DefaultURL: "http://localhost:8081", UpstreamPath: "/api/v1/identity"},
+	{Name: "content", Prefix: "/api/v1/content", EnvKey: "CONTENT_SERVICE_URL", DefaultURL: "http://localhost:8082", UpstreamPath: "/api/v1/content"},
+	{Name: "social", Prefix: "/api/v1/social", EnvKey: "SOCIAL_SERVICE_URL", DefaultURL: "http://localhost:8083"},
+	{Name: "news", Prefix: "/api/v1/news", EnvKey: "NEWS_SERVICE_URL", DefaultURL: "http://localhost:8084"},
+	{Name: "ai", Prefix: "/api/v1/ai", EnvKey: "AI_SERVICE_URL", DefaultURL: "http://localhost:8085"},
+	{Name: "billing", Prefix: "/api/v1/billing", EnvKey: "BILLING_SERVICE_URL", DefaultURL: "http://localhost:8086"},
+	{Name: "notifications", Prefix: "/api/v1/notifications", EnvKey: "NOTIFICATION_SERVICE_URL", DefaultURL: "http://localhost:8087", UpstreamPath: "/api/v1/notifications"},
 }
 
 func Load() (Config, error) {
@@ -100,10 +100,9 @@ func loadRoutes() ([]ServiceRoute, error) {
 		}
 
 		routes = append(routes, ServiceRoute{
-			Name:         svc.Name,
-			Prefix:       svc.Prefix,
-			TargetURL:    targetURL,
-			RequiresAuth: svc.RequiresAuth,
+			Name:      svc.Name,
+			Prefix:    svc.Prefix,
+			TargetURL: targetURL,
 		})
 	}
 

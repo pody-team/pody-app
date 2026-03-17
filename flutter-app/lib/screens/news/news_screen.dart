@@ -14,8 +14,9 @@ class NewsScreen extends StatefulWidget {
 
 class _NewsScreenState extends State<NewsScreen> {
   int _selectedCategoryIndex = 0;
-  late final List<bool> _addedStates =
-      MockData.newsArticles.map((a) => a.isAdded).toList();
+  late final List<bool> _addedStates = MockData.newsArticles
+      .map((a) => a.isAdded)
+      .toList();
 
   @override
   Widget build(BuildContext context) {
@@ -26,32 +27,25 @@ class _NewsScreenState extends State<NewsScreen> {
         child: CustomScrollView(
           slivers: [
             // AI Podcast Station
-            SliverToBoxAdapter(
-              child: _buildAIPodcastStation(context),
-            ),
-            
+            SliverToBoxAdapter(child: _buildAIPodcastStation(context)),
+
             // Categories
-            SliverToBoxAdapter(
-              child: _buildCategories(),
-            ),
+            SliverToBoxAdapter(child: _buildCategories()),
 
             // Highlight Story
             if (articles.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildHighlightStory(0, articles[0]),
-              ),
+              SliverToBoxAdapter(child: _buildHighlightStory(0, articles[0])),
 
             // Compact List News
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index == 0) return const SizedBox.shrink(); // Skips highlight
-                    return _buildCompactNewsRow(index, articles[index]);
-                  },
-                  childCount: articles.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index == 0) {
+                    return const SizedBox.shrink(); // Skips highlight
+                  }
+                  return _buildCompactNewsRow(index, articles[index]);
+                }, childCount: articles.length),
               ),
             ),
           ],
@@ -83,7 +77,10 @@ class _NewsScreenState extends State<NewsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: kTikRed.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -94,14 +91,22 @@ class _NewsScreenState extends State<NewsScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'AI Playlist',
-                      style: TextStyle(color: kTikRed, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: kTikRed,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
               ),
               const Text(
                 '~12 phút',
-                style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -118,10 +123,7 @@ class _NewsScreenState extends State<NewsScreen> {
           const SizedBox(height: 8),
           Text(
             'Dựa trên ${MockData.newsArticles.where((a) => a.isAdded).isNotEmpty ? MockData.newsArticles.where((a) => a.isAdded).length : 5} tin tức bạn đã chọn và xu hướng Tech.',
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.white54,
-            ),
+            style: const TextStyle(fontSize: 13, color: Colors.white54),
           ),
           const SizedBox(height: 20),
           Row(
@@ -171,7 +173,7 @@ class _NewsScreenState extends State<NewsScreen> {
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -199,7 +201,9 @@ class _NewsScreenState extends State<NewsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isSelected ? kTikRed : Colors.white.withValues(alpha: 0.06),
+                color: isSelected
+                    ? kTikRed
+                    : Colors.white.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -227,10 +231,7 @@ class _NewsScreenState extends State<NewsScreen> {
             borderRadius: BorderRadius.circular(16),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image.network(
-                article.imageUrl,
-                fit: BoxFit.cover,
-              ),
+              child: Image.network(article.imageUrl, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(height: 12),
@@ -262,10 +263,17 @@ class _NewsScreenState extends State<NewsScreen> {
                 children: [
                   Text(
                     article.publisher,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  const Text('•', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                  const Text(
+                    '•',
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     article.time,
@@ -298,7 +306,7 @@ class _NewsScreenState extends State<NewsScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Info
           Expanded(
             child: Column(
@@ -320,23 +328,33 @@ class _NewsScreenState extends State<NewsScreen> {
                   children: [
                     Text(
                       article.publisher,
-                      style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 6),
-                    const Text('•', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                    const Text(
+                      '•',
+                      style: TextStyle(color: Colors.white38, fontSize: 10),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       article.time,
-                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          
+
           const SizedBox(width: 8),
-          
+
           // Add to queue btn
           _buildAddButton(index),
         ],
@@ -356,7 +374,9 @@ class _NewsScreenState extends State<NewsScreen> {
         width: 32,
         height: 32,
         decoration: BoxDecoration(
-          color: isAdded ? kTikRed.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.08),
+          color: isAdded
+              ? kTikRed.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.08),
           shape: BoxShape.circle,
         ),
         child: Icon(

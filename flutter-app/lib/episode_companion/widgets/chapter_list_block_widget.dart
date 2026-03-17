@@ -55,92 +55,88 @@ class ChapterListBlockWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ...data.chapters.asMap().entries.map(
-            (entry) {
-              final chapter = entry.value;
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: entry.key == data.chapters.length - 1 ? 0 : 8,
+          ...data.chapters.asMap().entries.map((entry) {
+            final chapter = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: entry.key == data.chapters.length - 1 ? 0 : 8,
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
                 ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF7C4DFF).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        chapter.timeLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(
+                            0xFF7C4DFF,
+                          ).withValues(alpha: 0.85),
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C4DFF).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          chapter.timeLabel,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF7C4DFF).withValues(
-                              alpha: 0.85,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            chapter.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
-                            fontFeatures: const [
-                              FontFeature.tabularFigures(),
-                            ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          if (!isPreview) ...[
+                            const SizedBox(height: 3),
                             Text(
-                              chapter.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              chapter.detail,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.45),
+                                height: 1.4,
                               ),
                             ),
-                            if (!isPreview) ...[
-                              const SizedBox(height: 3),
-                              Text(
-                                chapter.detail,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.45),
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
                           ],
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.play_circle_outline,
-                        color: Colors.white.withValues(alpha: 0.2),
-                        size: 20,
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.play_circle_outline,
+                      color: Colors.white.withValues(alpha: 0.2),
+                      size: 20,
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          }),
         ],
       ),
     );

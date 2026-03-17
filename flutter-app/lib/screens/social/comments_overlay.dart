@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 
-
 void showCommentsOverlay(BuildContext context) {
   showModalBottomSheet(
     context: context,
@@ -103,7 +102,9 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundImage: NetworkImage(MockData.currentUser.avatarUrl),
+                      backgroundImage: NetworkImage(
+                        MockData.currentUser.avatarUrl,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

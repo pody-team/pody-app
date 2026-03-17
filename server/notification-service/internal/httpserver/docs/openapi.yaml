@@ -1,0 +1,161 @@
+openapi: 3.0.3
+info:
+  title: Pody Notification Service API
+  version: 1.0.0
+  description: Delivery-focused APIs and internal notification endpoints for Pody.
+tags:
+  - name: Health
+  - name: Docs
+  - name: Internal
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/public/notifications/healthz:
+    get:
+      tags: [Health]
+      operationId: getNotificationHealth
+      summary: Public notification health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/public/notifications/openapi.yaml:
+    get:
+      tags: [Docs]
+      operationId: getNotificationOpenAPI
+      summary: Download notification OpenAPI spec
+      responses:
+        '200':
+          description: YAML spec
+  /api/v1/public/notifications/docs:
+    get:
+      tags: [Docs]
+      operationId: getNotificationSwaggerUI
+      summary: Swagger UI for notification service
+      responses:
+        '200':
+          description: HTML page
+  /internal/notifications/email/verification:
+    post:
+      tags: [Internal]
+      operationId: sendVerificationEmail
+      summary: Send a verification email immediately
+      security:
+        - internalApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationMessage'
+      responses:
+        '202':
+          description: Email request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/ErrorResponse'
+  /internal/notifications/dev/seed-inbox:
+    post:
+      tags: [Internal]
+      operationId: seedNotificationInbox
+      summary: Seed demo inbox notifications for a user in development
+      security:
+        - internalApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeedInboxRequest'
+      responses:
+        '202':
+          description: Demo notifications inserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedInboxResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  securitySchemes:
+    internalApiKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Api-Key
+  responses:
+    ErrorResponse:
+      description: API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    QueuedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    VerificationMessage:
+      type: object
+      properties:
+        event_id:
+          type: string
+        idempotency_key:
+          type: string
+        user_id:
+          type: string
+        to_email:
+          type: string
+          format: email
+        to_display_name:
+          type: string
+        verification_url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+      required: [to_email, verification_url]
+    SeedInboxRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+      required: [user_id]
+    SeedInboxResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        inserted_count:
+          type: integer
+        user_id:
+          type: string
+          format: uuid
+      required: [status, inserted_count, user_id]

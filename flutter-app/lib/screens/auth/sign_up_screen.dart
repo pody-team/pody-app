@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:pody/main.dart';
+import 'package:pody/features/auth/domain/auth_policy.dart';
+import 'package:pody/features/auth/domain/verification_challenge.dart';
+import 'package:pody/features/auth/presentation/auth_error_message.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
 import 'package:pody/theme/app_colors.dart';
@@ -23,6 +26,10 @@ class _SignUpScreenState extends State<SignUpScreen>
 
   bool _isObscured = true;
   bool _isSubmitting = false;
+  VerificationChallenge? _verificationChallenge;
+
+  bool get _verificationSent =>
+      _verificationChallenge?.verificationRequired ?? false;
 
   @override
   void initState() {
@@ -74,8 +81,8 @@ class _SignUpScreenState extends State<SignUpScreen>
     if (password.isEmpty) {
       return 'Nhập mật khẩu.';
     }
-    if (password.length < 8) {
-      return 'Mật khẩu nên có ít nhất 8 ký tự.';
+    if (password.length < AuthPolicy.minPasswordLength) {
+      return 'Mật khẩu nên có ít nhất ${AuthPolicy.minPasswordLength} ký tự.';
     }
     return null;
   }
@@ -86,23 +93,123 @@ class _SignUpScreenState extends State<SignUpScreen>
       return;
     }
 
+    final authController = AuthScope.of(context);
     setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) {
+    try {
+      final challenge = await authController.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        displayName: _nameController.text.trim(),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _verificationChallenge = challenge;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(humanizeAuthError(error))));
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    FocusScope.of(context).unfocus();
+
+    final authController = AuthScope.of(context);
+    setState(() => _isSubmitting = true);
+    try {
+      await authController.signInWithGoogle();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(humanizeAuthError(error))));
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _resendVerification() async {
+    final email = _verificationChallenge?.email ?? _emailController.text.trim();
+    if (email.isEmpty) {
       return;
     }
 
-    setState(() => _isSubmitting = false);
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-      (route) => false,
-    );
+    final authController = AuthScope.of(context);
+    setState(() => _isSubmitting = true);
+    try {
+      final challenge = await authController.resendVerification(email);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _verificationChallenge = challenge;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Mình đã gửi lại email xác thực tới ${challenge.email}.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(humanizeAuthError(error))));
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   void _showPlaceholderAuthMessage(String provider) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Đăng ký bằng $provider sẽ được nối backend sau.'),
+        content: Text(
+          'Dang ky bang $provider se duoc noi sau khi xong cau hinh native.',
+        ),
+      ),
+    );
+  }
+
+  String _formatVerificationDeadline(DateTime value) {
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute ngày $day/$month';
+  }
+
+  void _returnToSignIn() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => SignInScreen(
+          initialEmail:
+              _verificationChallenge?.email ?? _emailController.text.trim(),
+        ),
       ),
     );
   }
@@ -139,16 +246,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        AuthBackButton(
-                          onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SignInScreen(),
-                              ),
-                            );
-                          },
-                        ),
+                        AuthBackButton(onPressed: _returnToSignIn),
                         const SizedBox(height: 28),
                         const Text(
                           'Tạo tài khoản',
@@ -170,78 +268,110 @@ class _SignUpScreenState extends State<SignUpScreen>
                           ),
                         ),
                         const SizedBox(height: 36),
-                        AuthTextField(
-                          controller: _nameController,
-                          label: 'Tên hiển thị',
-                          hintText: 'Ví dụ: Tino Phan',
-                          prefixIcon: Icons.person_outline,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.name],
-                          validator: _validateName,
-                        ),
-                        const SizedBox(height: 16),
-                        AuthTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          hintText: 'name@example.com',
-                          prefixIcon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          validator: _validateEmail,
-                        ),
-                        const SizedBox(height: 16),
-                        AuthTextField(
-                          controller: _passwordController,
-                          label: 'Mật khẩu',
-                          hintText: 'Tối thiểu 8 ký tự',
-                          prefixIcon: Icons.lock_outline,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.newPassword],
-                          obscureText: _isObscured,
-                          validator: _validatePassword,
-                          onFieldSubmitted: (_) => _signUp(),
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() => _isObscured = !_isObscured);
-                            },
-                            icon: Icon(
-                              _isObscured
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
+                        if (!_verificationSent) ...[
+                          AuthTextField(
+                            controller: _nameController,
+                            label: 'Tên hiển thị',
+                            hintText: 'Ví dụ: Tino Phan',
+                            prefixIcon: Icons.person_outline,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.name],
+                            validator: _validateName,
+                          ),
+                          const SizedBox(height: 16),
+                          AuthTextField(
+                            controller: _emailController,
+                            label: 'Email',
+                            hintText: 'name@example.com',
+                            prefixIcon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.email],
+                            validator: _validateEmail,
+                          ),
+                          const SizedBox(height: 16),
+                          AuthTextField(
+                            controller: _passwordController,
+                            label: 'Mật khẩu',
+                            hintText: AuthPolicy.passwordHint,
+                            prefixIcon: Icons.lock_outline,
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [AutofillHints.newPassword],
+                            obscureText: _isObscured,
+                            validator: _validatePassword,
+                            onFieldSubmitted: (_) => _signUp(),
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() => _isObscured = !_isObscured);
+                              },
+                              icon: Icon(
+                                _isObscured
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                        AuthPrimaryButton(
-                          label: 'Tạo tài khoản',
-                          backgroundColor: kTikTeal,
-                          foregroundColor: Colors.black,
-                          isLoading: _isSubmitting,
-                          onPressed: _signUp,
-                        ),
-                        const SizedBox(height: 28),
-                        const AuthDividerLabel(label: 'Hoặc đăng ký với'),
-                        const SizedBox(height: 28),
-                        Row(
-                          children: [
-                            AuthSocialButton(
-                              label: 'Google',
-                              icon: Icons.g_mobiledata,
-                              onPressed: () {
-                                _showPlaceholderAuthMessage('Google');
-                              },
+                          const SizedBox(height: 24),
+                          AuthPrimaryButton(
+                            label: 'Tạo tài khoản',
+                            backgroundColor: kTikTeal,
+                            foregroundColor: Colors.black,
+                            isLoading: _isSubmitting,
+                            onPressed: _signUp,
+                          ),
+                          const SizedBox(height: 28),
+                          const AuthDividerLabel(label: 'Hoặc đăng ký với'),
+                          const SizedBox(height: 28),
+                          Row(
+                            children: [
+                              AuthSocialButton(
+                                label: 'Google',
+                                icon: Icons.g_mobiledata,
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : _signInWithGoogle,
+                              ),
+                              const SizedBox(width: 16),
+                              AuthSocialButton(
+                                label: 'Apple',
+                                icon: Icons.apple,
+                                onPressed: () {
+                                  _showPlaceholderAuthMessage('Apple');
+                                },
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          AuthInfoCard(
+                            title: 'Kiểm tra hộp thư của bạn',
+                            message:
+                                'Tài khoản đã được tạo cho ${_verificationChallenge?.email ?? _emailController.text.trim()}. '
+                                'Mình đã gửi email xác thực, bạn chỉ cần bấm vào nút trong thư để kích hoạt tài khoản.',
+                            icon: Icons.mark_email_read_outlined,
+                            footer: AuthStepList(
+                              items: [
+                                'Mở email xác thực trên điện thoại hoặc máy tính.',
+                                'Bấm nút xác thực để hoàn tất trước ${_formatVerificationDeadline(_verificationChallenge!.verificationExpiresAt)}.',
+                                'Quay lại Pody và đăng nhập bằng email vừa tạo.',
+                              ],
                             ),
-                            const SizedBox(width: 16),
-                            AuthSocialButton(
-                              label: 'Apple',
-                              icon: Icons.apple,
-                              onPressed: () {
-                                _showPlaceholderAuthMessage('Apple');
-                              },
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 24),
+                          AuthPrimaryButton(
+                            label: 'Quay lại đăng nhập',
+                            backgroundColor: kTikTeal,
+                            foregroundColor: Colors.black,
+                            onPressed: _returnToSignIn,
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: _isSubmitting
+                                ? null
+                                : _resendVerification,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Gửi lại email xác thực'),
+                          ),
+                        ],
                         const SizedBox(height: 32),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -251,14 +381,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                               style: TextStyle(color: kTextSec, fontSize: 14),
                             ),
                             TextButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const SignInScreen(),
-                                  ),
-                                );
-                              },
+                              onPressed: _returnToSignIn,
                               child: const Text(
                                 'Đăng nhập',
                                 style: TextStyle(color: kTikTeal),

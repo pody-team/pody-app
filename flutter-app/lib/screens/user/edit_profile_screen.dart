@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 
-
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -99,7 +98,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
       ),
       body: ListView(

@@ -54,11 +54,16 @@ func main() {
 		SkipVerify:   cfg.SMTPInsecureSkipVerify,
 	}, logger)
 
-	server := httpserver.New(cfg, logger, sender)
 	processedStore := store.NewPostgresStore(db)
-	verificationConsumer, err := consumer.NewVerificationConsumer(cfg, logger, sender, processedStore)
+	server := httpserver.New(cfg, logger, sender, processedStore)
+	verificationConsumer, err := consumer.NewVerificationConsumer(cfg, logger, sender, processedStore, processedStore)
 	if err != nil {
 		logger.Error("failed to create verification consumer", "error", err)
+		os.Exit(1)
+	}
+	passwordResetConsumer, err := consumer.NewPasswordResetConsumer(cfg, logger, sender, processedStore, processedStore)
+	if err != nil {
+		logger.Error("failed to create password reset consumer", "error", err)
 		os.Exit(1)
 	}
 	processedEventsCleanup := cleanup.NewProcessedEventsWorker(processedStore, logger, cfg.ProcessedEventsCleanupInterval, cfg.ProcessedEventsRetention, cfg.ProcessedEventsCleanupBatchSize)
@@ -66,7 +71,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	errCh := make(chan error, 3)
+	errCh := make(chan error, 4)
 	go func() {
 		logger.Info("starting notification service", "addr", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -79,6 +84,11 @@ func main() {
 	go func() {
 		logger.Info("starting verification consumer", "brokers", cfg.KafkaBrokers, "topic", cfg.VerificationTopic)
 		errCh <- verificationConsumer.Run(ctx)
+	}()
+
+	go func() {
+		logger.Info("starting password reset consumer", "brokers", cfg.KafkaBrokers, "topic", cfg.PasswordResetTopic)
+		errCh <- passwordResetConsumer.Run(ctx)
 	}()
 
 	go func() {

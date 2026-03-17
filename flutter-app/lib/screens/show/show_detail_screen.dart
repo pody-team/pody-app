@@ -99,14 +99,21 @@ class ShowDetailScreen extends StatelessWidget {
                           // Author row
                           Builder(
                             builder: (context) {
-                              final author = MockData.getUserById(show.authorId);
-                              if (author == null) return const SizedBox.shrink();
+                              final author = MockData.getUserById(
+                                show.authorId,
+                              );
+                              if (author == null) {
+                                return const SizedBox.shrink();
+                              }
                               return GestureDetector(
                                 onTap: () {
                                   openUserDetail(context, author);
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withValues(alpha: 0.06),
                                     borderRadius: BorderRadius.circular(24),
@@ -135,7 +142,9 @@ class ShowDetailScreen extends StatelessWidget {
                                       const SizedBox(width: 6),
                                       Icon(
                                         Icons.arrow_forward_ios,
-                                        color: Colors.white.withValues(alpha: 0.3),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.3,
+                                        ),
                                         size: 12,
                                       ),
                                     ],
@@ -182,7 +191,11 @@ class ShowDetailScreen extends StatelessWidget {
                               const SizedBox(width: 12),
                               const Row(
                                 children: [
-                                  Icon(Icons.headset, color: Colors.white38, size: 12),
+                                  Icon(
+                                    Icons.headset,
+                                    color: Colors.white38,
+                                    size: 12,
+                                  ),
                                   SizedBox(width: 4),
                                   Text(
                                     '1.2M Lượt nghe',
@@ -215,7 +228,9 @@ class ShowDetailScreen extends StatelessWidget {
                                     ).withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.05),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.05,
+                                      ),
                                     ),
                                   ),
                                   child: RichText(
@@ -286,7 +301,7 @@ class ShowDetailScreen extends StatelessWidget {
                     (context, index) {
                       if (index > show.episodes.length * 2 - 2) return null;
                       if (index.isOdd) return const SizedBox(height: 16);
-                      
+
                       final epIndex = index ~/ 2;
                       final ep = show.episodes[epIndex];
                       return _buildEpisodeCard(
@@ -297,14 +312,20 @@ class ShowDetailScreen extends StatelessWidget {
                         date: 'Recently',
                         listenCount: Episode.formatCount(ep.likes),
                         progress: epIndex == 0 ? 0.33 : null,
-                        trailing: epIndex == 0 ? Icons.download : Icons.add_circle,
-                        trailingColor: epIndex == 0 ? Colors.white38 : Colors.white38,
+                        trailing: epIndex == 0
+                            ? Icons.download
+                            : Icons.add_circle,
+                        trailingColor: epIndex == 0
+                            ? Colors.white38
+                            : Colors.white38,
                         onTap: () {
                           openPlayerScreen(context, show: show, episode: ep);
                         },
                       );
                     },
-                    childCount: show.episodes.isEmpty ? 0 : show.episodes.length * 2 - 1,
+                    childCount: show.episodes.isEmpty
+                        ? 0
+                        : show.episodes.length * 2 - 1,
                   ),
                 ),
               ),
@@ -415,147 +436,154 @@ class ShowDetailScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Episode Number
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              number,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white38,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Episode Number
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                number,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white38,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      duration,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white38,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  desc,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white38,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        date,
+                      const SizedBox(width: 8),
+                      Text(
+                        duration,
                         style: const TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w500,
                           color: Colors.white38,
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    desc,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white38,
+                      height: 1.5,
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.headset, color: Colors.white38, size: 10),
-                          const SizedBox(width: 4),
-                          Text(
-                            listenCount,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white38,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (progress != null) ...[
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 100,
-                        height: 4,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: Colors.white.withValues(alpha: 0.05),
-                            valueColor: const AlwaysStoppedAnimation(
-                              Colors.white,
-                            ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          date,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white38,
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.headset,
+                              color: Colors.white38,
+                              size: 10,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              listenCount,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white38,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (progress != null) ...[
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 100,
+                          height: 4,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.05,
+                              ),
+                              valueColor: const AlwaysStoppedAnimation(
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
+            const SizedBox(width: 8),
 
-          // Trailing action
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Icon(trailing, color: trailingColor, size: 20),
-          ),
-        ],
+            // Trailing action
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Icon(trailing, color: trailingColor, size: 20),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 }

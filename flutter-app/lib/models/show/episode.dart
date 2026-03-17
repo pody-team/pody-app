@@ -1,7 +1,7 @@
 /// A single line of karaoke-style subtitle in an episode.
 class ChatBubble {
   final String speakerId; // references Host.id
-  final String speaker;   // display name (for quick access)
+  final String speaker; // display name (for quick access)
   final String text;
   final bool isRight;
   final int colorValue;

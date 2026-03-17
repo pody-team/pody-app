@@ -155,8 +155,9 @@ class TimelineBlockWidget extends StatelessWidget {
                                 Text(
                                   item.body,
                                   maxLines: isPreview ? 2 : null,
-                                  overflow:
-                                      isPreview ? TextOverflow.ellipsis : null,
+                                  overflow: isPreview
+                                      ? TextOverflow.ellipsis
+                                      : null,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.white.withValues(alpha: 0.5),

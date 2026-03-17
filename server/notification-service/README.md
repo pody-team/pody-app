@@ -1,11 +1,21 @@
 # Pody Notification Service
 
-Initial notification service focused on delivery concerns for internal system emails, with Kafka-driven delivery, retry/DLQ, and processed-event tracking.
+Initial notification service focused on delivery concerns for internal system emails, with Kafka-driven delivery, retry/DLQ, processed-event tracking, and email delivery logs.
 
 ## Endpoints
 
 - `GET /healthz`
+- `GET /api/v1/public/notifications/healthz`
+- `GET /api/v1/public/notifications/openapi.yaml`
+- `GET /api/v1/public/notifications/docs`
+- `GET /api/v1/notifications`
+- `GET /api/v1/notifications/unread-count`
+- `PATCH /api/v1/notifications/{id}/read`
+- `PATCH /api/v1/notifications/read-all`
+- `GET /api/v1/notifications/settings`
+- `PUT /api/v1/notifications/settings`
 - `POST /internal/notifications/email/verification`
+- `POST /internal/notifications/dev/seed-inbox`
 
 ## Run locally
 
@@ -37,11 +47,31 @@ Then restart the notification stack:
 docker compose up -d --build notification-service api-gateway identity-service
 ```
 
+## API Docs
+
+- OpenAPI spec: `http://localhost:8080/api/v1/public/notifications/openapi.yaml`
+- Swagger UI: `http://localhost:8080/api/v1/public/notifications/docs`
+
+## Seed demo inbox
+
+For local development, you can insert a few demo notifications for a user:
+
+```bash
+curl -X POST http://localhost:8087/internal/notifications/dev/seed-inbox \
+  -H "Content-Type: application/json" \
+  -H "X-Internal-Api-Key: $INTERNAL_API_KEY" \
+  -d '{"user_id":"<identity-user-id>"}'
+```
+
+Then open the app and refresh the `Notifications` tab.
+
 ## Notes
 
 - `INTERNAL_API_KEY` is required for internal callers like `identity-service`.
 - Verification emails are primarily consumed from Kafka via `VERIFICATION_EVENTS_TOPIC`.
+- Password reset emails are consumed from Kafka via `PASSWORD_RESET_EVENTS_TOPIC`.
 - Failed deliveries are re-published to `VERIFICATION_RETRY_TOPIC` and poison/terminal failures go to `VERIFICATION_DLQ_TOPIC`.
+- Password reset retries/DLQ use `PASSWORD_RESET_RETRY_TOPIC` and `PASSWORD_RESET_DLQ_TOPIC`.
 - Local Docker uses a dedicated Postgres database for `notification-service`.
-- With `EMAIL_SENDER_MODE=log`, outgoing verification links are written to service logs for local development.
+- With `EMAIL_SENDER_MODE=log`, outgoing verification and password reset links are written to service logs for local development.
 - `SMTP_TLS_MODE` supports `starttls`, `tls`, and `none`.

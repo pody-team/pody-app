@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pody/theme/app_colors.dart';
 
-
 class AiSummarySetupScreen extends StatefulWidget {
   const AiSummarySetupScreen({super.key});
 
@@ -446,7 +445,9 @@ class _AiSummarySetupScreenState extends State<AiSummarySetupScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
+            color: isSelected
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.08),
             width: isSelected ? 1.5 : 1,
           ),
           color: isSelected

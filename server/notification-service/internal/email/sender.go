@@ -1,6 +1,7 @@
 package email
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -15,14 +16,27 @@ import (
 type VerificationMessage struct {
 	EventID         string    `json:"event_id,omitempty"`
 	IdempotencyKey  string    `json:"idempotency_key,omitempty"`
+	UserID          string    `json:"user_id,omitempty"`
 	ToEmail         string    `json:"to_email"`
 	ToDisplayName   string    `json:"to_display_name"`
 	VerificationURL string    `json:"verification_url"`
 	ExpiresAt       time.Time `json:"expires_at"`
 }
 
+type PasswordResetMessage struct {
+	EventID        string    `json:"event_id,omitempty"`
+	IdempotencyKey string    `json:"idempotency_key,omitempty"`
+	UserID         string    `json:"user_id,omitempty"`
+	ToEmail        string    `json:"to_email"`
+	ToDisplayName  string    `json:"to_display_name"`
+	ResetOTP       string    `json:"reset_otp"`
+	ExpiresAt      time.Time `json:"expires_at"`
+}
+
 type Sender interface {
 	SendVerification(ctx context.Context, message VerificationMessage) error
+	SendPasswordReset(ctx context.Context, message PasswordResetMessage) error
+	ProviderName() string
 }
 
 type Config struct {
@@ -49,6 +63,10 @@ type logSender struct {
 	logger *slog.Logger
 }
 
+func (s logSender) ProviderName() string {
+	return "log"
+}
+
 func (s logSender) SendVerification(_ context.Context, message VerificationMessage) error {
 	s.logger.Info("verification email dispatched",
 		"email", message.ToEmail,
@@ -58,28 +76,62 @@ func (s logSender) SendVerification(_ context.Context, message VerificationMessa
 	return nil
 }
 
+func (s logSender) SendPasswordReset(_ context.Context, message PasswordResetMessage) error {
+	s.logger.Info("password reset email dispatched",
+		"email", message.ToEmail,
+		"reset_otp", message.ResetOTP,
+		"expires_at", message.ExpiresAt.Format(time.RFC3339),
+	)
+	return nil
+}
+
 type smtpSender struct {
 	cfg Config
 }
 
+func (s smtpSender) ProviderName() string {
+	return "smtp"
+}
+
 func (s smtpSender) SendVerification(_ context.Context, message VerificationMessage) error {
-	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
-	body := fmt.Sprintf(
-		"Hello %s,\n\nPlease verify your Pody account by opening this link:\n%s\n\nThis link expires at %s.\n",
+	subject, textBody, htmlBody, err := RenderVerificationTemplate(
 		fallbackName(message.ToDisplayName, message.ToEmail),
 		message.VerificationURL,
-		message.ExpiresAt.Format(time.RFC1123Z),
+		message.ExpiresAt,
 	)
+	if err != nil {
+		return err
+	}
 
-	raw := strings.Join([]string{
-		"From: " + s.cfg.EmailFrom,
-		"To: " + message.ToEmail,
-		"Subject: Verify your Pody account",
-		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=UTF-8",
-		"",
-		body,
-	}, "\r\n")
+	return s.sendEmail(message.ToEmail, subject, textBody, htmlBody)
+}
+
+func (s smtpSender) SendPasswordReset(_ context.Context, message PasswordResetMessage) error {
+	subject, textBody, htmlBody, err := RenderPasswordResetTemplate(
+		fallbackName(message.ToDisplayName, message.ToEmail),
+		message.ResetOTP,
+		message.ExpiresAt,
+	)
+	if err != nil {
+		return err
+	}
+
+	return s.sendEmail(message.ToEmail, subject, textBody, htmlBody)
+}
+
+func (s smtpSender) sendEmail(toEmail, subject, textBody, htmlBody string) error {
+	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
+
+	raw, err := buildMultipartMessage(
+		s.cfg.EmailFrom,
+		strings.TrimSpace(toEmail),
+		strings.TrimSpace(subject),
+		textBody,
+		htmlBody,
+	)
+	if err != nil {
+		return err
+	}
 
 	client, err := s.dialSMTP(addr)
 	if err != nil {
@@ -94,7 +146,7 @@ func (s smtpSender) SendVerification(_ context.Context, message VerificationMess
 	if err := client.Mail(s.cfg.EmailFrom); err != nil {
 		return fmt.Errorf("set smtp sender: %w", err)
 	}
-	if err := client.Rcpt(message.ToEmail); err != nil {
+	if err := client.Rcpt(strings.TrimSpace(toEmail)); err != nil {
 		return fmt.Errorf("set smtp recipient: %w", err)
 	}
 
@@ -103,7 +155,7 @@ func (s smtpSender) SendVerification(_ context.Context, message VerificationMess
 		return fmt.Errorf("open smtp data writer: %w", err)
 	}
 
-	if _, err := writer.Write([]byte(raw)); err != nil {
+	if _, err := writer.Write(raw); err != nil {
 		writer.Close()
 		return fmt.Errorf("write smtp message: %w", err)
 	}
@@ -196,4 +248,36 @@ func fallbackName(displayName, email string) string {
 	}
 
 	return strings.TrimSpace(email)
+}
+
+func buildMultipartMessage(fromEmail, toEmail, subject, textBody, htmlBody string) ([]byte, error) {
+	boundary := fmt.Sprintf("pody-boundary-%d", time.Now().UnixNano())
+	var buffer bytes.Buffer
+
+	lines := []string{
+		"From: " + strings.TrimSpace(fromEmail),
+		"To: " + strings.TrimSpace(toEmail),
+		"Subject: " + strings.TrimSpace(subject),
+		"MIME-Version: 1.0",
+		`Content-Type: multipart/alternative; boundary="` + boundary + `"`,
+		"",
+		"--" + boundary,
+		"Content-Type: text/plain; charset=UTF-8",
+		"Content-Transfer-Encoding: 8bit",
+		"",
+		textBody,
+		"--" + boundary,
+		"Content-Type: text/html; charset=UTF-8",
+		"Content-Transfer-Encoding: 8bit",
+		"",
+		htmlBody,
+		"--" + boundary + "--",
+		"",
+	}
+
+	if _, err := buffer.WriteString(strings.Join(lines, "\r\n")); err != nil {
+		return nil, fmt.Errorf("build multipart email: %w", err)
+	}
+
+	return buffer.Bytes(), nil
 }

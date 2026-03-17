@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
+import 'package:pody/screens/user/change_password_screen.dart';
 import 'package:pody/theme/app_colors.dart';
-import 'package:pody/screens/auth/sign_in_screen.dart';
-
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,6 +12,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _pushNotifications = true;
+
+  Future<void> _handleSignOut() async {
+    final authController = AuthScope.of(context);
+    await authController.signOut();
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +51,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+          child: Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
         ),
       ),
       body: ListView(
@@ -53,6 +66,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             icon: Icons.lock_outline,
             title: 'Change Password',
             trailing: _chevron(),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ChangePasswordScreen(),
+                ),
+              );
+            },
           ),
 
           _buildDivider(),
@@ -208,12 +228,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          Navigator.pop(ctx); // pop the dialog
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(builder: (_) => const SignInScreen()),
-                            (route) => false,
-                          );
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          await _handleSignOut();
                         },
                         child: const Text(
                           'Log Out',
@@ -278,58 +295,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? subtitle,
     String? trailingText,
     required Widget trailing,
+    VoidCallback? onTap,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 22),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white24,
-                      ),
-                    ),
-                  ],
-                ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.04)),
               ),
             ),
-            if (trailingText != null) ...[
-              Text(
-                trailingText,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white54,
+            child: Row(
+              children: [
+                Icon(icon, color: Colors.white, size: 22),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white24,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-            ],
-            trailing,
-          ],
+                if (trailingText != null) ...[
+                  Text(
+                    trailingText,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white54,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                trailing,
+              ],
+            ),
+          ),
         ),
       ),
     );

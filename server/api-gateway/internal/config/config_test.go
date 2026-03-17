@@ -85,6 +85,8 @@ func TestLoadOverridesValues(t *testing.T) {
 	}
 
 	foundSocial := false
+	foundContentPublic := false
+	foundContentProtected := false
 	foundIdentityPublic := false
 	foundIdentityProtected := false
 	for _, route := range cfg.Routes {
@@ -100,8 +102,19 @@ func TestLoadOverridesValues(t *testing.T) {
 			if route.TargetURL != "http://localhost:9001/api/v1/public/identity" {
 				t.Fatalf("unexpected public identity target %s", route.TargetURL)
 			}
-			if route.RequiresAuth {
-				t.Fatal("expected public identity route to be unauthenticated")
+		}
+
+		if route.Name == "content-public" {
+			foundContentPublic = true
+			if route.TargetURL != "http://localhost:8082/api/v1/public/content" {
+				t.Fatalf("unexpected public content target %s", route.TargetURL)
+			}
+		}
+
+		if route.Name == "content" {
+			foundContentProtected = true
+			if route.TargetURL != "http://localhost:8082/api/v1/content" {
+				t.Fatalf("unexpected protected content target %s", route.TargetURL)
 			}
 		}
 
@@ -109,9 +122,6 @@ func TestLoadOverridesValues(t *testing.T) {
 			foundIdentityProtected = true
 			if route.TargetURL != "http://localhost:9001/api/v1/identity" {
 				t.Fatalf("unexpected protected identity target %s", route.TargetURL)
-			}
-			if !route.RequiresAuth {
-				t.Fatal("expected protected identity route to require auth")
 			}
 		}
 	}
@@ -122,6 +132,10 @@ func TestLoadOverridesValues(t *testing.T) {
 
 	if !foundIdentityPublic || !foundIdentityProtected {
 		t.Fatal("identity routes were not configured correctly")
+	}
+
+	if !foundContentPublic || !foundContentProtected {
+		t.Fatal("content routes were not configured correctly")
 	}
 }
 

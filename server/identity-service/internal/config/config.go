@@ -15,6 +15,7 @@ type Config struct {
 	AccessTokenTTL         time.Duration
 	RefreshTokenTTL        time.Duration
 	VerificationTTL        time.Duration
+	PasswordResetTTL       time.Duration
 	KafkaWriteTimeout      time.Duration
 	OutboxPollInterval     time.Duration
 	OutboxRetention        time.Duration
@@ -25,6 +26,7 @@ type Config struct {
 	KafkaClientID          string
 	VerificationTopic      string
 	VerificationURLBase    string
+	PasswordResetTopic     string
 	OutboxBatchSize        int
 	OutboxCleanupBatchSize int
 }
@@ -41,6 +43,11 @@ func Load() (Config, error) {
 	}
 
 	verificationTTL, err := durationFromEnv("EMAIL_VERIFICATION_TTL", 24*time.Hour)
+	if err != nil {
+		return Config{}, err
+	}
+
+	passwordResetTTL, err := durationFromEnv("PASSWORD_RESET_TTL", 2*time.Hour)
 	if err != nil {
 		return Config{}, err
 	}
@@ -72,11 +79,12 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		Port:                   stringFromEnv("PORT", "8081"),
-		DatabaseURL:            stringFromEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/pody_identity?sslmode=disable"),
+		DatabaseURL:            stringFromEnv("DATABASE_URL", ""),
 		JWTSecret:              stringFromEnv("JWT_SECRET", "change-me"),
 		AccessTokenTTL:         accessTokenTTL,
 		RefreshTokenTTL:        refreshTokenTTL,
 		VerificationTTL:        verificationTTL,
+		PasswordResetTTL:       passwordResetTTL,
 		KafkaWriteTimeout:      kafkaWriteTimeout,
 		OutboxPollInterval:     outboxPollInterval,
 		OutboxRetention:        outboxRetention,
@@ -86,7 +94,8 @@ func Load() (Config, error) {
 		KafkaBrokers:           csvFromEnv("KAFKA_BROKERS", []string{"localhost:9092"}),
 		KafkaClientID:          stringFromEnv("KAFKA_CLIENT_ID", "identity-service"),
 		VerificationTopic:      stringFromEnv("VERIFICATION_EVENTS_TOPIC", "identity.email.verification.requested"),
-		VerificationURLBase:    stringFromEnv("EMAIL_VERIFICATION_URL_BASE", "http://localhost:8080/api/v1/public/identity/verify-email"),
+		VerificationURLBase:    stringFromEnv("EMAIL_VERIFICATION_URL_BASE", "http://localhost:8080/verify-email/open"),
+		PasswordResetTopic:     stringFromEnv("PASSWORD_RESET_EVENTS_TOPIC", "identity.password.reset.requested"),
 		OutboxBatchSize:        intFromEnv("OUTBOX_BATCH_SIZE", 20),
 		OutboxCleanupBatchSize: intFromEnv("OUTBOX_CLEANUP_BATCH_SIZE", 200),
 	}

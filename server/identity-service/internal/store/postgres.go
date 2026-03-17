@@ -38,10 +38,15 @@ type OutboxEvent struct {
 type Repository interface {
 	CreateUserWithEmail(ctx context.Context, email, passwordHash, displayName string) (domain.User, error)
 	FindUserByEmail(ctx context.Context, email string) (UserRecord, error)
+	FindUserRecordByID(ctx context.Context, userID string) (UserRecord, error)
 	FindUserByID(ctx context.Context, userID string) (domain.User, error)
 	FindOrCreateGoogleUser(ctx context.Context, providerUserID, email, displayName, avatarURL string) (domain.User, error)
 	CreateEmailVerificationWithOutbox(ctx context.Context, userID, token string, expiresAt time.Time, event CreateOutboxEventInput) error
+	CreatePasswordResetWithOutbox(ctx context.Context, userID, token string, expiresAt time.Time, event CreateOutboxEventInput) error
 	ConsumeEmailVerification(ctx context.Context, token string) (domain.User, error)
+	VerifyPasswordReset(ctx context.Context, email, token string) error
+	ConsumePasswordReset(ctx context.Context, email, token, passwordHash string) (domain.User, error)
+	UpdatePasswordAndRevokeSessions(ctx context.Context, userID, passwordHash string) error
 	CreateSession(ctx context.Context, userID, refreshToken string, expiresAt time.Time) error
 	FindSessionByRefreshToken(ctx context.Context, refreshToken string) (string, time.Time, bool, error)
 	RevokeSessionByRefreshToken(ctx context.Context, refreshToken string) error
@@ -180,6 +185,41 @@ func (r *PostgresRepository) FindUserByID(ctx context.Context, userID string) (d
 	return user, err
 }
 
+func (r *PostgresRepository) FindUserRecordByID(ctx context.Context, userID string) (UserRecord, error) {
+	var record UserRecord
+	var emailVerifiedAt sql.NullTime
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, email, display_name, COALESCE(username, ''), COALESCE(avatar_url, ''), bio, account_type, status, locale, timezone, email_verified_at, created_at, updated_at, password_hash
+		FROM users
+		WHERE id = $1 AND status <> 'deleted'
+	`, userID).Scan(
+		&record.User.ID,
+		&record.User.Email,
+		&record.User.DisplayName,
+		&record.User.Username,
+		&record.User.AvatarURL,
+		&record.User.Bio,
+		&record.User.AccountType,
+		&record.User.Status,
+		&record.User.Locale,
+		&record.User.Timezone,
+		&emailVerifiedAt,
+		&record.User.CreatedAt,
+		&record.User.UpdatedAt,
+		&record.PasswordHash,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return UserRecord{}, ErrNotFound
+	}
+
+	if emailVerifiedAt.Valid {
+		verifiedAt := emailVerifiedAt.Time
+		record.User.EmailVerifiedAt = &verifiedAt
+	}
+
+	return record, err
+}
+
 func (r *PostgresRepository) FindOrCreateGoogleUser(ctx context.Context, providerUserID, email, displayName, avatarURL string) (domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -304,6 +344,52 @@ func (r *PostgresRepository) CreateEmailVerificationWithOutbox(ctx context.Conte
 	return tx.Commit()
 }
 
+func (r *PostgresRepository) CreatePasswordResetWithOutbox(ctx context.Context, userID, token string, expiresAt time.Time, event CreateOutboxEventInput) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE password_reset_tokens
+		SET used_at = now()
+		WHERE user_id = $1 AND used_at IS NULL
+	`, userID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`, userID, hashToken(token), expiresAt)
+	if err != nil {
+		return err
+	}
+
+	payloadVersion := event.PayloadVersion
+	if payloadVersion <= 0 {
+		payloadVersion = 1
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO outbox_events (
+			aggregate_type,
+			aggregate_id,
+			event_type,
+			payload_version,
+			payload
+		)
+		VALUES ($1, $2, $3, $4, $5::jsonb)
+	`, event.AggregateType, event.AggregateID, event.EventType, payloadVersion, string(event.Payload))
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func (r *PostgresRepository) ConsumeEmailVerification(ctx context.Context, token string) (domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -350,6 +436,123 @@ func (r *PostgresRepository) ConsumeEmailVerification(ctx context.Context, token
 	}
 
 	return r.FindUserByID(ctx, userID)
+}
+
+func (r *PostgresRepository) VerifyPasswordReset(ctx context.Context, email, token string) error {
+	var exists bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM password_reset_tokens prt
+			JOIN users u ON u.id = prt.user_id
+			WHERE u.email = $1
+			  AND prt.token_hash = $2
+			  AND prt.used_at IS NULL
+			  AND prt.expires_at > now()
+		)
+	`, strings.ToLower(strings.TrimSpace(email)), hashToken(token)).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PostgresRepository) ConsumePasswordReset(ctx context.Context, email, token, passwordHash string) (domain.User, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer tx.Rollback()
+
+	var resetTokenID string
+	var userID string
+	err = tx.QueryRowContext(ctx, `
+		SELECT prt.id, prt.user_id
+		FROM password_reset_tokens prt
+		JOIN users u ON u.id = prt.user_id
+		WHERE u.email = $1
+		  AND prt.token_hash = $2
+		  AND prt.used_at IS NULL
+		  AND prt.expires_at > now()
+	`, strings.ToLower(strings.TrimSpace(email)), hashToken(token)).Scan(&resetTokenID, &userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.User{}, ErrNotFound
+	}
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE password_reset_tokens
+		SET used_at = now()
+		WHERE id = $1
+	`, resetTokenID)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE users
+		SET password_hash = $2
+		WHERE id = $1
+	`, userID, passwordHash)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE auth_sessions
+		SET revoked_at = now()
+		WHERE user_id = $1 AND revoked_at IS NULL
+	`, userID)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return domain.User{}, err
+	}
+
+	return r.FindUserByID(ctx, userID)
+}
+
+func (r *PostgresRepository) UpdatePasswordAndRevokeSessions(ctx context.Context, userID, passwordHash string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET password_hash = $2, updated_at = now()
+		WHERE id = $1 AND status <> 'deleted'
+	`, userID, passwordHash)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE auth_sessions
+		SET revoked_at = now()
+		WHERE user_id = $1 AND revoked_at IS NULL
+	`, userID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (r *PostgresRepository) CreateSession(ctx context.Context, userID, refreshToken string, expiresAt time.Time) error {

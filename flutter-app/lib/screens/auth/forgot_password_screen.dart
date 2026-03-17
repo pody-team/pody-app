@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:pody/features/auth/presentation/auth_error_message.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
+import 'package:pody/screens/auth/verify_reset_otp_screen.dart';
 import 'package:pody/theme/app_colors.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -17,7 +20,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
 
-  bool _emailSent = false;
   bool _isSubmitting = false;
 
   @override
@@ -44,7 +46,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
     if (email.isEmpty) {
-      return 'Nhập email để nhận link đặt lại.';
+      return 'Nhập email để nhận mã OTP.';
     }
     if (!email.contains('@') || !email.contains('.')) {
       return 'Email chưa đúng định dạng.';
@@ -58,20 +60,41 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       return;
     }
 
+    final authController = AuthScope.of(context);
     setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (!mounted) {
-      return;
+    try {
+      final challenge = await authController.forgotPassword(
+        _emailController.text.trim(),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifyResetOTPScreen(
+            initialEmail: challenge.email.isNotEmpty
+                ? challenge.email
+                : _emailController.text.trim(),
+            otpLength: challenge.otpLength,
+            otpExpiresAt: challenge.otpExpiresAt,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(humanizeAuthError(error))));
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
-
-    setState(() {
-      _isSubmitting = false;
-      _emailSent = true;
-    });
-  }
-
-  void _resend() {
-    setState(() => _emailSent = false);
   }
 
   @override
@@ -114,131 +137,61 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: (_emailSent ? kTikTeal : kTikRed).withValues(
-                              alpha: 0.12,
-                            ),
+                            color: kTikRed.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(24),
                           ),
                           child: Icon(
-                            _emailSent
-                                ? Icons.mark_email_read_outlined
-                                : Icons.lock_reset,
-                            color: _emailSent ? kTikTeal : kTikRed,
+                            Icons.lock_reset,
+                            color: kTikRed,
                             size: 36,
                           ),
                         ),
                       ),
                       const SizedBox(height: 28),
-                      Text(
-                        _emailSent ? 'Kiểm tra email' : 'Quên mật khẩu?',
+                      const Text(
+                        'Quên mật khẩu?',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        _emailSent
-                            ? 'Chúng tôi đã gửi link đặt lại mật khẩu đến\n${_emailController.text.trim()}'
-                            : 'Nhập email của bạn, chúng tôi sẽ gửi link đặt lại mật khẩu.',
+                      const Text(
+                        'Nhập email của bạn, chúng tôi sẽ gửi mã OTP đặt lại mật khẩu.',
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           color: kTextSec,
                           height: 1.5,
                         ),
                       ),
                       const SizedBox(height: 36),
-                      if (!_emailSent) ...[
-                        AuthTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          hintText: 'name@example.com',
-                          prefixIcon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.email],
-                          validator: _validateEmail,
-                          onFieldSubmitted: (_) => _sendResetLink(),
-                        ),
-                        const SizedBox(height: 24),
-                        AuthPrimaryButton(
-                          label: 'Gửi link đặt lại',
-                          isLoading: _isSubmitting,
-                          onPressed: _sendResetLink,
-                        ),
-                      ] else ...[
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: kTikTeal.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: kTikTeal.withValues(alpha: 0.15),
-                            ),
-                          ),
-                          child: const Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: kTikTeal,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      'Email đã được gửi thành công.',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 12),
-                              Text(
-                                'Vui lòng kiểm tra hộp thư và thư mục spam, sau đó làm theo hướng dẫn trong email.',
-                                style: TextStyle(
-                                  color: kTextSec,
-                                  fontSize: 13,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        AuthPrimaryButton(
-                          label: 'Mở ứng dụng Email',
-                          backgroundColor: kTikTeal,
-                          foregroundColor: Colors.black,
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Hãy mở ứng dụng email trên máy của bạn để tiếp tục.',
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: TextButton(
-                            onPressed: _resend,
-                            child: const Text(
-                              'Không nhận được email? Gửi lại',
-                              style: TextStyle(color: kTikTeal),
-                            ),
-                          ),
-                        ),
-                      ],
+                      AuthTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        hintText: 'name@example.com',
+                        prefixIcon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.email],
+                        validator: _validateEmail,
+                        onFieldSubmitted: (_) => _sendResetLink(),
+                      ),
+                      const SizedBox(height: 24),
+                      const AuthInfoCard(
+                        title: 'Điều gì sẽ xảy ra tiếp theo?',
+                        message:
+                            'Sau khi gửi OTP, Pody sẽ chuyển bạn thẳng sang màn nhập mã. Bạn sẽ chỉ đổi được mật khẩu sau khi mã OTP hợp lệ.',
+                        icon: Icons.info_outline,
+                      ),
+                      const SizedBox(height: 24),
+                      AuthPrimaryButton(
+                        label: 'Tiếp tục',
+                        isLoading: _isSubmitting,
+                        onPressed: _sendResetLink,
+                      ),
                       const SizedBox(height: 28),
                       Center(
                         child: TextButton.icon(

@@ -62,7 +62,8 @@ func (p *Publisher) flush(ctx context.Context) error {
 	}
 
 	for _, event := range events {
-		if err := p.producer.PublishPayload(ctx, event.ID, event.Payload); err != nil {
+		topic := notification.TopicFromEventType(event.EventType)
+		if err := p.producer.PublishPayload(ctx, topic, event.ID, event.Payload); err != nil {
 			nextRetryAt := time.Now().UTC().Add(backoffDuration(event.Attempts + 1))
 			if markErr := p.repo.MarkOutboxEventFailed(ctx, event.ID, nextRetryAt, err.Error()); markErr != nil {
 				return markErr

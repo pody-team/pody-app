@@ -22,11 +22,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final progress = MockData.currentUserProgress;
 
     // "Recently Played" = episodes with listening progress
-    final recentlyPlayed = progress.map((p) {
-      final ep = MockData.getEpisodeById(p.episodeId);
-      final pod = MockData.getShowById(p.showId);
-      return {'episode': ep, 'show': pod, 'progress': p};
-    }).where((m) => m['episode'] != null && m['show'] != null).toList();
+    final recentlyPlayed = progress
+        .map((p) {
+          final ep = MockData.getEpisodeById(p.episodeId);
+          final pod = MockData.getShowById(p.showId);
+          return {'episode': ep, 'show': pod, 'progress': p};
+        })
+        .where((m) => m['episode'] != null && m['show'] != null)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.only(top: 16, bottom: 100),
@@ -57,8 +60,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     _filters[index],
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                       color: isSelected ? Colors.black : Colors.white,
                     ),
                   ),

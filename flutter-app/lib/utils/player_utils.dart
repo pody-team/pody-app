@@ -7,7 +7,12 @@ import 'package:pody/screens/user/user_detail_screen.dart';
 import 'package:pody/state/player_state.dart';
 
 /// Opens the full-screen player as a modal bottom sheet (swipe-down to dismiss).
-void openPlayerScreen(BuildContext context, {Show? show, Episode? episode}) {
+void openPlayerScreen(
+  BuildContext context, {
+  Show? show,
+  Episode? episode,
+  VoidCallback? onOpenShow,
+}) {
   final p = show ?? MockData.shows.first;
   final e = episode ?? p.episodes.first;
 
@@ -25,6 +30,7 @@ void openPlayerScreen(BuildContext context, {Show? show, Episode? episode}) {
         child: PlayerScreen(
           show: show,
           episode: episode,
+          onOpenShow: onOpenShow,
         ),
       );
     },

@@ -24,7 +24,14 @@ var (
 	ErrInvalidSignUpInput       = errors.New("email, display name, and password with at least 8 characters are required")
 	ErrEmailNotVerified         = errors.New("email is not verified")
 	ErrInvalidVerificationToken = errors.New("invalid or expired verification token")
+	ErrInvalidPasswordReset     = errors.New("invalid or expired password reset otp")
+	ErrInvalidResetInput        = errors.New("email, otp, and a new password with at least 8 characters are required")
+	ErrInvalidChangePassword    = errors.New("current password and a new password with at least 8 characters are required")
+	ErrInvalidCurrentPassword   = errors.New("current password is incorrect")
+	ErrPasswordAuthUnavailable  = errors.New("password sign-in is not available for this account")
 )
+
+const passwordResetOTPLength = 6
 
 type Service struct {
 	repo                store.Repository
@@ -33,9 +40,20 @@ type Service struct {
 	verificationTTL     time.Duration
 	verificationURLBase string
 	verificationTopic   string
+	resetTTL            time.Duration
+	resetTopic          string
 }
 
-func NewService(repo store.Repository, tokenManager TokenManager, googleVerify googleauth.Verifier, verificationTTL time.Duration, verificationURLBase string, verificationTopic string) Service {
+func NewService(
+	repo store.Repository,
+	tokenManager TokenManager,
+	googleVerify googleauth.Verifier,
+	verificationTTL time.Duration,
+	verificationURLBase string,
+	verificationTopic string,
+	resetTTL time.Duration,
+	resetTopic string,
+) Service {
 	return Service{
 		repo:                repo,
 		tokenManager:        tokenManager,
@@ -43,6 +61,8 @@ func NewService(repo store.Repository, tokenManager TokenManager, googleVerify g
 		verificationTTL:     verificationTTL,
 		verificationURLBase: verificationURLBase,
 		verificationTopic:   verificationTopic,
+		resetTTL:            resetTTL,
+		resetTopic:          resetTopic,
 	}
 }
 
@@ -55,6 +75,22 @@ type SignUpInput struct {
 type SignInInput struct {
 	Email    string
 	Password string
+}
+
+type ResetPasswordInput struct {
+	Email       string
+	OTP         string
+	NewPassword string
+}
+
+type VerifyResetOTPInput struct {
+	Email string
+	OTP   string
+}
+
+type ChangePasswordInput struct {
+	CurrentPassword string
+	NewPassword     string
 }
 
 func (s Service) SignUp(ctx context.Context, input SignUpInput) (domain.VerificationChallenge, error) {
@@ -152,6 +188,83 @@ func (s Service) ResendVerification(ctx context.Context, emailAddress string) (d
 	return s.issueVerification(ctx, record.User)
 }
 
+func (s Service) ForgotPassword(ctx context.Context, emailAddress string) (domain.PasswordResetChallenge, error) {
+	email := normalizeEmail(emailAddress)
+	sentAt := time.Now().UTC()
+	expiresAt := sentAt.Add(s.resetTTL)
+	challenge := domain.PasswordResetChallenge{
+		Email:        email,
+		Message:      "if the account exists, a password reset otp has been sent",
+		OTPRequired:  true,
+		OTPSentAt:    sentAt,
+		OTPExpiresAt: expiresAt,
+		OTPLength:    passwordResetOTPLength,
+	}
+
+	if email == "" {
+		return challenge, nil
+	}
+
+	record, err := s.repo.FindUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return challenge, nil
+		}
+		return domain.PasswordResetChallenge{}, err
+	}
+
+	if !record.PasswordHash.Valid || record.User.Status == "deleted" {
+		return challenge, nil
+	}
+
+	if _, err := s.issuePasswordReset(ctx, record.User, sentAt, expiresAt); err != nil {
+		return domain.PasswordResetChallenge{}, err
+	}
+
+	return challenge, nil
+}
+
+func (s Service) ResetPassword(ctx context.Context, input ResetPasswordInput) (domain.User, error) {
+	email := normalizeEmail(input.Email)
+	otp := strings.TrimSpace(input.OTP)
+	password := strings.TrimSpace(input.NewPassword)
+	if email == "" || otp == "" || len(password) < 8 {
+		return domain.User{}, ErrInvalidResetInput
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	user, err := s.repo.ConsumePasswordReset(ctx, email, otp, string(passwordHash))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return domain.User{}, ErrInvalidPasswordReset
+		}
+		return domain.User{}, err
+	}
+
+	return user, nil
+}
+
+func (s Service) VerifyResetOTP(ctx context.Context, input VerifyResetOTPInput) error {
+	email := normalizeEmail(input.Email)
+	otp := strings.TrimSpace(input.OTP)
+	if email == "" || otp == "" {
+		return ErrInvalidPasswordReset
+	}
+
+	if err := s.repo.VerifyPasswordReset(ctx, email, otp); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return ErrInvalidPasswordReset
+		}
+		return err
+	}
+
+	return nil
+}
+
 func (s Service) Refresh(ctx context.Context, refreshToken string) (domain.AuthResponse, error) {
 	refreshToken = strings.TrimSpace(refreshToken)
 	if refreshToken == "" {
@@ -212,6 +325,51 @@ func (s Service) Me(ctx context.Context, accessToken string) (domain.User, error
 	return s.repo.FindUserByID(ctx, userID)
 }
 
+func (s Service) ChangePassword(ctx context.Context, accessToken string, input ChangePasswordInput) error {
+	claims, err := s.tokenManager.Parse(accessToken)
+	if err != nil {
+		return ErrInvalidCredentials
+	}
+
+	userID, _ := claims["sub"].(string)
+	userID = strings.TrimSpace(userID)
+	currentPassword := strings.TrimSpace(input.CurrentPassword)
+	newPassword := strings.TrimSpace(input.NewPassword)
+	if userID == "" || currentPassword == "" || len(newPassword) < 8 {
+		return ErrInvalidChangePassword
+	}
+
+	record, err := s.repo.FindUserRecordByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return ErrInvalidCredentials
+		}
+		return err
+	}
+
+	if !record.PasswordHash.Valid || strings.TrimSpace(record.PasswordHash.String) == "" {
+		return ErrPasswordAuthUnavailable
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(record.PasswordHash.String), []byte(currentPassword)) != nil {
+		return ErrInvalidCurrentPassword
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.UpdatePasswordAndRevokeSessions(ctx, userID, string(passwordHash)); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return ErrInvalidCredentials
+		}
+		return err
+	}
+
+	return nil
+}
+
 func (s Service) issueSession(ctx context.Context, user domain.User) (domain.AuthResponse, error) {
 	tokens, err := s.tokenManager.Issue(user)
 	if err != nil {
@@ -243,6 +401,7 @@ func (s Service) issueVerification(ctx context.Context, user domain.User) (domai
 	}
 
 	event := notification.NewVerificationEvent(s.verificationTopic, notification.VerificationMessage{
+		UserID:          user.ID,
 		ToEmail:         user.Email,
 		ToDisplayName:   user.DisplayName,
 		VerificationURL: verificationURL,
@@ -270,6 +429,45 @@ func (s Service) issueVerification(ctx context.Context, user domain.User) (domai
 		VerificationSentAt:    sentAt,
 		VerificationExpiresAt: expiresAt,
 		Message:               "verification email sent",
+	}, nil
+}
+
+func (s Service) issuePasswordReset(ctx context.Context, user domain.User, sentAt, expiresAt time.Time) (domain.PasswordResetChallenge, error) {
+	otp, err := randomNumericCode(passwordResetOTPLength)
+	if err != nil {
+		return domain.PasswordResetChallenge{}, err
+	}
+
+	event := notification.NewPasswordResetEvent(s.resetTopic, notification.PasswordResetMessage{
+		UserID:        user.ID,
+		ToEmail:       user.Email,
+		ToDisplayName: user.DisplayName,
+		ResetOTP:      otp,
+		ExpiresAt:     expiresAt,
+	})
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return domain.PasswordResetChallenge{}, err
+	}
+
+	if err := s.repo.CreatePasswordResetWithOutbox(ctx, user.ID, otp, expiresAt, store.CreateOutboxEventInput{
+		AggregateType:  "user",
+		AggregateID:    user.ID,
+		EventType:      event.EventType,
+		PayloadVersion: 1,
+		Payload:        payload,
+	}); err != nil {
+		return domain.PasswordResetChallenge{}, err
+	}
+
+	return domain.PasswordResetChallenge{
+		Email:        user.Email,
+		Message:      "if the account exists, a password reset otp has been sent",
+		OTPRequired:  true,
+		OTPSentAt:    sentAt,
+		OTPExpiresAt: expiresAt,
+		OTPLength:    passwordResetOTPLength,
 	}, nil
 }
 
@@ -301,9 +499,31 @@ func randomVerificationToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
+func randomNumericCode(length int) (string, error) {
+	if length <= 0 {
+		length = passwordResetOTPLength
+	}
+
+	buffer := make([]byte, length)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+
+	code := make([]byte, length)
+	for index, value := range buffer {
+		code[index] = byte('0' + (value % 10))
+	}
+
+	return string(code), nil
+}
+
 func buildVerificationURL(baseURL, token string) (string, error) {
+	return buildURLWithToken("EMAIL_VERIFICATION_URL_BASE", baseURL, token)
+}
+
+func buildURLWithToken(envName, baseURL, token string) (string, error) {
 	if strings.TrimSpace(baseURL) == "" {
-		return "", errors.New("EMAIL_VERIFICATION_URL_BASE is required")
+		return "", errors.New(envName + " is required")
 	}
 
 	parsed, err := url.Parse(baseURL)

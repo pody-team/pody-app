@@ -1,35 +1,232 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:ui';
-import 'package:pody/screens/show/home_screen.dart';
+import 'package:app_links/app_links.dart';
+import 'package:pody/screens/show/content_home_screen.dart';
 import 'package:pody/screens/news/news_screen.dart';
 import 'package:pody/screens/creation/create_screen.dart';
 import 'package:pody/screens/social/notifications_screen.dart';
 import 'package:pody/screens/user/profile_screen.dart';
 import 'package:pody/widgets/mini_player.dart';
 import 'package:pody/theme/app_theme.dart';
-import 'package:pody/screens/auth/sign_in_screen.dart';
-import 'package:pody/data/mock_data.dart';
+import 'package:pody/core/config/app_environment.dart';
+import 'package:pody/core/network/api_client.dart';
+import 'package:pody/features/auth/application/auth_controller.dart';
+import 'package:pody/features/auth/data/auth_local_data_source.dart';
+import 'package:pody/features/auth/data/auth_remote_data_source.dart';
+import 'package:pody/features/auth/data/auth_repository.dart';
+import 'package:pody/features/auth/data/google_auth_data_source.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
+import 'package:pody/features/content/data/content_remote_data_source.dart';
+import 'package:pody/features/content/data/content_repository.dart';
+import 'package:pody/features/content/presentation/content_scope.dart';
+import 'package:pody/features/notifications/data/notification_remote_data_source.dart';
+import 'package:pody/features/notifications/data/notification_repository.dart';
 
 void main() {
-  runApp(const PodyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final apiClient = ApiClient(baseUrl: AppEnvironment.apiBaseUrl);
+  final authLocalDataSource = AuthLocalDataSource();
+  final authRemoteDataSource = AuthRemoteDataSource(apiClient);
+  final authRepository = AuthRepository(
+    remoteDataSource: authRemoteDataSource,
+    localDataSource: authLocalDataSource,
+    googleAuthDataSource: GoogleSignInDataSource(
+      serverClientId: AppEnvironment.googleServerClientId,
+    ),
+  );
+  apiClient.attachAuthenticator(
+    getValidAccessToken: authRepository.getValidAccessToken,
+    refreshAccessToken: authRepository.refreshAccessTokenForApiClient,
+    clearSession: authRepository.clearSessionForApiClient,
+  );
+  final authController = AuthController(authRepository)..initialize();
+  final contentRepository = ContentRepository(
+    ContentRemoteDataSource(apiClient),
+  );
+  final notificationRepository = NotificationRepository(
+    NotificationRemoteDataSource(apiClient),
+  );
+
+  runApp(
+    PodyApp(
+      authController: authController,
+      contentRepository: contentRepository,
+      notificationRepository: notificationRepository,
+    ),
+  );
 }
 
 class PodyApp extends StatelessWidget {
-  const PodyApp({super.key});
+  PodyApp({
+    required this.authController,
+    required this.contentRepository,
+    required this.notificationRepository,
+    super.key,
+  }) : navigatorKey = GlobalKey<NavigatorState>();
+
+  final AuthController authController;
+  final ContentRepository contentRepository;
+  final NotificationRepository notificationRepository;
+  final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Pody',
-      debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
-      home: const SignInScreen(),
+    return ContentScope(
+      repository: contentRepository,
+      child: AuthScope(
+        controller: authController,
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Pody',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          home: AppShell(
+            navigatorKey: navigatorKey,
+            notificationRepository: notificationRepository,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class AppShell extends StatefulWidget {
+  const AppShell({
+    required this.navigatorKey,
+    required this.notificationRepository,
+    super.key,
+  });
+
+  final GlobalKey<NavigatorState> navigatorKey;
+  final NotificationRepository notificationRepository;
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _deepLinkSubscription;
+  String? _lastHandledNoticeKey;
+  String? _authNoticeMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_initializeDeepLinks());
+  }
+
+  @override
+  void dispose() {
+    _deepLinkSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeDeepLinks() async {
+    try {
+      if (kIsWeb) {
+        _handleIncomingUri(Uri.base);
+        return;
+      }
+
+      final initialUri = await _appLinks.getInitialLink();
+      _handleIncomingUri(initialUri);
+      _deepLinkSubscription = _appLinks.uriLinkStream.listen(
+        _handleIncomingUri,
+      );
+    } catch (_) {
+      // Ignore deep-link bootstrap issues in unsupported or test environments.
+    }
+  }
+
+  void _handleIncomingUri(Uri? uri) {
+    _maybeShowAuthNotice(uri);
+  }
+
+  void _maybeShowAuthNotice(Uri? uri) {
+    final notice = _extractAuthNotice(uri);
+    if (notice == null || notice == _lastHandledNoticeKey) {
+      return;
+    }
+
+    _lastHandledNoticeKey = notice;
+    setState(() {
+      _authNoticeMessage = notice;
+    });
+  }
+
+  String? _extractAuthNotice(Uri? uri) {
+    if (uri == null || uri.scheme != 'pody') {
+      return null;
+    }
+
+    final matchesSignInRoute =
+        uri.host == 'sign-in' ||
+        uri.path == '/sign-in' ||
+        uri.path == 'sign-in';
+    if (!matchesSignInRoute) {
+      return null;
+    }
+
+    final verified = uri.queryParameters['verified']?.trim().toLowerCase();
+    if (verified == '1' || verified == 'true') {
+      return 'Email đã được xác thực. Bạn có thể đăng nhập ngay bây giờ.';
+    }
+
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authController = AuthScope.of(context);
+
+    return ListenableBuilder(
+      listenable: authController,
+      builder: (context, _) {
+        if (authController.status == AuthStatus.initializing) {
+          return const _SplashScreen();
+        }
+
+        return MainNavigationScreen(
+          notificationRepository: widget.notificationRepository,
+          authNoticeMessage: _authNoticeMessage,
+          onAuthNoticeDismissed: () {
+            setState(() {
+              _authNoticeMessage = null;
+            });
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(child: CircularProgressIndicator.adaptive()),
     );
   }
 }
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  const MainNavigationScreen({
+    required this.notificationRepository,
+    this.authNoticeMessage,
+    this.onAuthNoticeDismissed,
+    super.key,
+  });
+
+  final NotificationRepository notificationRepository;
+  final String? authNoticeMessage;
+  final VoidCallback? onAuthNoticeDismissed;
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
@@ -44,16 +241,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     (_) => GlobalKey<NavigatorState>(),
   );
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    NewsScreen(),
-    CreateScreen(),
-    NotificationsScreen(),
-    ProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      const ContentHomeScreen(),
+      const NewsScreen(),
+      const CreateScreen(),
+      NotificationsScreen(repository: widget.notificationRepository),
+      ProfileScreen(
+        noticeMessage: widget.authNoticeMessage,
+        onNoticeDismissed: widget.onAuthNoticeDismissed,
+      ),
+    ];
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -75,7 +275,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 return Navigator(
                   key: _navigatorKeys[index],
                   onGenerateRoute: (settings) {
-                    return MaterialPageRoute(builder: (_) => _screens[index]);
+                    return MaterialPageRoute(builder: (_) => screens[index]);
                   },
                 );
               }),
@@ -125,9 +325,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                         Icons.mail_outline,
                         Icons.mail,
                         'Notify',
-                        badgeCount: MockData.notifications
-                            .where((n) => n.isUnread)
-                            .length,
                       ),
                       _buildNavItem(
                         4,

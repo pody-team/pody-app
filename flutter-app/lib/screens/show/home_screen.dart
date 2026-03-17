@@ -530,9 +530,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                             child: Text(
-                              show.isFollowing
-                                  ? 'Đang theo dõi'
-                                  : 'Theo dõi',
+                              show.isFollowing ? 'Đang theo dõi' : 'Theo dõi',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,

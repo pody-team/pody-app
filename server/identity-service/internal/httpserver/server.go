@@ -36,6 +36,8 @@ func New(cfg config.Config, logger *slog.Logger, authService auth.Service) *http
 		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
+		r.Get("/openapi.yaml", s.handleOpenAPI)
+		r.Get("/docs", s.handleSwaggerUI)
 		r.Post("/sign-up", s.handleSignUp)
 		r.Post("/sign-in", s.handleSignIn)
 		r.Post("/google", s.handleGoogleSignIn)
@@ -44,10 +46,14 @@ func New(cfg config.Config, logger *slog.Logger, authService auth.Service) *http
 		r.Get("/verify-email", s.handleVerifyEmail)
 		r.Post("/verify-email", s.handleVerifyEmail)
 		r.Post("/resend-verification", s.handleResendVerification)
+		r.Post("/forgot-password", s.handleForgotPassword)
+		r.Post("/verify-reset-otp", s.handleVerifyResetOTP)
+		r.Post("/reset-password", s.handleResetPassword)
 	})
 
 	router.Route("/api/v1/identity", func(r chi.Router) {
 		r.Get("/me", s.handleMe)
+		r.Post("/change-password", s.handleChangePassword)
 	})
 
 	return &http.Server{
@@ -76,6 +82,22 @@ type refreshRequest struct {
 type verificationRequest struct {
 	Token string `json:"token"`
 	Email string `json:"email"`
+}
+
+type resetPasswordRequest struct {
+	Email       string `json:"email"`
+	OTP         string `json:"otp"`
+	NewPassword string `json:"new_password"`
+}
+
+type verifyResetOTPRequest struct {
+	Email string `json:"email"`
+	OTP   string `json:"otp"`
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
@@ -203,6 +225,65 @@ func (s *Server) handleResendVerification(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusAccepted, response)
 }
 
+func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req verificationRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	response, err := s.authService.ForgotPassword(r.Context(), req.Email)
+	if err != nil {
+		s.writeAuthError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusAccepted, response)
+}
+
+func (s *Server) handleResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req resetPasswordRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	user, err := s.authService.ResetPassword(r.Context(), auth.ResetPasswordInput{
+		Email:       req.Email,
+		OTP:         req.OTP,
+		NewPassword: req.NewPassword,
+	})
+	if err != nil {
+		s.writeAuthError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "password reset successful",
+		"user":    user,
+	})
+}
+
+func (s *Server) handleVerifyResetOTP(w http.ResponseWriter, r *http.Request) {
+	var req verifyResetOTPRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := s.authService.VerifyResetOTP(r.Context(), auth.VerifyResetOTPInput{
+		Email: req.Email,
+		OTP:   req.OTP,
+	}); err != nil {
+		s.writeAuthError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "password reset otp verified",
+	})
+}
+
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r.Header.Get("Authorization"))
 	if token == "" {
@@ -219,16 +300,46 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})
 }
 
+func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	token := bearerToken(r.Header.Get("Authorization"))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("missing bearer token"))
+		return
+	}
+
+	var req changePasswordRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := s.authService.ChangePassword(r.Context(), token, auth.ChangePasswordInput{
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+	}); err != nil {
+		s.writeAuthError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "password changed successfully",
+	})
+}
+
 func (s *Server) writeAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, auth.ErrUserExists):
 		writeError(w, http.StatusConflict, err)
 	case errors.Is(err, auth.ErrInvalidSignUpInput):
 		writeError(w, http.StatusBadRequest, err)
+	case errors.Is(err, auth.ErrInvalidChangePassword), errors.Is(err, auth.ErrPasswordAuthUnavailable):
+		writeError(w, http.StatusBadRequest, err)
 	case errors.Is(err, auth.ErrEmailNotVerified):
 		writeError(w, http.StatusForbidden, err)
-	case errors.Is(err, auth.ErrInvalidVerificationToken):
+	case errors.Is(err, auth.ErrInvalidVerificationToken), errors.Is(err, auth.ErrInvalidPasswordReset), errors.Is(err, auth.ErrInvalidResetInput):
 		writeError(w, http.StatusBadRequest, err)
+	case errors.Is(err, auth.ErrInvalidCurrentPassword):
+		writeError(w, http.StatusUnauthorized, err)
 	case errors.Is(err, auth.ErrInvalidCredentials), errors.Is(err, auth.ErrInvalidRefresh):
 		writeError(w, http.StatusUnauthorized, err)
 	default:
