@@ -11,8 +11,12 @@ COPY ./sql/services/content_service.sql /migrations/content_service.sql
 COPY ./sql/services/content_service_demo_seed.sql /migrations/content_service_demo_seed.sql
 COPY ./sql/services/ai_service.sql /migrations/ai_service.sql
 COPY ./sql/services/ai_service_demo_seed.sql /migrations/ai_service_demo_seed.sql
+COPY ./sql/services/article_service.sql /migrations/article_service.sql
+COPY ./sql/services/article_service_demo_seed.sql /migrations/article_service_demo_seed.sql
 COPY ./migrations/run-migrations.sh /usr/local/bin/run-migrations.sh
 
-RUN chmod +x /usr/local/bin/run-migrations.sh
+RUN apk add --no-cache dos2unix postgresql16-client && \
+    dos2unix /usr/local/bin/run-migrations.sh && \
+    chmod +x /usr/local/bin/run-migrations.sh
 
 ENTRYPOINT ["/usr/local/bin/run-migrations.sh"]

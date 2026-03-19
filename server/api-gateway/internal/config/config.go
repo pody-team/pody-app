@@ -41,7 +41,7 @@ var serviceEnvs = []serviceEnv{
 	{Name: "identity", Prefix: "/api/v1/identity", EnvKey: "IDENTITY_SERVICE_URL", DefaultURL: "http://localhost:8081", UpstreamPath: "/api/v1/identity"},
 	{Name: "content", Prefix: "/api/v1/content", EnvKey: "CONTENT_SERVICE_URL", DefaultURL: "http://localhost:8082", UpstreamPath: "/api/v1/content"},
 	{Name: "social", Prefix: "/api/v1/social", EnvKey: "SOCIAL_SERVICE_URL", DefaultURL: "http://localhost:8083"},
-	{Name: "news", Prefix: "/api/v1/news", EnvKey: "NEWS_SERVICE_URL", DefaultURL: "http://localhost:8084"},
+	{Name: "article", Prefix: "/api/v1/article", EnvKey: "ARTICLE_SERVICE_URL", DefaultURL: "http://localhost:8084", UpstreamPath: "/api/v1/article"},
 	{Name: "ai", Prefix: "/api/v1/ai", EnvKey: "AI_SERVICE_URL", DefaultURL: "http://localhost:8085", UpstreamPath: "/api/v1/ai"},
 	{Name: "billing", Prefix: "/api/v1/billing", EnvKey: "BILLING_SERVICE_URL", DefaultURL: "http://localhost:8086"},
 	{Name: "notifications", Prefix: "/api/v1/notifications", EnvKey: "NOTIFICATION_SERVICE_URL", DefaultURL: "http://localhost:8087", UpstreamPath: "/api/v1/notifications"},
