@@ -6,6 +6,8 @@ info:
 tags:
   - name: Health
   - name: Docs
+  - name: Inbox
+  - name: Settings
   - name: Internal
 servers:
   - url: http://localhost:8080
@@ -38,6 +40,125 @@ paths:
       responses:
         '200':
           description: HTML page
+  /api/v1/notifications:
+    get:
+      tags: [Inbox]
+      operationId: listNotifications
+      summary: List notifications for the current user
+      security:
+        - authUserId: []
+      responses:
+        '200':
+          description: Notification inbox
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [Inbox]
+      operationId: getUnreadNotificationCount
+      summary: Get unread notification count for the current user
+      security:
+        - authUserId: []
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/notifications/read-all:
+    patch:
+      tags: [Inbox]
+      operationId: markAllNotificationsRead
+      summary: Mark all notifications as read for the current user
+      security:
+        - authUserId: []
+      responses:
+        '200':
+          description: Notifications updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkAllNotificationsReadResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/notifications/{notificationID}/read:
+    patch:
+      tags: [Inbox]
+      operationId: markNotificationRead
+      summary: Mark one notification as read
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/NotificationID'
+      responses:
+        '200':
+          description: Notification updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkNotificationReadResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/notifications/settings:
+    get:
+      tags: [Settings]
+      operationId: getNotificationSettings
+      summary: Get notification settings for the current user
+      security:
+        - authUserId: []
+      responses:
+        '200':
+          description: Notification settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsEnvelope'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [Settings]
+      operationId: updateNotificationSettings
+      summary: Update notification settings for the current user
+      security:
+        - authUserId: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettingsUpdateRequest'
+      responses:
+        '200':
+          description: Updated notification settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettingsEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
   /internal/notifications/email/verification:
     post:
       tags: [Internal]
@@ -90,10 +211,23 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   securitySchemes:
+    authUserId:
+      type: apiKey
+      in: header
+      name: X-Auth-User-ID
+      description: User identity propagated by the API gateway after authentication.
     internalApiKey:
       type: apiKey
       in: header
       name: X-Internal-Api-Key
+  parameters:
+    NotificationID:
+      in: path
+      name: notificationID
+      required: true
+      description: Notification identifier
+      schema:
+        type: string
   responses:
     ErrorResponse:
       description: API error
@@ -114,6 +248,128 @@ components:
         error:
           type: string
       required: [error]
+    ActorSnapshot:
+      type: object
+      properties:
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+      required: [display_name, avatar_url]
+    TargetSnapshot:
+      type: object
+      properties:
+        title:
+          type: string
+      required: [title]
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        actor_user_id:
+          type: string
+        type:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        preview:
+          type: string
+        is_read:
+          type: boolean
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        actor_snapshot:
+          $ref: '#/components/schemas/ActorSnapshot'
+        target_snapshot:
+          $ref: '#/components/schemas/TargetSnapshot'
+        created_at:
+          type: string
+          format: date-time
+      required:
+        [id, user_id, type, title, body, is_read, actor_snapshot, target_snapshot, created_at]
+    NotificationListResponse:
+      type: object
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+      required: [notifications]
+    UnreadCountResponse:
+      type: object
+      properties:
+        unread_count:
+          type: integer
+      required: [unread_count]
+    MarkNotificationReadResponse:
+      type: object
+      properties:
+        updated:
+          type: boolean
+      required: [updated]
+    MarkAllNotificationsReadResponse:
+      type: object
+      properties:
+        updated_count:
+          type: integer
+      required: [updated_count]
+    NotificationSettings:
+      type: object
+      properties:
+        user_id:
+          type: string
+        push_enabled:
+          type: boolean
+        email_enabled:
+          type: boolean
+        new_episode_enabled:
+          type: boolean
+        comment_enabled:
+          type: boolean
+        follow_enabled:
+          type: boolean
+        marketing_enabled:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        [user_id, push_enabled, email_enabled, new_episode_enabled, comment_enabled, follow_enabled, marketing_enabled, updated_at]
+    NotificationSettingsUpdateRequest:
+      type: object
+      properties:
+        push_enabled:
+          type: boolean
+        email_enabled:
+          type: boolean
+        new_episode_enabled:
+          type: boolean
+        comment_enabled:
+          type: boolean
+        follow_enabled:
+          type: boolean
+        marketing_enabled:
+          type: boolean
+      required:
+        [push_enabled, email_enabled, new_episode_enabled, comment_enabled, follow_enabled, marketing_enabled]
+    NotificationSettingsEnvelope:
+      type: object
+      properties:
+        settings:
+          $ref: '#/components/schemas/NotificationSettings'
+      required: [settings]
     QueuedResponse:
       type: object
       properties:

@@ -1,0 +1,490 @@
+openapi: 3.0.3
+info:
+  title: Pody Content Service API
+  version: 1.0.0
+  description: Discovery and creator content APIs for Pody.
+tags:
+  - name: Health
+  - name: Docs
+  - name: Discovery
+  - name: Creator
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/public/content/healthz:
+    get:
+      tags: [Health]
+      operationId: getContentHealth
+      summary: Public content health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/public/content/openapi.yaml:
+    get:
+      tags: [Docs]
+      operationId: getContentOpenAPI
+      summary: Download content OpenAPI spec
+      responses:
+        '200':
+          description: YAML spec
+  /api/v1/public/content/docs:
+    get:
+      tags: [Docs]
+      operationId: getContentSwaggerUI
+      summary: Swagger UI for content service
+      responses:
+        '200':
+          description: HTML page
+  /api/v1/public/content/home:
+    get:
+      tags: [Discovery]
+      operationId: getHomeFeed
+      summary: Get the public listener home feed
+      responses:
+        '200':
+          description: Home feed payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeFeed'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/content/shows/{showID}:
+    get:
+      tags: [Discovery]
+      operationId: getShowDetail
+      summary: Get public show details
+      parameters:
+        - $ref: '#/components/parameters/ShowID'
+      responses:
+        '200':
+          description: Show detail payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShowEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/content/shows/{showID}/episodes:
+    get:
+      tags: [Discovery]
+      operationId: listShowEpisodes
+      summary: List public episodes for a show
+      parameters:
+        - $ref: '#/components/parameters/ShowID'
+      responses:
+        '200':
+          description: Episode list payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShowEpisodesEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/public/content/episodes/{episodeID}:
+    get:
+      tags: [Discovery]
+      operationId: getEpisodeDetail
+      summary: Get public episode details
+      parameters:
+        - $ref: '#/components/parameters/EpisodeID'
+      responses:
+        '200':
+          description: Episode detail payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/me/shows:
+    get:
+      tags: [Creator]
+      operationId: listCreatorShows
+      summary: List shows owned by the current creator
+      security:
+        - authUserId: []
+      responses:
+        '200':
+          description: Creator show list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatorShowsEnvelope'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/shows:
+    post:
+      tags: [Creator]
+      operationId: createShow
+      summary: Create a new show for the authenticated creator
+      description: |
+        `X-Auth-User-ID` is required. `X-Auth-Email` and `X-Auth-Name` are optional
+        auth context headers typically injected by the API gateway.
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/XAuthEmailHeader'
+        - $ref: '#/components/parameters/XAuthNameHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShowRequest'
+      responses:
+        '201':
+          description: Show created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShowEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  securitySchemes:
+    authUserId:
+      type: apiKey
+      in: header
+      name: X-Auth-User-ID
+      description: Creator identity propagated by the API gateway after authentication.
+  parameters:
+    ShowID:
+      in: path
+      name: showID
+      required: true
+      description: Show identifier
+      schema:
+        type: string
+    EpisodeID:
+      in: path
+      name: episodeID
+      required: true
+      description: Episode identifier
+      schema:
+        type: string
+    XAuthEmailHeader:
+      in: header
+      name: X-Auth-Email
+      required: false
+      description: Optional creator email propagated by the API gateway.
+      schema:
+        type: string
+        format: email
+    XAuthNameHeader:
+      in: header
+      name: X-Auth-Name
+      required: false
+      description: Optional creator display name propagated by the API gateway.
+      schema:
+        type: string
+  responses:
+    ErrorResponse:
+      description: API error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    HomeFeed:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: string
+        shows:
+          type: array
+          items:
+            $ref: '#/components/schemas/HomeShowCard'
+      required: [categories, shows]
+    HomeShowCard:
+      type: object
+      properties:
+        show:
+          $ref: '#/components/schemas/ShowSummary'
+        preview_episodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EpisodePreview'
+      required: [show, preview_episodes]
+    Host:
+      type: object
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        voice_profile_id:
+          type: string
+        role:
+          type: string
+          enum: [host, co_host, guest, narrator]
+        bio:
+          type: string
+      required: [id, display_name, avatar_url, role]
+    OwnerSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+      required: [id, display_name, avatar_url]
+    EpisodePreview:
+      type: object
+      properties:
+        id:
+          type: string
+        show_id:
+          type: string
+        title:
+          type: string
+        duration_seconds:
+          type: integer
+        published_at:
+          type: string
+          format: date-time
+      required: [id, show_id, title, duration_seconds, published_at]
+    ShowSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        cover_image_url:
+          type: string
+          format: uri
+        primary_category:
+          type: string
+        hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Host'
+        content_type:
+          type: string
+          enum: [podcast, storytelling, news_digest]
+        subscriber_count:
+          type: integer
+        total_episode_count:
+          type: integer
+        published_at:
+          type: string
+          format: date-time
+      required:
+        [id, slug, title, cover_image_url, primary_category, hosts, content_type, subscriber_count, total_episode_count, published_at]
+    ShowDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        cover_image_url:
+          type: string
+          format: uri
+        categories:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          nullable: true
+          items:
+            type: string
+        hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Host'
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+        subscriber_count:
+          type: integer
+        total_episode_count:
+          type: integer
+        total_listen_count:
+          type: integer
+        language_code:
+          type: string
+        content_type:
+          type: string
+          enum: [podcast, storytelling, news_digest]
+        visibility:
+          type: string
+        monetization_type:
+          type: string
+        published_at:
+          type: string
+          format: date-time
+      required:
+        [id, slug, title, description, cover_image_url, categories, hosts, owner, subscriber_count, total_episode_count, total_listen_count, language_code, content_type, visibility, monetization_type, published_at]
+    EpisodeSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        show_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        cover_image_url:
+          type: string
+          format: uri
+        duration_seconds:
+          type: integer
+        published_at:
+          type: string
+          format: date-time
+        episode_number:
+          type: integer
+      required: [id, show_id, title, description, cover_image_url, duration_seconds, published_at, episode_number]
+    EpisodeDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        show_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        audio_url:
+          type: string
+          format: uri
+        cover_image_url:
+          type: string
+          format: uri
+        duration_seconds:
+          type: integer
+        published_at:
+          type: string
+          format: date-time
+        episode_number:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        like_count:
+          type: integer
+        comment_count:
+          type: integer
+      required:
+        [id, show_id, title, description, audio_url, cover_image_url, duration_seconds, published_at, episode_number, tags, like_count, comment_count]
+    CreateShowHostRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        voice_profile_id:
+          type: string
+        role:
+          type: string
+          enum: [host, co_host, guest, narrator]
+        bio:
+          type: string
+      required: [display_name]
+    CreateShowRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        cover_image_url:
+          type: string
+          format: uri
+        primary_category:
+          type: string
+        language_code:
+          type: string
+        content_type:
+          type: string
+          enum: [podcast, storytelling, news_digest]
+        hosts:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateShowHostRequest'
+      required: [title, primary_category, hosts]
+    ShowEnvelope:
+      type: object
+      properties:
+        show:
+          $ref: '#/components/schemas/ShowDetail'
+      required: [show]
+    EpisodeEnvelope:
+      type: object
+      properties:
+        episode:
+          $ref: '#/components/schemas/EpisodeDetail'
+      required: [episode]
+    ShowEpisodesEnvelope:
+      type: object
+      properties:
+        episodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EpisodeSummary'
+      required: [episodes]
+    CreatorShowsEnvelope:
+      type: object
+      properties:
+        shows:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShowSummary'
+      required: [shows]

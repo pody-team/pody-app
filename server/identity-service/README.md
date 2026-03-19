@@ -20,11 +20,14 @@ Go service for user identity in Pody, with:
 - `POST /api/v1/public/identity/google`
 - `POST /api/v1/public/identity/refresh`
 - `POST /api/v1/public/identity/sign-out`
-- `GET /verify-email/open`
+- `GET /api/v1/public/identity/verify-email`
+- `POST /api/v1/public/identity/verify-email`
 - `POST /api/v1/public/identity/resend-verification`
 - `POST /api/v1/public/identity/forgot-password`
+- `POST /api/v1/public/identity/verify-reset-otp`
 - `POST /api/v1/public/identity/reset-password`
 - `GET /api/v1/identity/me`
+- `POST /api/v1/identity/change-password`
 
 ## Run locally
 

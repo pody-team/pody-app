@@ -13,6 +13,10 @@ class AuthContext(BaseModel):
     name: str | None = None
 
 
+class HealthResponse(BaseModel):
+    status: str
+
+
 class VoiceProfile(BaseModel):
     id: UUID
     name: str
@@ -97,6 +101,27 @@ class ChatThreadView(BaseModel):
     current_plan: ProductionPlan | None = None
 
 
+class ChatThreadSummary(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    last_message_preview: str | None = None
+    has_current_plan: bool = False
+
+
+class ProductionPlanSummary(BaseModel):
+    id: UUID
+    thread_id: UUID | None = None
+    status: str
+    series_title: str
+    content_type: str = "podcast"
+    episode_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
 class GenerationJob(BaseModel):
     id: UUID
     plan_id: UUID
@@ -147,3 +172,32 @@ class ChatTurnResult(BaseModel):
     thread_title: str
     assistant_reply: str
     plan_output: PlannerOutput | None = None
+
+
+class VoiceProfilesResponse(BaseModel):
+    voice_profiles: list[VoiceProfile] = Field(default_factory=list)
+
+
+class ChatThreadResponse(BaseModel):
+    thread: ChatThreadView
+
+
+class ChatThreadListResponse(BaseModel):
+    threads: list[ChatThreadSummary] = Field(default_factory=list)
+
+
+class ProductionPlanResponse(BaseModel):
+    draft: ProductionPlan
+
+
+class ProductionPlansResponse(BaseModel):
+    drafts: list[ProductionPlanSummary] = Field(default_factory=list)
+
+
+class GeneratePlanResponse(BaseModel):
+    plan: ProductionPlan
+    job: GenerationJob
+
+
+class GenerationJobResponse(BaseModel):
+    job: GenerationJob

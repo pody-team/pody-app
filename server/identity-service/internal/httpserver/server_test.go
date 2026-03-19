@@ -28,6 +28,9 @@ func TestOpenAPIYAMLEndpoint(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "openapi: 3.0.3") {
 		t.Fatalf("expected OpenAPI document, got %q", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), "/api/v1/identity/change-password:") || !strings.Contains(recorder.Body.String(), "/api/v1/public/identity/openapi.yaml:") {
+		t.Fatalf("expected complete identity spec, got %q", recorder.Body.String())
+	}
 }
 
 func TestSwaggerUIDocsEndpoint(t *testing.T) {

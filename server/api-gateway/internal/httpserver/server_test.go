@@ -79,7 +79,7 @@ func TestGatewayDocsLandingPage(t *testing.T) {
 	}
 
 	body := recorder.Body.String()
-	if !strings.Contains(body, "/api/v1/public/identity/docs") || !strings.Contains(body, "/api/v1/public/notifications/docs") {
+	if !strings.Contains(body, "/api/v1/public/identity/docs") || !strings.Contains(body, "/api/v1/public/ai/docs") || !strings.Contains(body, "/api/v1/public/content/docs") || !strings.Contains(body, "/api/v1/public/notifications/docs") {
 		t.Fatalf("expected docs landing page to link service docs, got %q", body)
 	}
 }
@@ -109,6 +109,34 @@ func TestPublicContentHomeBypassesAuth(t *testing.T) {
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected public content route to bypass auth, got %d", recorder.Code)
+	}
+}
+
+func TestPublicAIOpenAPIBypassesAuth(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/public/ai/openapi.yaml" {
+			t.Fatalf("expected upstream ai openapi path, got %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	server := New(config.Config{
+		Port:           "8080",
+		AllowedOrigins: []string{"*"},
+		JWTSecret:      "secret",
+		Routes: []config.ServiceRoute{
+			{Name: "ai-public", Prefix: "/api/v1/public/ai", TargetURL: upstream.URL + "/api/v1/public/ai"},
+		},
+	}, newDiscardLogger())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/public/ai/openapi.yaml", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected public ai route to bypass auth, got %d", recorder.Code)
 	}
 }
 

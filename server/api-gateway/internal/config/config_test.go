@@ -89,6 +89,7 @@ func TestLoadOverridesValues(t *testing.T) {
 	foundContentProtected := false
 	foundIdentityPublic := false
 	foundIdentityProtected := false
+	foundAIPublic := false
 	foundAIProtected := false
 	for _, route := range cfg.Routes {
 		if route.Name == "social" {
@@ -119,6 +120,13 @@ func TestLoadOverridesValues(t *testing.T) {
 			}
 		}
 
+		if route.Name == "ai-public" {
+			foundAIPublic = true
+			if route.TargetURL != "http://localhost:8085/api/v1/public/ai" {
+				t.Fatalf("unexpected public ai target %s", route.TargetURL)
+			}
+		}
+
 		if route.Name == "identity" {
 			foundIdentityProtected = true
 			if route.TargetURL != "http://localhost:9001/api/v1/identity" {
@@ -146,7 +154,7 @@ func TestLoadOverridesValues(t *testing.T) {
 		t.Fatal("content routes were not configured correctly")
 	}
 
-	if !foundAIProtected {
+	if !foundAIPublic || !foundAIProtected {
 		t.Fatal("ai route was not configured correctly")
 	}
 }
