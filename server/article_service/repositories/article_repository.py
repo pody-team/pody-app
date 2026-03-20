@@ -1,33 +1,36 @@
-from typing import Optional, List, Tuple, Any
-from datetime import datetime
-from sqlalchemy import select, or_, update, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.dialects.postgresql import insert
+from typing import Optional
 
-from models.article import Article, ArticleCategory, ArticleStat, ArticleInteraction, ArticleMetric
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from .article_comment_repository import ArticleCommentRepository
+from .article_metric_repository import ArticleMetricRepository
+from .article_query_repository import ArticleQueryRepository
+from .article_reaction_repository import ArticleReactionRepository, REACTION_TYPES
+from .article_stats_repository import ArticleStatsRepository
+from .article_write_repository import ArticleWriteRepository
 
 
 class ArticleRepository:
     """
-    Repository for accessing articles and related extension tables.
+    Backward-compatible facade that delegates to focused repositories.
+    Keep crawler and older call sites stable while newer code uses smaller repos/services.
     """
-    
+
     def __init__(self, session: AsyncSession):
-        """Initialize repository with database session."""
         self.session = session
-    
-    async def get_by_id(self, article_id: int) -> Optional[Article]:
-        """Fetch an article by its ID."""
-        stmt = select(Article).where(Article.id == article_id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        self.write = ArticleWriteRepository(session)
+        self.query = ArticleQueryRepository(session)
+        self.stats = ArticleStatsRepository(session)
+        self.reactions = ArticleReactionRepository(session)
+        self.metrics = ArticleMetricRepository(session)
+        self.comments = ArticleCommentRepository(session)
+
+    async def get_by_id(self, article_id: int):
+        return await self.write.get_by_id(article_id)
 
     async def exists_by_url(self, original_url: str) -> bool:
-        """Check if an article with the given URL exists."""
-        stmt = select(Article.id).where(Article.original_url == original_url)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none() is not None
-    
+        return await self.write.exists_by_url(original_url)
+
     async def insert_article(
         self,
         title: str,
@@ -37,11 +40,10 @@ class ArticleRepository:
         author: Optional[str] = None,
         summary: Optional[str] = None,
         thumbnail_url: Optional[str] = None,
-        published_at: Optional[datetime] = None,
-        status: str = 'PUBLISHED'
-    ) -> Article:
-        """Insert a new article."""
-        new_article = Article(
+        published_at=None,
+        status: str = "PUBLISHED",
+    ):
+        return await self.write.insert_article(
             title=title,
             original_url=original_url,
             source_id=source_id,
@@ -49,118 +51,39 @@ class ArticleRepository:
             author=author,
             summary=summary,
             thumbnail_url=thumbnail_url,
-            published_at=published_at or datetime.utcnow(),
+            published_at=published_at,
             status=status,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
         )
-        
-        self.session.add(new_article)
-        await self.session.flush()
-        
-        # Initialize stats for this article
-        stats = ArticleStat(article_id=new_article.id, view_count=0)
-        self.session.add(stats)
-        
-        await self.session.refresh(new_article)
-        return new_article
 
     async def add_category(self, article_id: int, category_name: str) -> None:
-        """Add a category to an article (in separate table)."""
-        cat = ArticleCategory(article_id=article_id, category_name=category_name)
-        self.session.add(cat)
+        await self.write.add_category(article_id, category_name)
 
-    async def list_articles_with_extra(
-        self, 
-        limit: int = 20, 
-        offset: int = 0, 
-        category: Optional[str] = None,
-        query: Optional[str] = None
-    ) -> List[Tuple[Article, Optional[str], int]]:
-        """
-        List/Search articles with categories and view counts.
-        Returns a list of (Article, CategoryName, ViewCount).
-        """
-        # Subquery for view count to avoid complex joins in simple list
-        # But for pagination, we join.
-        stmt = select(
-            Article, 
-            ArticleCategory.category_name, 
-            func.coalesce(ArticleStat.view_count, 0)
-        ).outerjoin(
-            ArticleCategory, Article.id == ArticleCategory.article_id
-        ).outerjoin(
-            ArticleStat, Article.id == ArticleStat.article_id
-        ).order_by(Article.published_at.desc())
-        
-        if category:
-            stmt = stmt.where(ArticleCategory.category_name == category)
-        
-        if query:
-            search_query = f"%{query}%"
-            stmt = stmt.where(or_(
-                Article.title.ilike(search_query),
-                Article.summary.ilike(search_query)
-            ))
-            
-        stmt = stmt.limit(limit).offset(offset)
-        result = await self.session.execute(stmt)
-        return [(row[0], row[1], row[2]) for row in result.all()]
+    async def list_articles_with_extra(self, limit: int = 20, offset: int = 0, category=None, query=None):
+        return await self.query.list_articles_with_extra(limit=limit, offset=offset, category=category, query=query)
 
-    async def get_article_detail(self, article_id: int) -> Optional[Tuple[Article, List[str], int]]:
-        """Fetch article detail with all categories and stats."""
-        stmt = (
-            select(
-                Article,
-                func.array_remove(
-                    func.array_agg(func.distinct(ArticleCategory.category_name)),
-                    None,
-                ).label("categories"),
-                func.coalesce(ArticleStat.view_count, 0).label("view_count"),
-            )
-            .outerjoin(ArticleCategory, Article.id == ArticleCategory.article_id)
-            .outerjoin(ArticleStat, Article.id == ArticleStat.article_id)
-            .where(Article.id == article_id)
-            .group_by(Article.id, ArticleStat.view_count)
-        )
-        result = await self.session.execute(stmt)
-        row = result.first()
-        if not row:
-            return None
-
-        categories = row.categories or []
-        return (row[0], categories, row.view_count)
+    async def get_article_detail(self, article_id: int):
+        return await self.query.get_article_detail(article_id)
 
     async def increment_view_count(self, article_id: int) -> None:
-        """Increment view count in the article_stats table."""
-        stmt = insert(ArticleStat).values(
-            article_id=article_id,
-            view_count=1,
-            updated_at=datetime.utcnow(),
-        )
-        stmt = stmt.on_conflict_do_update(
-            index_elements=[ArticleStat.article_id],
-            set_={
-                "view_count": ArticleStat.view_count + 1,
-                "updated_at": datetime.utcnow(),
-            },
-        )
-        await self.session.execute(stmt)
+        await self.stats.increment_view_count(article_id)
 
-    async def add_interaction(self, article_id: int, user_id: int, interaction_type: str) -> None:
-        """Record a user interaction."""
-        interaction = ArticleInteraction(
-            article_id=article_id,
-            user_id=user_id,
-            interaction_type=interaction_type.upper()
-        )
-        self.session.add(interaction)
+    async def add_interaction(self, article_id: int, user_id: str, interaction_type: str) -> None:
+        await self.reactions.add_interaction(article_id, user_id, interaction_type)
 
-    async def track_metric(self, article_id: int, user_id: int, reading_time_seconds: int) -> None:
-        """Record reading metrics."""
-        metric = ArticleMetric(
-            article_id=article_id,
-            user_id=user_id,
-            reading_time_seconds=reading_time_seconds
-        )
-        self.session.add(metric)
+    async def get_reaction_summary(self, article_id: int, user_id=None):
+        return await self.reactions.get_reaction_summary(article_id, user_id=user_id)
+
+    async def track_metric(self, article_id: int, user_id: str, reading_time_seconds: int) -> None:
+        await self.metrics.track_metric(article_id, user_id, reading_time_seconds)
+
+    async def add_comment(self, article_id: int, user_id: str, content: str, user_name=None):
+        return await self.comments.add_comment(article_id, user_id, content, user_name=user_name)
+
+    async def list_comments(self, article_id: int, limit: int = 20, offset: int = 0):
+        return await self.comments.list_comments(article_id, limit=limit, offset=offset)
+
+    async def count_comments(self, article_id: int) -> int:
+        return await self.comments.count_comments(article_id)
+
+
+__all__ = ["ArticleRepository", "REACTION_TYPES"]

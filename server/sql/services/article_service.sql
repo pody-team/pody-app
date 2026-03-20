@@ -95,21 +95,54 @@ CREATE TABLE IF NOT EXISTS article_stats (
 CREATE TABLE IF NOT EXISTS article_interactions (
     id BIGSERIAL PRIMARY KEY,
     article_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
     interaction_type VARCHAR(50) NOT NULL, -- LIKE, LOVE, etc.
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ix_article_interactions_article_id ON article_interactions (article_id);
 CREATE INDEX IF NOT EXISTS ix_article_interactions_user_id ON article_interactions (user_id);
+DELETE FROM article_interactions a
+USING article_interactions b
+WHERE a.id < b.id
+  AND a.article_id = b.article_id
+  AND a.user_id = b.user_id;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_article_interactions_article_user
+    ON article_interactions (article_id, user_id);
+
+-- Backfill updated_at for older environments.
+ALTER TABLE article_interactions
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE article_interactions
+    ALTER COLUMN user_id TYPE VARCHAR(255) USING user_id::text;
 
 -- 4. Metrics table (Reading metrics)
 CREATE TABLE IF NOT EXISTS article_metrics (
     id BIGSERIAL PRIMARY KEY,
     article_id BIGINT NOT NULL,
-    user_id BIGINT NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
     reading_time_seconds INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ix_article_metrics_article_id ON article_metrics (article_id);
+ALTER TABLE article_metrics
+    ALTER COLUMN user_id TYPE VARCHAR(255) USING user_id::text;
+
+-- 5. Article comments
+CREATE TABLE IF NOT EXISTS article_comments (
+    id BIGSERIAL PRIMARY KEY,
+    article_id BIGINT NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_article_comments_article_id ON article_comments (article_id);
+CREATE INDEX IF NOT EXISTS ix_article_comments_user_id ON article_comments (user_id);
+CREATE INDEX IF NOT EXISTS ix_article_comments_article_created_at
+    ON article_comments (article_id, created_at DESC);
+ALTER TABLE article_comments
+    ALTER COLUMN user_id TYPE VARCHAR(255) USING user_id::text;
 
 COMMIT;

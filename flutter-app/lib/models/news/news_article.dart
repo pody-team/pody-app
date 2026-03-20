@@ -8,6 +8,10 @@ class NewsArticle {
   final String category;
   final String time;
   final int viewCount;
+  final int commentsCount;
+  final int likeCount;
+  final int loveCount;
+  final int dislikeCount;
   bool isAdded;
   bool isLiked;
   bool isLoved;
@@ -23,6 +27,10 @@ class NewsArticle {
     this.category = 'Tech',
     required this.time,
     this.viewCount = 0,
+    this.commentsCount = 0,
+    this.likeCount = 0,
+    this.loveCount = 0,
+    this.dislikeCount = 0,
     this.isAdded = false,
     this.isLiked = false,
     this.isLoved = false,
@@ -32,6 +40,7 @@ class NewsArticle {
   factory NewsArticle.fromJson(Map<String, dynamic> json) {
     final categories = _readCategories(json);
     final author = (json['author'] as String?)?.trim();
+    final reactions = _readReactions(json['reactions']);
 
     return NewsArticle(
       id: _readInt(json['id']),
@@ -43,6 +52,10 @@ class NewsArticle {
       category: categories.isNotEmpty ? categories.first : 'The gioi',
       time: _readPublishedAt(json['published_at']) ?? 'Vua xong',
       viewCount: _readInt(json['view_count']),
+      commentsCount: _readInt(json['comments_count']),
+      likeCount: _readInt(reactions['like_count']),
+      loveCount: _readInt(reactions['love_count']),
+      dislikeCount: _readInt(reactions['dislike_count']),
       isAdded: json['is_added'] == true,
       isLiked: json['is_liked'] == true,
       isLoved: json['is_loved'] == true,
@@ -59,6 +72,10 @@ class NewsArticle {
     String? category,
     String? time,
     int? viewCount,
+    int? commentsCount,
+    int? likeCount,
+    int? loveCount,
+    int? dislikeCount,
     bool? isAdded,
     bool? isLiked,
     bool? isLoved,
@@ -74,6 +91,10 @@ class NewsArticle {
       category: category ?? this.category,
       time: time ?? this.time,
       viewCount: viewCount ?? this.viewCount,
+      commentsCount: commentsCount ?? this.commentsCount,
+      likeCount: likeCount ?? this.likeCount,
+      loveCount: loveCount ?? this.loveCount,
+      dislikeCount: dislikeCount ?? this.dislikeCount,
       isAdded: isAdded ?? this.isAdded,
       isLiked: isLiked ?? this.isLiked,
       isLoved: isLoved ?? this.isLoved,
@@ -104,6 +125,13 @@ class NewsArticle {
     }
 
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static Map<String, dynamic> _readReactions(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    return const <String, dynamic>{};
   }
 
   static String _readImageUrl(dynamic value) {

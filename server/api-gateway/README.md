@@ -9,6 +9,7 @@ Initial Go API Gateway / BFF scaffold for the Pody microservice architecture.
   - `/api/v1/public/identity`
   - `/api/v1/identity`
   - `/api/v1/content`
+  - `/api/v1/public/article`
   - `/api/v1/social`
   - `/api/v1/news`
   - `/api/v1/ai`
@@ -65,6 +66,7 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/docs
 curl http://localhost:8080/api/v1/_meta/routes
 curl http://localhost:8080/api/v1/public/identity/healthz
+curl http://localhost:8080/api/v1/public/article?limit=10
 curl http://localhost:8080/api/v1/public/identity/openapi.yaml
 curl http://localhost:8080/api/v1/public/ai/openapi.yaml
 curl http://localhost:8080/api/v1/public/content/openapi.yaml
