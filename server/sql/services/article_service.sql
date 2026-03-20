@@ -72,4 +72,44 @@ BEGIN
     END IF;
 END $$;
 
+-- --- NEW TABLES FOR EXTENDED FEATURES ---
+
+-- 1. Article Categories (M-1 or M-M)
+CREATE TABLE IF NOT EXISTS article_categories (
+    id BIGSERIAL PRIMARY KEY,
+    article_id BIGINT NOT NULL,
+    category_name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_article_categories_article_id ON article_categories (article_id);
+CREATE INDEX IF NOT EXISTS ix_article_categories_name ON article_categories (category_name);
+
+-- 2. Article Stats (View counts)
+CREATE TABLE IF NOT EXISTS article_stats (
+    article_id BIGINT PRIMARY KEY,
+    view_count BIGINT DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. Interaction table (LIKE, DISLIKE, LOVE)
+CREATE TABLE IF NOT EXISTS article_interactions (
+    id BIGSERIAL PRIMARY KEY,
+    article_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    interaction_type VARCHAR(50) NOT NULL, -- LIKE, LOVE, etc.
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_article_interactions_article_id ON article_interactions (article_id);
+CREATE INDEX IF NOT EXISTS ix_article_interactions_user_id ON article_interactions (user_id);
+
+-- 4. Metrics table (Reading metrics)
+CREATE TABLE IF NOT EXISTS article_metrics (
+    id BIGSERIAL PRIMARY KEY,
+    article_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    reading_time_seconds INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_article_metrics_article_id ON article_metrics (article_id);
+
 COMMIT;

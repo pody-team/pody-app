@@ -2,6 +2,7 @@
 Main Entry Point - News Crawler Microservice
 Automated scheduler for crawling news articles from RSS feeds.
 """
+import html
 import os
 import sys
 import asyncio
@@ -17,9 +18,28 @@ from config.redis_manager import RedisManager
 from repositories.article_repository import ArticleRepository
 from utils.logger import get_logger
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from pydantic import BaseModel
+from typing import Optional, List
 import uvicorn
+
+
+def clean_text(value):
+    if not value:
+        return value
+    return html.unescape(value)
+
+
+class InteractionRequest(BaseModel):
+    user_id: int
+    type: str  # 'LIKE', 'DISLIKE', 'LOVE'
+
+
+class MetricRequest(BaseModel):
+    user_id: int
+    reading_time_seconds: int
 
 
 class NewscrawlerApplication:
@@ -37,6 +57,7 @@ class NewscrawlerApplication:
         
         # Setup FastAPI
         self.api = FastAPI(title="Pody Article Service", version="1.0.0")
+        self.api.add_middleware(GZipMiddleware, minimum_size=1024)
         self._setup_api_routes()
         
         # Get configuration from environment
@@ -57,31 +78,111 @@ class NewscrawlerApplication:
             return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
         @self.api.get("/api/v1/article")
-        async def list_articles(limit: int = 50, offset: int = 0):
+        async def list_articles(
+            limit: int = 50, 
+            offset: int = 0,
+            category: Optional[str] = Query(None, description="Filter by category"),
+            q: Optional[str] = Query(None, description="Search keyword in title/summary")
+        ):
             try:
                 async with get_db_session() as session:
                     repo = ArticleRepository(session)
-                    articles = await repo.list_articles(limit=limit, offset=offset)
+                    # Use the new method that joins with extra tables
+                    results = await repo.list_articles_with_extra(
+                        limit=limit, 
+                        offset=offset,
+                        category=category,
+                        query=q
+                    )
                     return {
-                        "count": len(articles),
+                        "count": len(results),
                         "limit": limit,
                         "offset": offset,
                         "articles": [
                             {
                                 "id": a.id,
-                                "title": a.title,
-                                "summary": a.summary,
-                                "author": a.author,
+                                "title": clean_text(a.title),
+                                "summary": clean_text(a.summary),
+                                "author": clean_text(a.author),
+                                "category": cat,
+                                "view_count": views,
                                 "thumbnail_url": a.thumbnail_url,
                                 "original_url": a.original_url,
                                 "published_at": a.published_at.isoformat() if a.published_at else None,
                                 "source_id": a.source_id,
                                 "status": a.status
-                            } for a in articles
+                            } for a, cat, views in results
                         ]
                     }
             except Exception as e:
                 self.logger.error(f"API Error fetching articles: {str(e)}")
+                raise HTTPException(status_code=500, detail="Internal server error")
+
+        @self.api.get("/api/v1/article/{article_id}")
+        async def get_article(article_id: int):
+            try:
+                async with get_db_session() as session:
+                    repo = ArticleRepository(session)
+                    detail = await repo.get_article_detail(article_id)
+                    if not detail:
+                        raise HTTPException(status_code=404, detail="Article not found")
+                    
+                    article, categories, view_count = detail
+                    
+                    # Increment view count in separate table
+                    await repo.increment_view_count(article_id)
+                    
+                    return {
+                        "id": article.id,
+                        "title": clean_text(article.title),
+                        "content": article.content,
+                        "summary": clean_text(article.summary),
+                        "author": clean_text(article.author),
+                        "categories": categories,
+                        "view_count": view_count + 1,
+                        "thumbnail_url": article.thumbnail_url,
+                        "original_url": article.original_url,
+                        "published_at": article.published_at.isoformat() if article.published_at else None,
+                        "source_id": article.source_id,
+                    }
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"API Error fetching article {article_id}: {str(e)}")
+                raise HTTPException(status_code=500, detail="Internal server error")
+
+        @self.api.post("/api/v1/article/{article_id}/interaction")
+        async def add_interaction(article_id: int, req: InteractionRequest):
+            try:
+                async with get_db_session() as session:
+                    repo = ArticleRepository(session)
+                    article = await repo.get_by_id(article_id)
+                    if not article:
+                        raise HTTPException(status_code=404, detail="Article not found")
+                    
+                    await repo.add_interaction(article_id, req.user_id, req.type)
+                    return {"status": "success", "message": f"Interaction {req.type} added"}
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"API Error adding interaction: {str(e)}")
+                raise HTTPException(status_code=500, detail="Internal server error")
+
+        @self.api.post("/api/v1/article/{article_id}/metric")
+        async def track_metric(article_id: int, req: MetricRequest):
+            try:
+                async with get_db_session() as session:
+                    repo = ArticleRepository(session)
+                    article = await repo.get_by_id(article_id)
+                    if not article:
+                        raise HTTPException(status_code=404, detail="Article not found")
+                    
+                    await repo.track_metric(article_id, req.user_id, req.reading_time_seconds)
+                    return {"status": "success", "message": "Metric tracked"}
+            except HTTPException:
+                raise
+            except Exception as e:
+                self.logger.error(f"API Error tracking metric: {str(e)}")
                 raise HTTPException(status_code=500, detail="Internal server error")
     
     def _signal_handler(self, signum, frame):
@@ -163,7 +264,10 @@ class NewscrawlerApplication:
             self.is_running = True
             self.logger.info("✓ Scheduler started successfully")
             
-            asyncio.create_task(self.run_initial_crawl())
+            # Use FastAPI event handlers to run operations after API is up
+            @self.api.on_event("startup")
+            async def on_startup():
+                asyncio.create_task(self.run_initial_crawl())
 
             # Run FastAPI with uvicorn
             config = uvicorn.Config(

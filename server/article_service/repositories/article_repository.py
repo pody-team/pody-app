@@ -1,39 +1,29 @@
-"""
-Article Repository - Data Access Layer for articles table
-"""
-from typing import Optional
+from typing import Optional, List, Tuple, Any
 from datetime import datetime
-from sqlalchemy import select
+from sqlalchemy import select, or_, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
 
-from models.article import Article
+from models.article import Article, ArticleCategory, ArticleStat, ArticleInteraction, ArticleMetric
 
 
 class ArticleRepository:
     """
-    Repository for accessing articles table.
-    Handles all database operations related to articles.
+    Repository for accessing articles and related extension tables.
     """
     
     def __init__(self, session: AsyncSession):
-        """
-        Initialize repository with database session.
-        
-        Args:
-            session: SQLAlchemy async session
-        """
+        """Initialize repository with database session."""
         self.session = session
     
+    async def get_by_id(self, article_id: int) -> Optional[Article]:
+        """Fetch an article by its ID."""
+        stmt = select(Article).where(Article.id == article_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def exists_by_url(self, original_url: str) -> bool:
-        """
-        Check if an article with the given URL already exists in the database.
-        
-        Args:
-            original_url: The original URL of the article
-            
-        Returns:
-            bool: True if article exists, False otherwise
-        """
+        """Check if an article with the given URL exists."""
         stmt = select(Article.id).where(Article.original_url == original_url)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none() is not None
@@ -50,22 +40,7 @@ class ArticleRepository:
         published_at: Optional[datetime] = None,
         status: str = 'PUBLISHED'
     ) -> Article:
-        """
-        Insert a new article into the database.
-        
-        Args:
-            title: Article title
-            original_url: Original URL of the article
-            source_id: ID of the news source
-            content: Full article content
-            author: Article author
-            summary: Article summary
-            published_at: Publication timestamp
-            status: Article status (default: 'ACTIVE')
-            
-        Returns:
-            Article: The newly created article with ID
-        """
+        """Insert a new article."""
         new_article = Article(
             title=title,
             original_url=original_url,
@@ -81,36 +56,111 @@ class ArticleRepository:
         )
         
         self.session.add(new_article)
-        await self.session.flush()  # Flush to get the ID
-        await self.session.refresh(new_article)  # Refresh to get all computed fields
+        await self.session.flush()
         
+        # Initialize stats for this article
+        stats = ArticleStat(article_id=new_article.id, view_count=0)
+        self.session.add(stats)
+        
+        await self.session.refresh(new_article)
         return new_article
-    
-    async def get_by_url(self, original_url: str) -> Optional[Article]:
-        """
-        Fetch an article by its original URL.
-        
-        Args:
-            original_url: The original URL of the article
-            
-        Returns:
-            Optional[Article]: The article if found, None otherwise
-        """
-        stmt = select(Article).where(Article.original_url == original_url)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
 
-    async def list_articles(self, limit: int = 20, offset: int = 0) -> list[Article]:
+    async def add_category(self, article_id: int, category_name: str) -> None:
+        """Add a category to an article (in separate table)."""
+        cat = ArticleCategory(article_id=article_id, category_name=category_name)
+        self.session.add(cat)
+
+    async def list_articles_with_extra(
+        self, 
+        limit: int = 20, 
+        offset: int = 0, 
+        category: Optional[str] = None,
+        query: Optional[str] = None
+    ) -> List[Tuple[Article, Optional[str], int]]:
         """
-        List articles with pagination.
+        List/Search articles with categories and view counts.
+        Returns a list of (Article, CategoryName, ViewCount).
+        """
+        # Subquery for view count to avoid complex joins in simple list
+        # But for pagination, we join.
+        stmt = select(
+            Article, 
+            ArticleCategory.category_name, 
+            func.coalesce(ArticleStat.view_count, 0)
+        ).outerjoin(
+            ArticleCategory, Article.id == ArticleCategory.article_id
+        ).outerjoin(
+            ArticleStat, Article.id == ArticleStat.article_id
+        ).order_by(Article.published_at.desc())
         
-        Args:
-            limit: Maximum number of articles to return
-            offset: Number of articles to skip
+        if category:
+            stmt = stmt.where(ArticleCategory.category_name == category)
+        
+        if query:
+            search_query = f"%{query}%"
+            stmt = stmt.where(or_(
+                Article.title.ilike(search_query),
+                Article.summary.ilike(search_query)
+            ))
             
-        Returns:
-            list[Article]: List of articles ordered by published_at descending
-        """
-        stmt = select(Article).order_by(Article.published_at.desc()).limit(limit).offset(offset)
+        stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        return [(row[0], row[1], row[2]) for row in result.all()]
+
+    async def get_article_detail(self, article_id: int) -> Optional[Tuple[Article, List[str], int]]:
+        """Fetch article detail with all categories and stats."""
+        stmt = (
+            select(
+                Article,
+                func.array_remove(
+                    func.array_agg(func.distinct(ArticleCategory.category_name)),
+                    None,
+                ).label("categories"),
+                func.coalesce(ArticleStat.view_count, 0).label("view_count"),
+            )
+            .outerjoin(ArticleCategory, Article.id == ArticleCategory.article_id)
+            .outerjoin(ArticleStat, Article.id == ArticleStat.article_id)
+            .where(Article.id == article_id)
+            .group_by(Article.id, ArticleStat.view_count)
+        )
+        result = await self.session.execute(stmt)
+        row = result.first()
+        if not row:
+            return None
+
+        categories = row.categories or []
+        return (row[0], categories, row.view_count)
+
+    async def increment_view_count(self, article_id: int) -> None:
+        """Increment view count in the article_stats table."""
+        stmt = insert(ArticleStat).values(
+            article_id=article_id,
+            view_count=1,
+            updated_at=datetime.utcnow(),
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[ArticleStat.article_id],
+            set_={
+                "view_count": ArticleStat.view_count + 1,
+                "updated_at": datetime.utcnow(),
+            },
+        )
+        await self.session.execute(stmt)
+
+    async def add_interaction(self, article_id: int, user_id: int, interaction_type: str) -> None:
+        """Record a user interaction."""
+        interaction = ArticleInteraction(
+            article_id=article_id,
+            user_id=user_id,
+            interaction_type=interaction_type.upper()
+        )
+        self.session.add(interaction)
+
+    async def track_metric(self, article_id: int, user_id: int, reading_time_seconds: int) -> None:
+        """Record reading metrics."""
+        metric = ArticleMetric(
+            article_id=article_id,
+            user_id=user_id,
+            reading_time_seconds=reading_time_seconds
+        )
+        self.session.add(metric)

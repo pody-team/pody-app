@@ -43,3 +43,44 @@ class Article(Base):
     
     def __repr__(self):
         return f"<Article(id={self.id}, title='{self.title[:30]}...', source_id={self.source_id})>"
+
+
+class ArticleCategory(Base):
+    """Articles categorized by tags/topics."""
+    __tablename__ = 'article_categories'
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    article_id = Column(BigInteger, nullable=False, index=True)
+    category_name = Column(String(100), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ArticleStat(Base):
+    """Stats for articles like total views."""
+    __tablename__ = 'article_stats'
+    
+    article_id = Column(BigInteger, primary_key=True)
+    view_count = Column(BigInteger, default=0, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ArticleInteraction(Base):
+    """User interactions with articles (LIKE/LOVE)."""
+    __tablename__ = 'article_interactions'
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    article_id = Column(BigInteger, nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False, index=True)
+    interaction_type = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ArticleMetric(Base):
+    """Engagement metrics like reading time."""
+    __tablename__ = 'article_metrics'
+    
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    article_id = Column(BigInteger, nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False, index=True)
+    reading_time_seconds = Column(BigInteger, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

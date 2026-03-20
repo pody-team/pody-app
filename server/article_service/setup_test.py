@@ -54,23 +54,32 @@ async def test_setup():
     logger.info("\n3. Checking database tables...")
     try:
         async with db_manager.session_factory() as session:
-            # Check news_sources table
-            result = await session.execute(
-                text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'news_sources')")
-            )
-            if result.scalar():
-                logger.info("✓ Table 'news_sources' exists")
-            else:
-                logger.warning("⚠ Table 'news_sources' not found")
+            # Helper to check if a table exists
+            async def table_exists(table_name):
+                result = await session.execute(
+                    text(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{table_name}')")
+                )
+                return result.scalar()
+
+            # Check core tables
+            for table in ['news_sources', 'articles']:
+                if await table_exists(table):
+                    logger.info(f"✓ Table '{table}' exists")
+                else:
+                    logger.warning(f"⚠ Table '{table}' not found")
             
-            # Check articles table
-            result = await session.execute(
-                text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'articles')")
-            )
-            if result.scalar():
-                logger.info("✓ Table 'articles' exists")
-            else:
-                logger.warning("⚠ Table 'articles' not found")
+            # Check extension tables
+            extensions = [
+                'article_categories', 
+                'article_stats', 
+                'article_interactions', 
+                'article_metrics'
+            ]
+            for table in extensions:
+                if await table_exists(table):
+                    logger.info(f"✓ Extension table '{table}' exists")
+                else:
+                    logger.warning(f"⚠ Extension table '{table}' MISSING")
             
             # Check for active sources
             result = await session.execute(
@@ -78,9 +87,6 @@ async def test_setup():
             )
             count = result.scalar()
             logger.info(f"✓ Found {count} active news sources")
-            
-            if count == 0:
-                logger.warning("⚠ No active news sources found. Please add some to the database.")
     
     except Exception as e:
         logger.error(f"✗ Error checking tables: {str(e)}")

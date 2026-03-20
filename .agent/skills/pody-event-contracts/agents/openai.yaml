@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pody Event Contracts"
+  short_description: "Keep Pody event flows consistent."
+  default_prompt: "Use $pody-event-contracts to add or update Kafka event contracts, outbox flows, retries, and DLQs in the Pody repo."

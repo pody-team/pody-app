@@ -44,10 +44,11 @@ class DatabaseManager:
             
             # Handle Supabase/PostgreSQL sslmode parameter
             if 'sslmode=' in database_url:
-                # Remove sslmode from query string as asyncpg doesn't support it there
                 import re
                 database_url = re.sub(r'([?&])sslmode=[^&]*(&|$)', r'\1', database_url).rstrip('?&')
-                # Use ssl="require" in connect_args for asyncpg
+                connect_args["ssl"] = "require"
+            elif 'pooler.supabase.com' in database_url:
+                # Force SSL for Supabase poolers
                 connect_args["ssl"] = "require"
         else:
             # Fallback to individual components

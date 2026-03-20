@@ -11,6 +11,8 @@ import 'package:pody/widgets/mini_player.dart';
 import 'package:pody/theme/app_theme.dart';
 import 'package:pody/core/config/app_environment.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/data/article_service.dart';
+import 'package:pody/data/article_scope.dart';
 import 'package:pody/features/ai/data/ai_remote_data_source.dart';
 import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/ai/presentation/ai_scope.dart';
@@ -52,6 +54,7 @@ void main() {
   final notificationRepository = NotificationRepository(
     NotificationRemoteDataSource(apiClient),
   );
+  final articleApiService = ArticleApiService(apiClient);
 
   runApp(
     PodyApp(
@@ -59,6 +62,7 @@ void main() {
       aiRepository: aiRepository,
       contentRepository: contentRepository,
       notificationRepository: notificationRepository,
+      articleApiService: articleApiService,
     ),
   );
 }
@@ -69,6 +73,7 @@ class PodyApp extends StatelessWidget {
     required this.aiRepository,
     required this.contentRepository,
     required this.notificationRepository,
+    required this.articleApiService,
     super.key,
   }) : navigatorKey = GlobalKey<NavigatorState>();
 
@@ -76,11 +81,14 @@ class PodyApp extends StatelessWidget {
   final AIRepository aiRepository;
   final ContentRepository contentRepository;
   final NotificationRepository notificationRepository;
+  final ArticleApiService articleApiService;
   final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
-    return AIScope(
+    return ArticleScope(
+      service: articleApiService,
+      child: AIScope(
       repository: aiRepository,
       child: ContentScope(
         repository: contentRepository,
@@ -98,6 +106,7 @@ class PodyApp extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
