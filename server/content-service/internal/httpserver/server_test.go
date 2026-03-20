@@ -29,6 +29,38 @@ func TestPublicHomeFeedDoesNotRequireAuth(t *testing.T) {
 	}
 }
 
+func TestOpenAPIYAMLEndpoint(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/content/openapi.yaml", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "openapi: 3.0.3") {
+		t.Fatalf("expected OpenAPI document, got %q", recorder.Body.String())
+	}
+}
+
+func TestSwaggerUIDocsEndpoint(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/content/docs", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "SwaggerUIBundle") {
+		t.Fatalf("expected Swagger UI page, got %q", recorder.Body.String())
+	}
+}
+
 func TestShowDetailIncludesHostsWithoutEpisodes(t *testing.T) {
 	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
 

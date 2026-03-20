@@ -62,6 +62,8 @@ func New(cfg config.Config, logger *slog.Logger, contentStore store.ContentStore
 		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
+		r.Get("/openapi.yaml", s.handleOpenAPI)
+		r.Get("/docs", s.handleSwaggerUI)
 		r.Get("/home", s.handleHomeFeed)
 		r.Get("/shows/{showID}", s.handleShowDetail)
 		r.Get("/shows/{showID}/episodes", s.handleShowEpisodes)

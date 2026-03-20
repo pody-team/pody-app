@@ -163,6 +163,9 @@ func TestOpenAPIYAMLEndpoint(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "openapi: 3.0.3") {
 		t.Fatalf("expected OpenAPI document, got %q", recorder.Body.String())
 	}
+	if !strings.Contains(recorder.Body.String(), "/api/v1/notifications/settings:") {
+		t.Fatalf("expected protected notification endpoints in spec, got %q", recorder.Body.String())
+	}
 }
 
 func TestSwaggerUIDocsEndpoint(t *testing.T) {

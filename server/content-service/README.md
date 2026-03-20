@@ -6,12 +6,19 @@
 
 - `GET /healthz`
 - `GET /api/v1/public/content/healthz`
+- `GET /api/v1/public/content/openapi.yaml`
+- `GET /api/v1/public/content/docs`
 - `GET /api/v1/public/content/home`
 - `GET /api/v1/public/content/shows/{showID}`
 - `GET /api/v1/public/content/shows/{showID}/episodes`
 - `GET /api/v1/public/content/episodes/{episodeID}`
 - `POST /api/v1/content/shows`
 - `GET /api/v1/content/me/shows`
+
+## API Docs
+
+- OpenAPI spec: `http://localhost:8080/api/v1/public/content/openapi.yaml`
+- Swagger UI: `http://localhost:8080/api/v1/public/content/docs`
 
 ## Notes
 

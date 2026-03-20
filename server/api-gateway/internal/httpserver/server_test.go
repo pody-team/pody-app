@@ -79,7 +79,7 @@ func TestGatewayDocsLandingPage(t *testing.T) {
 	}
 
 	body := recorder.Body.String()
-	if !strings.Contains(body, "/api/v1/public/identity/docs") || !strings.Contains(body, "/api/v1/public/notifications/docs") {
+	if !strings.Contains(body, "/api/v1/public/identity/docs") || !strings.Contains(body, "/api/v1/public/ai/docs") || !strings.Contains(body, "/api/v1/public/content/docs") || !strings.Contains(body, "/api/v1/public/notifications/docs") {
 		t.Fatalf("expected docs landing page to link service docs, got %q", body)
 	}
 }

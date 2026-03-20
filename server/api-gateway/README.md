@@ -68,6 +68,8 @@ curl http://localhost:8080/api/v1/_meta/routes
 curl http://localhost:8080/api/v1/public/identity/healthz
 curl http://localhost:8080/api/v1/public/article?limit=10
 curl http://localhost:8080/api/v1/public/identity/openapi.yaml
+curl http://localhost:8080/api/v1/public/ai/openapi.yaml
+curl http://localhost:8080/api/v1/public/content/openapi.yaml
 curl http://localhost:8080/api/v1/public/notifications/openapi.yaml
 curl -X POST http://localhost:8080/api/v1/public/identity/sign-in
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/api/v1/social/comments
