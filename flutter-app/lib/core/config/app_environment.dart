@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 class AppEnvironment {
   AppEnvironment._();
 
-  static const _defaultApiBaseUrl = 'http://laihieu2714.ddns.net:8080';
+  // static const _defaultApiBaseUrl = 'http://laihieu2714.ddns.net:8080';
+  static const _defaultApiBaseUrl = 'http://192.168.100.206:8080';
   static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const _configuredGoogleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
