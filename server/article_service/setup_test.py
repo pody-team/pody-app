@@ -73,7 +73,8 @@ async def test_setup():
                 'article_categories', 
                 'article_stats', 
                 'article_interactions', 
-                'article_metrics'
+                'article_metrics',
+                'article_comments',
             ]
             for table in extensions:
                 if await table_exists(table):

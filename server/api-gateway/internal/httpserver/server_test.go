@@ -112,6 +112,34 @@ func TestPublicContentHomeBypassesAuth(t *testing.T) {
 	}
 }
 
+func TestPublicArticleListBypassesAuth(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/article" {
+			t.Fatalf("expected upstream article path, got %s", r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	server := New(config.Config{
+		Port:           "8080",
+		AllowedOrigins: []string{"*"},
+		JWTSecret:      "secret",
+		Routes: []config.ServiceRoute{
+			{Name: "article-public", Prefix: "/api/v1/public/article", TargetURL: upstream.URL + "/api/v1/article"},
+		},
+	}, newDiscardLogger())
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/public/article?limit=5", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected public article route to bypass auth, got %d", recorder.Code)
+	}
+}
+
 func TestResetPasswordBridgePage(t *testing.T) {
 	server := New(config.Config{
 		Port:           "8080",

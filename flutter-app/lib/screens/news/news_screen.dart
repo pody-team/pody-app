@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pody/data/article_scope.dart';
 import 'package:pody/data/mock_data.dart';
+import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
@@ -25,6 +26,7 @@ class _NewsScreenState extends State<NewsScreen> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   int _offset = 0;
+  String? _errorMessage;
   List<NewsArticle> _articles = [];
 
   @override
@@ -47,6 +49,7 @@ class _NewsScreenState extends State<NewsScreen> {
         _isLoadingMore = false;
         _hasMore = true;
         _offset = 0;
+        _errorMessage = null;
       });
     } else {
       if (_isLoading || _isLoadingMore || !_hasMore) {
@@ -65,12 +68,41 @@ class _NewsScreenState extends State<NewsScreen> {
       categoryFilter = categoryFilter.split(' ').last;
     }
 
-    final results = await apiService.fetchArticles(
-      category: categoryFilter,
-      query: _searchQuery.isEmpty ? null : _searchQuery,
-      limit: _pageSize,
-      offset: reset ? 0 : _offset,
-    );
+    List<NewsArticle> results;
+    try {
+      results = await apiService.fetchArticles(
+        category: categoryFilter,
+        query: _searchQuery.isEmpty ? null : _searchQuery,
+        limit: _pageSize,
+        offset: reset ? 0 : _offset,
+      );
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = error.message;
+        _isLoading = false;
+        _isLoadingMore = false;
+        if (reset) {
+          _articles = const <NewsArticle>[];
+        }
+      });
+      return;
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _errorMessage = 'Khong tai duoc danh sach bai bao.';
+        _isLoading = false;
+        _isLoadingMore = false;
+        if (reset) {
+          _articles = const <NewsArticle>[];
+        }
+      });
+      return;
+    }
 
     if (!mounted) {
       return;
@@ -80,6 +112,7 @@ class _NewsScreenState extends State<NewsScreen> {
       if (reset) {
         _articles = results;
         _isLoading = false;
+        _errorMessage = null;
       } else {
         _articles = [..._articles, ...results];
         _isLoadingMore = false;
@@ -160,6 +193,52 @@ class _NewsScreenState extends State<NewsScreen> {
                 const SliverFillRemaining(
                   child: Center(
                     child: CircularProgressIndicator(color: kTikRed),
+                  ),
+                )
+              else if (_errorMessage != null)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off_outlined,
+                            size: 64,
+                            color: Colors.white24,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Khong tai duoc bai bao',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: () => _fetchArticles(reset: true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: kTikRed,
+                            ),
+                            child: const Text('Thu lai'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               else if (_articles.isEmpty)
@@ -410,11 +489,25 @@ class _NewsScreenState extends State<NewsScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.network(article.imageUrl, fit: BoxFit.cover),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    article.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.white10,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white30,
+                          size: 40,
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
             const SizedBox(height: 12),
             Text(
               article.title,
@@ -484,11 +577,24 @@ class _NewsScreenState extends State<NewsScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                article.imageUrl,
+              child: SizedBox(
                 width: 76,
                 height: 76,
-                fit: BoxFit.cover,
+                child: Image.network(
+                  article.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.white10,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: Colors.white30,
+                        size: 24,
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(width: 12),
