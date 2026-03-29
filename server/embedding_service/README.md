@@ -9,9 +9,10 @@ Detailed maintainer guide:
 ## Current scope
 
 - Consumes article CDC events from Kafka topic `article.embedding.requested`
-- Consumes category events from Kafka topic `category.embedding.requested`
-- Ensures both Kafka topics exist on startup
+- Bootstraps category embeddings tu bang `categories` trong article DB khi startup
 - Stores article and category embeddings in a dedicated PostgreSQL database with `pgvector`
+- Builds one document-level vector per article from its chunk embeddings
+- Maps each article to multiple semantic categories and persists ranked matches
 - Splits article text into chunks
 - Reuses the same Gemini embedding provider for article and category documents
 - Persists documents, chunks, embeddings, and processing jobs
@@ -56,7 +57,8 @@ EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS=60
 ARTICLE_CHUNK_TARGET_CHARS=1400
 ARTICLE_CHUNK_OVERLAP_CHARS=180
 ARTICLE_CHUNK_MIN_CHARS=250
-KAFKA_CATEGORY_TOPIC=category.embedding.requested
+CATEGORY_BOOTSTRAP_ENABLED=true
+CATEGORY_SOURCE_DATABASE_URL=postgresql://postgres:postgres@article-postgres:5432/pody_article
 ```
 
 ## Run with Docker Compose
@@ -82,6 +84,8 @@ docker logs -f pody-embedding-service
 - `article_embedding_documents`
 - `article_embedding_chunks`
 - `article_chunk_embeddings`
+- `article_document_embeddings`
 - `category_embedding_documents`
 - `category_embeddings`
+- `article_category_matches`
 - `embedding_jobs`

@@ -13,6 +13,13 @@ def _string_env(key: str, default: str) -> str:
     return value or default
 
 
+def _bool_env(key: str, default: bool) -> bool:
+    value = os.getenv(key, "").strip().lower()
+    if not value:
+        return default
+    return value in {"1", "true", "yes", "on"}
+
+
 def _optional_string_env(*keys: str) -> str | None:
     for key in keys:
         value = os.getenv(key, "").strip()
@@ -41,6 +48,16 @@ def _float_env(key: str, default: float) -> float:
     return parsed
 
 
+def _ratio_env(key: str, default: float) -> float:
+    value = os.getenv(key, "").strip()
+    if not value:
+        return default
+    parsed = float(value)
+    if parsed < 0 or parsed > 1:
+        raise ValueError(f"{key} must be between 0 and 1")
+    return parsed
+
+
 def _csv_env(key: str, default: list[str]) -> list[str]:
     value = os.getenv(key, "").strip()
     if not value:
@@ -62,7 +79,7 @@ class DatabaseSettings:
 class KafkaSettings:
     brokers: list[str]
     topic: str
-    category_topic: str
+    article_category_sync_topic: str
     client_id: str
     consumer_group: str
     auto_offset_reset: str
@@ -72,6 +89,8 @@ class KafkaSettings:
     session_timeout_ms: int
     startup_timeout_seconds: int
     retry_delay_seconds: float
+    outbox_poll_interval_seconds: float
+    outbox_batch_size: int
 
 
 @dataclass(frozen=True)
@@ -104,13 +123,27 @@ class ArticleChunkSettings:
 
 
 @dataclass(frozen=True)
+class ArticleCategoryMappingSettings:
+    max_matches: int
+    min_score: float
+
+
+@dataclass(frozen=True)
+class CategoryBootstrapSettings:
+    enabled: bool
+    source_database: DatabaseSettings | None
+
+
+@dataclass(frozen=True)
 class AppSettings:
     port: int
     log_level: str
     database: DatabaseSettings
+    category_bootstrap: CategoryBootstrapSettings
     kafka: KafkaSettings
     gemini: GeminiSettings
     article_chunking: ArticleChunkSettings
+    article_category_mapping: ArticleCategoryMappingSettings
 
 
 def load_settings() -> AppSettings:
@@ -136,6 +169,25 @@ def load_settings() -> AppSettings:
             api_keys.append(api_key)
             seen.add(api_key)
 
+    category_bootstrap_enabled = _bool_env("CATEGORY_BOOTSTRAP_ENABLED", True)
+    category_source_database_url = _optional_string_env(
+        "CATEGORY_SOURCE_DATABASE_URL",
+        "ARTICLE_DATABASE_URL",
+    )
+    category_source_database = None
+    if category_bootstrap_enabled:
+        if not category_source_database_url:
+            raise ValueError(
+                "CATEGORY_SOURCE_DATABASE_URL or ARTICLE_DATABASE_URL is required when CATEGORY_BOOTSTRAP_ENABLED is enabled"
+            )
+        category_source_database = DatabaseSettings(
+            url=category_source_database_url,
+            pool_min_size=_int_env("CATEGORY_SOURCE_DATABASE_POOL_MIN_SIZE", 1),
+            pool_max_size=_int_env("CATEGORY_SOURCE_DATABASE_POOL_MAX_SIZE", 3),
+            startup_timeout_seconds=_int_env("CATEGORY_SOURCE_DATABASE_STARTUP_TIMEOUT_SECONDS", 120),
+            retry_delay_seconds=_float_env("CATEGORY_SOURCE_DATABASE_RETRY_DELAY_SECONDS", 2.0),
+        )
+
     settings = AppSettings(
         port=_int_env("PORT", 8088),
         log_level=_string_env("LOG_LEVEL", "INFO"),
@@ -146,10 +198,17 @@ def load_settings() -> AppSettings:
             startup_timeout_seconds=_int_env("DATABASE_STARTUP_TIMEOUT_SECONDS", 120),
             retry_delay_seconds=_float_env("DATABASE_RETRY_DELAY_SECONDS", 2.0),
         ),
+        category_bootstrap=CategoryBootstrapSettings(
+            enabled=category_bootstrap_enabled,
+            source_database=category_source_database,
+        ),
         kafka=KafkaSettings(
             brokers=_csv_env("KAFKA_BROKERS", ["localhost:9092"]),
             topic=_string_env("KAFKA_TOPIC", "article.embedding.requested"),
-            category_topic=_string_env("KAFKA_CATEGORY_TOPIC", "category.embedding.requested"),
+            article_category_sync_topic=_string_env(
+                "ARTICLE_CATEGORY_SYNC_TOPIC",
+                "article.category.matches.generated",
+            ),
             client_id=_string_env("KAFKA_CLIENT_ID", "embedding-service"),
             consumer_group=_string_env("KAFKA_CONSUMER_GROUP", "embedding-service"),
             auto_offset_reset=auto_offset_reset,
@@ -159,6 +218,8 @@ def load_settings() -> AppSettings:
             session_timeout_ms=_int_env("KAFKA_SESSION_TIMEOUT_MS", 10000),
             startup_timeout_seconds=_int_env("KAFKA_STARTUP_TIMEOUT_SECONDS", 120),
             retry_delay_seconds=_float_env("KAFKA_RETRY_DELAY_SECONDS", 2.0),
+            outbox_poll_interval_seconds=_float_env("OUTBOX_POLL_INTERVAL_SECONDS", 1.0),
+            outbox_batch_size=_int_env("OUTBOX_BATCH_SIZE", 20),
         ),
         gemini=GeminiSettings(
             api_keys=api_keys,
@@ -175,14 +236,16 @@ def load_settings() -> AppSettings:
             min_chunk_chars=_int_env("ARTICLE_CHUNK_MIN_CHARS", 250),
             default_language_code=_string_env("ARTICLE_DEFAULT_LANGUAGE_CODE", "vi"),
         ),
+        article_category_mapping=ArticleCategoryMappingSettings(
+            max_matches=_int_env("ARTICLE_CATEGORY_MATCH_MAX_MATCHES", 3),
+            min_score=_ratio_env("ARTICLE_CATEGORY_MATCH_MIN_SCORE", 0.2),
+        ),
     )
 
     if not settings.kafka.brokers:
         raise ValueError("KAFKA_BROKERS is required")
     if not settings.kafka.topic.strip():
         raise ValueError("KAFKA_TOPIC is required")
-    if not settings.kafka.category_topic.strip():
-        raise ValueError("KAFKA_CATEGORY_TOPIC is required")
     if settings.kafka.request_timeout_ms <= settings.kafka.session_timeout_ms:
         raise ValueError(
             "KAFKA_REQUEST_TIMEOUT_MS must be greater than KAFKA_SESSION_TIMEOUT_MS"

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-__all__ = ["EmbeddingRepository"]
+__all__ = ["CategoryCatalogRepository", "EmbeddingRepository"]
 
 
 def __getattr__(name: str):
+    if name == "CategoryCatalogRepository":
+        from .category_catalog_repository import CategoryCatalogRepository
+
+        return CategoryCatalogRepository
     if name == "EmbeddingRepository":
         from .embedding_repository import EmbeddingRepository
 

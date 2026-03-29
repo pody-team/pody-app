@@ -18,6 +18,7 @@ from app.model.response import (
 )
 from app.util.chunking import build_article_chunks
 from app.util.hashing import sha256_text
+from app.util.vector_math import build_weighted_document_embedding
 
 if TYPE_CHECKING:
     from app.model.repository import EmbeddingRepository
@@ -78,6 +79,11 @@ class ArticleEmbeddingService:
                     default_language_code=self._settings.article_chunking.default_language_code,
                     sync_status="skipped",
                 )
+            self._repository.delete_article_category_matches_and_enqueue_sync_event(
+                article_id=event.article_id,
+                model_name=self._settings.gemini.embedding_model,
+                embedding_version=self._settings.gemini.embedding_version,
+            )
             self._logger.info(
                 "Skipping article %s because status %s is not embeddable",
                 event.article_id,
@@ -135,15 +141,19 @@ class ArticleEmbeddingService:
                 task_type="RETRIEVAL_DOCUMENT",
             )
             self._validate_embeddings(embeddings)
+            document_embedding = build_weighted_document_embedding(chunks, embeddings)
             self._repository.replace_article_embedding(
                 event=event,
                 content_hash=content_hash,
                 chunking_signature=chunking_signature,
                 chunks=chunks,
                 embeddings=embeddings,
+                document_embedding=document_embedding,
                 model_name=self._settings.gemini.embedding_model,
                 embedding_version=self._settings.gemini.embedding_version,
                 output_dimensions=self._settings.gemini.output_dimensions,
+                max_matches=self._settings.article_category_mapping.max_matches,
+                min_score=self._settings.article_category_mapping.min_score,
                 default_language_code=self._settings.article_chunking.default_language_code,
                 job_id=job_id,
             )

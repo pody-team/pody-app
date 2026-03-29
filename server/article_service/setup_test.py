@@ -72,7 +72,6 @@ async def test_setup():
             extensions = [
                 'categories',
                 'category_articles',
-                'outbox_events',
                 'article_stats', 
                 'article_interactions', 
                 'article_metrics',

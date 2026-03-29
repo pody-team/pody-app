@@ -5,9 +5,20 @@ from contextlib import contextmanager
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from app.model.entity import ArticleEmbeddingDocument, CategoryEmbeddingDocument, EmbeddingJob
-from app.model.request import ArticleEvent, CategoryEvent, KafkaMessageContext
+from app.model.entity import (
+    ArticleCategoryMatch,
+    ArticleEmbeddingDocument,
+    CategoryCatalogItem,
+    CategoryEmbeddingDocument,
+    EmbeddingJob,
+    OutboxEvent,
+)
+from app.model.request import ArticleEvent, KafkaMessageContext
 from app.model.value_object import PreparedArticleChunk
+from app.util.article_category_sync_event import (
+    EVENT_TYPE as ARTICLE_CATEGORY_SYNC_EVENT_TYPE,
+    build_article_category_sync_payload,
+)
 
 
 class EmbeddingRepository:
@@ -54,6 +65,73 @@ class EmbeddingRepository:
         if row is None:
             return None
         return CategoryEmbeddingDocument.from_row(row)
+
+    def count_ready_category_documents(self) -> int:
+        with self._connection() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS ready_count
+                FROM category_embedding_documents
+                WHERE sync_status = 'ready'
+                  AND is_active = TRUE
+                """
+            ).fetchone()
+        return int(row["ready_count"] or 0)
+
+    def list_publishable_outbox_events(self, *, limit: int) -> list[OutboxEvent]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM outbox_events
+                WHERE status IN ('pending', 'failed')
+                  AND available_at <= now()
+                ORDER BY created_at ASC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [OutboxEvent.from_row(row) for row in rows]
+
+    def mark_outbox_event_published(self, *, event_id: str) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE outbox_events
+                SET status = 'published',
+                    last_error = NULL,
+                    published_at = now()
+                WHERE id = %s::uuid
+                """,
+                (event_id,),
+            )
+
+    def mark_outbox_event_failed(self, *, event_id: str, next_retry_at, error_message: str) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE outbox_events
+                SET status = 'failed',
+                    attempts = attempts + 1,
+                    last_error = %s,
+                    available_at = %s
+                WHERE id = %s::uuid
+                """,
+                (error_message, next_retry_at, event_id),
+            )
+
+    def list_ready_public_article_ids(self) -> list[int]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT article_id
+                FROM article_embedding_documents
+                WHERE sync_status = 'ready'
+                  AND article_status = 'PUBLISHED'
+                ORDER BY article_id ASC
+                """
+            ).fetchall()
+        return [int(row["article_id"]) for row in rows]
 
     def sync_article_metadata(
         self,
@@ -308,29 +386,6 @@ class EmbeddingRepository:
                 (article_id,),
             )
 
-    def mark_category_job_processing(self, *, job_id: int, category_id: str) -> None:
-        with self._connection() as conn, conn.transaction():
-            conn.execute(
-                """
-                UPDATE embedding_jobs
-                SET status = 'processing',
-                    attempts = attempts + 1,
-                    started_at = now(),
-                    error_message = NULL
-                WHERE id = %s
-                """,
-                (job_id,),
-            )
-            conn.execute(
-                """
-                UPDATE category_embedding_documents
-                SET sync_status = 'processing',
-                    last_error = NULL
-                WHERE category_id = %s::uuid
-                """,
-                (category_id,),
-            )
-
     def replace_article_embedding(
         self,
         *,
@@ -339,9 +394,12 @@ class EmbeddingRepository:
         chunking_signature: str,
         chunks: list[PreparedArticleChunk],
         embeddings: list[list[float]],
+        document_embedding: list[float],
         model_name: str,
         embedding_version: str,
         output_dimensions: int,
+        max_matches: int,
+        min_score: float,
         default_language_code: str,
         job_id: int,
     ) -> None:
@@ -391,6 +449,10 @@ class EmbeddingRepository:
 
             conn.execute(
                 "DELETE FROM article_chunk_embeddings WHERE document_id = %s",
+                (document_id,),
+            )
+            conn.execute(
+                "DELETE FROM article_document_embeddings WHERE document_id = %s",
                 (document_id,),
             )
             conn.execute(
@@ -452,6 +514,28 @@ class EmbeddingRepository:
 
             conn.execute(
                 """
+                INSERT INTO article_document_embeddings (
+                    document_id,
+                    article_id,
+                    model_name,
+                    embedding_version,
+                    dimensions,
+                    embedding
+                )
+                VALUES (%s, %s, %s, %s, %s, %s::vector)
+                """,
+                (
+                    document_id,
+                    event.article_id,
+                    model_name,
+                    embedding_version,
+                    output_dimensions,
+                    _to_pgvector_literal(document_embedding),
+                ),
+            )
+
+            conn.execute(
+                """
                 UPDATE article_embedding_documents
                 SET chunk_count = %s,
                     sync_status = 'ready',
@@ -480,6 +564,21 @@ class EmbeddingRepository:
                 """,
                 (job_id,),
             )
+            self._refresh_article_category_matches_for_article(
+                conn=conn,
+                article_id=event.article_id,
+                model_name=model_name,
+                embedding_version=embedding_version,
+                output_dimensions=output_dimensions,
+                max_matches=max_matches,
+                min_score=min_score,
+            )
+            self._enqueue_article_category_sync_event(
+                conn=conn,
+                article_id=event.article_id,
+                model_name=model_name,
+                embedding_version=embedding_version,
+            )
 
     def mark_job_failed(self, *, job_id: int, article_id: int, error_message: str) -> None:
         with self._connection() as conn, conn.transaction():
@@ -503,10 +602,42 @@ class EmbeddingRepository:
                 (error_message, article_id),
             )
 
+    def delete_article_category_matches(self, *, article_id: int) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                DELETE FROM article_category_matches
+                WHERE article_id = %s
+                """,
+                (article_id,),
+            )
+
+    def delete_article_category_matches_and_enqueue_sync_event(
+        self,
+        *,
+        article_id: int,
+        model_name: str,
+        embedding_version: str,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                DELETE FROM article_category_matches
+                WHERE article_id = %s
+                """,
+                (article_id,),
+            )
+            self._enqueue_article_category_sync_event(
+                conn=conn,
+                article_id=article_id,
+                model_name=model_name,
+                embedding_version=embedding_version,
+            )
+
     def sync_category_metadata(
         self,
         *,
-        event: CategoryEvent,
+        category: CategoryCatalogItem,
         content_hash: str,
         semantic_text: str,
     ) -> None:
@@ -524,20 +655,20 @@ class EmbeddingRepository:
                 WHERE category_id = %s::uuid
                 """,
                 (
-                    event.slug,
-                    event.name,
-                    event.description,
-                    event.is_active,
+                    category.slug,
+                    category.name,
+                    category.description,
+                    category.is_active,
                     semantic_text,
                     content_hash,
-                    event.category_id,
+                    category.category_id,
                 ),
             )
 
     def upsert_category_document_without_embedding(
         self,
         *,
-        event: CategoryEvent,
+        category: CategoryCatalogItem,
         content_hash: str,
         semantic_text: str,
         sync_status: str,
@@ -568,27 +699,28 @@ class EmbeddingRepository:
                     last_error = NULL
                 """,
                 (
-                    event.category_id,
-                    event.slug,
-                    event.name,
-                    event.description,
-                    event.is_active,
+                    category.category_id,
+                    category.slug,
+                    category.name,
+                    category.description,
+                    category.is_active,
                     semantic_text,
                     content_hash,
                     sync_status,
                 ),
             )
 
-    def enqueue_category_job(
+    def replace_category_embedding(
         self,
         *,
-        event: CategoryEvent,
+        category: CategoryCatalogItem,
         content_hash: str,
         semantic_text: str,
+        embedding: list[float],
         model_name: str,
         embedding_version: str,
-        message: KafkaMessageContext,
-    ) -> EmbeddingJob:
+        output_dimensions: int,
+    ) -> None:
         with self._connection() as conn, conn.transaction():
             document_row = conn.execute(
                 """
@@ -603,7 +735,7 @@ class EmbeddingRepository:
                     sync_status,
                     last_error
                 )
-                VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, 'pending', NULL)
+                VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, 'processing', NULL)
                 ON CONFLICT (category_id) DO UPDATE SET
                     slug = EXCLUDED.slug,
                     name = EXCLUDED.name,
@@ -611,117 +743,23 @@ class EmbeddingRepository:
                     is_active = EXCLUDED.is_active,
                     semantic_text = EXCLUDED.semantic_text,
                     content_hash = EXCLUDED.content_hash,
-                    sync_status = 'pending',
+                    sync_status = 'processing',
                     last_error = NULL
                 RETURNING id
                 """,
                 (
-                    event.category_id,
-                    event.slug,
-                    event.name,
-                    event.description,
-                    event.is_active,
+                    category.category_id,
+                    category.slug,
+                    category.name,
+                    category.description,
+                    category.is_active,
                     semantic_text,
                     content_hash,
-                ),
-            ).fetchone()
-            document_id = int(document_row["id"])
-            row = conn.execute(
-                """
-                INSERT INTO embedding_jobs (
-                    target_type,
-                    target_id,
-                    job_type,
-                    source_topic,
-                    source_partition,
-                    source_offset,
-                    source_key,
-                    content_hash,
-                    model_name,
-                    embedding_version,
-                    payload,
-                    status
-                )
-                VALUES (
-                    'category',
-                    %s,
-                    'embed_category',
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    'pending'
-                )
-                ON CONFLICT (target_type, target_id, job_type, content_hash, model_name, embedding_version)
-                DO UPDATE SET
-                    source_topic = EXCLUDED.source_topic,
-                    source_partition = EXCLUDED.source_partition,
-                    source_offset = EXCLUDED.source_offset,
-                    source_key = EXCLUDED.source_key,
-                    payload = EXCLUDED.payload,
-                    status = 'pending',
-                    error_message = NULL,
-                    scheduled_at = now(),
-                    started_at = NULL,
-                    finished_at = NULL
-                RETURNING *
-                """,
-                (
-                    document_id,
-                    message.topic,
-                    message.partition,
-                    message.offset,
-                    message.key,
-                    content_hash,
-                    model_name,
-                    embedding_version,
-                    Jsonb(event.raw_payload),
-                ),
-            ).fetchone()
-            return EmbeddingJob.from_row(row)
-
-    def replace_category_embedding(
-        self,
-        *,
-        event: CategoryEvent,
-        content_hash: str,
-        semantic_text: str,
-        embedding: list[float],
-        model_name: str,
-        embedding_version: str,
-        output_dimensions: int,
-        job_id: int,
-    ) -> None:
-        with self._connection() as conn, conn.transaction():
-            document_row = conn.execute(
-                """
-                UPDATE category_embedding_documents
-                SET slug = %s,
-                    name = %s,
-                    description = %s,
-                    is_active = %s,
-                    semantic_text = %s,
-                    content_hash = %s
-                WHERE category_id = %s::uuid
-                RETURNING id
-                """,
-                (
-                    event.slug,
-                    event.name,
-                    event.description,
-                    event.is_active,
-                    semantic_text,
-                    content_hash,
-                    event.category_id,
                 ),
             ).fetchone()
             if document_row is None:
                 raise RuntimeError(
-                    f"Document for category {event.category_id} was not prepared before embedding"
+                    f"Document for category {category.category_id} was not prepared before embedding"
                 )
             document_id = int(document_row["id"])
 
@@ -743,7 +781,7 @@ class EmbeddingRepository:
                 """,
                 (
                     document_id,
-                    event.category_id,
+                    category.category_id,
                     model_name,
                     embedding_version,
                     output_dimensions,
@@ -768,38 +806,147 @@ class EmbeddingRepository:
                     document_id,
                 ),
             )
-            conn.execute(
-                """
-                UPDATE embedding_jobs
-                SET status = 'completed',
-                    error_message = NULL,
-                    finished_at = now()
-                WHERE id = %s
-                """,
-                (job_id,),
+    def refresh_article_category_matches_for_article(
+        self,
+        *,
+        article_id: int,
+        model_name: str,
+        embedding_version: str,
+        output_dimensions: int,
+        max_matches: int,
+        min_score: float,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            self._refresh_article_category_matches_for_article(
+                conn=conn,
+                article_id=article_id,
+                model_name=model_name,
+                embedding_version=embedding_version,
+                output_dimensions=output_dimensions,
+                max_matches=max_matches,
+                min_score=min_score,
+            )
+            self._enqueue_article_category_sync_event(
+                conn=conn,
+                article_id=article_id,
+                model_name=model_name,
+                embedding_version=embedding_version,
             )
 
-    def mark_category_job_failed(self, *, job_id: int, category_id: str, error_message: str) -> None:
+    def refresh_article_category_matches_for_all_articles(
+        self,
+        *,
+        model_name: str,
+        embedding_version: str,
+        output_dimensions: int,
+        max_matches: int,
+        min_score: float,
+    ) -> None:
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
-                UPDATE embedding_jobs
-                SET status = 'failed',
-                    error_message = %s,
-                    finished_at = now()
-                WHERE id = %s
+                DELETE FROM article_category_matches
+                WHERE model_name = %s
+                  AND embedding_version = %s
                 """,
-                (error_message, job_id),
+                (model_name, embedding_version),
             )
             conn.execute(
                 """
-                UPDATE category_embedding_documents
-                SET sync_status = 'failed',
-                    last_error = %s
-                WHERE category_id = %s::uuid
+                INSERT INTO article_category_matches (
+                    article_id,
+                    category_id,
+                    score,
+                    rank,
+                    source,
+                    model_name,
+                    embedding_version
+                )
+                WITH ranked_matches AS (
+                    SELECT
+                        article_embedding.article_id,
+                        category_embedding.category_id,
+                        1 - (article_embedding.embedding <=> category_embedding.embedding) AS score,
+                        row_number() OVER (
+                            PARTITION BY article_embedding.article_id
+                            ORDER BY article_embedding.embedding <=> category_embedding.embedding ASC,
+                                     category_embedding.category_id ASC
+                        ) AS rank
+                    FROM article_document_embeddings AS article_embedding
+                    INNER JOIN article_embedding_documents AS article_document
+                        ON article_document.id = article_embedding.document_id
+                    INNER JOIN category_embeddings AS category_embedding
+                        ON category_embedding.model_name = article_embedding.model_name
+                       AND category_embedding.embedding_version = article_embedding.embedding_version
+                       AND category_embedding.dimensions = article_embedding.dimensions
+                    INNER JOIN category_embedding_documents AS category_document
+                        ON category_document.id = category_embedding.document_id
+                    WHERE article_document.sync_status = 'ready'
+                      AND article_document.article_status = 'PUBLISHED'
+                      AND article_embedding.model_name = %s
+                      AND article_embedding.embedding_version = %s
+                      AND article_embedding.dimensions = %s
+                      AND category_document.sync_status = 'ready'
+                      AND category_document.is_active = TRUE
+                )
+                SELECT
+                    article_id,
+                    category_id,
+                    score,
+                    rank,
+                    'semantic',
+                    %s,
+                    %s
+                FROM ranked_matches
+                WHERE rank <= %s
+                  AND score >= %s
                 """,
-                (error_message, category_id),
+                (
+                    model_name,
+                    embedding_version,
+                    output_dimensions,
+                    model_name,
+                    embedding_version,
+                    max_matches,
+                    min_score,
+                ),
             )
+
+    def enqueue_article_category_sync_event(
+        self,
+        *,
+        article_id: int,
+        model_name: str,
+        embedding_version: str,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            self._enqueue_article_category_sync_event(
+                conn=conn,
+                article_id=article_id,
+                model_name=model_name,
+                embedding_version=embedding_version,
+            )
+
+    def list_article_category_matches(
+        self,
+        *,
+        article_id: int,
+        model_name: str,
+        embedding_version: str,
+    ) -> list[ArticleCategoryMatch]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM article_category_matches
+                WHERE article_id = %s
+                  AND model_name = %s
+                  AND embedding_version = %s
+                ORDER BY rank ASC, category_id ASC
+                """,
+                (article_id, model_name, embedding_version),
+            ).fetchall()
+        return [ArticleCategoryMatch.from_row(row) for row in rows]
 
     def search_article_chunks(
         self,
@@ -845,6 +992,148 @@ class EmbeddingRepository:
                 ),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def _enqueue_article_category_sync_event(
+        self,
+        *,
+        conn,
+        article_id: int,
+        model_name: str,
+        embedding_version: str,
+    ) -> None:
+        document_row = conn.execute(
+            """
+            SELECT article_status, content_hash
+            FROM article_embedding_documents
+            WHERE article_id = %s
+            """,
+            (article_id,),
+        ).fetchone()
+        if document_row is None:
+            return
+
+        match_rows = conn.execute(
+            """
+            SELECT *
+            FROM article_category_matches
+            WHERE article_id = %s
+              AND model_name = %s
+              AND embedding_version = %s
+            ORDER BY rank ASC, category_id ASC
+            """,
+            (article_id, model_name, embedding_version),
+        ).fetchall()
+        matches = [ArticleCategoryMatch.from_row(row) for row in match_rows]
+        payload = build_article_category_sync_payload(
+            article_id=article_id,
+            article_status=str(document_row["article_status"] or "PUBLISHED"),
+            content_hash=str(document_row["content_hash"] or ""),
+            model_name=model_name,
+            embedding_version=embedding_version,
+            matches=matches,
+        )
+        conn.execute(
+            """
+            INSERT INTO outbox_events (
+                aggregate_type,
+                aggregate_id,
+                event_type,
+                payload_version,
+                payload,
+                status
+            )
+            VALUES (%s, %s, %s, 1, %s, 'pending')
+            """,
+            (
+                "article",
+                str(article_id),
+                ARTICLE_CATEGORY_SYNC_EVENT_TYPE,
+                Jsonb(payload),
+            ),
+        )
+
+    def _refresh_article_category_matches_for_article(
+        self,
+        *,
+        conn,
+        article_id: int,
+        model_name: str,
+        embedding_version: str,
+        output_dimensions: int,
+        max_matches: int,
+        min_score: float,
+    ) -> None:
+        conn.execute(
+            """
+            DELETE FROM article_category_matches
+            WHERE article_id = %s
+              AND model_name = %s
+              AND embedding_version = %s
+            """,
+            (article_id, model_name, embedding_version),
+        )
+        conn.execute(
+            """
+            INSERT INTO article_category_matches (
+                article_id,
+                category_id,
+                score,
+                rank,
+                source,
+                model_name,
+                embedding_version
+            )
+            WITH ranked_matches AS (
+                SELECT
+                    article_embedding.article_id,
+                    category_embedding.category_id,
+                    1 - (article_embedding.embedding <=> category_embedding.embedding) AS score,
+                    row_number() OVER (
+                        PARTITION BY article_embedding.article_id
+                        ORDER BY article_embedding.embedding <=> category_embedding.embedding ASC,
+                                 category_embedding.category_id ASC
+                    ) AS rank
+                FROM article_document_embeddings AS article_embedding
+                INNER JOIN article_embedding_documents AS article_document
+                    ON article_document.id = article_embedding.document_id
+                INNER JOIN category_embeddings AS category_embedding
+                    ON category_embedding.model_name = article_embedding.model_name
+                   AND category_embedding.embedding_version = article_embedding.embedding_version
+                   AND category_embedding.dimensions = article_embedding.dimensions
+                INNER JOIN category_embedding_documents AS category_document
+                    ON category_document.id = category_embedding.document_id
+                WHERE article_embedding.article_id = %s
+                  AND article_document.sync_status = 'ready'
+                  AND article_document.article_status = 'PUBLISHED'
+                  AND article_embedding.model_name = %s
+                  AND article_embedding.embedding_version = %s
+                  AND article_embedding.dimensions = %s
+                  AND category_document.sync_status = 'ready'
+                  AND category_document.is_active = TRUE
+            )
+            SELECT
+                article_id,
+                category_id,
+                score,
+                rank,
+                'semantic',
+                %s,
+                %s
+            FROM ranked_matches
+            WHERE rank <= %s
+              AND score >= %s
+            """,
+            (
+                article_id,
+                model_name,
+                embedding_version,
+                output_dimensions,
+                model_name,
+                embedding_version,
+                max_matches,
+                min_score,
+            ),
+        )
 
 
 def _to_pgvector_literal(values: list[float]) -> str:

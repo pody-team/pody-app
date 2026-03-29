@@ -1,5 +1,6 @@
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS vector;
 
 CREATE OR REPLACE FUNCTION set_embedding_updated_at()
@@ -86,6 +87,27 @@ CREATE INDEX IF NOT EXISTS ix_article_chunk_embeddings_model
 CREATE INDEX IF NOT EXISTS ix_article_chunk_embeddings_embedding_cosine_hnsw
     ON article_chunk_embeddings USING hnsw (embedding vector_cosine_ops);
 
+CREATE TABLE IF NOT EXISTS article_document_embeddings (
+    id BIGSERIAL PRIMARY KEY,
+    document_id BIGINT NOT NULL REFERENCES article_embedding_documents(id) ON DELETE CASCADE,
+    article_id BIGINT NOT NULL,
+    model_name VARCHAR(120) NOT NULL,
+    embedding_version VARCHAR(40) NOT NULL,
+    dimensions INTEGER NOT NULL,
+    embedding VECTOR(1536) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (document_id, model_name, embedding_version)
+);
+
+CREATE INDEX IF NOT EXISTS ix_article_document_embeddings_article_id
+    ON article_document_embeddings (article_id);
+CREATE INDEX IF NOT EXISTS ix_article_document_embeddings_document_id
+    ON article_document_embeddings (document_id);
+CREATE INDEX IF NOT EXISTS ix_article_document_embeddings_model
+    ON article_document_embeddings (model_name, embedding_version);
+CREATE INDEX IF NOT EXISTS ix_article_document_embeddings_embedding_cosine_hnsw
+    ON article_document_embeddings USING hnsw (embedding vector_cosine_ops);
+
 CREATE TABLE IF NOT EXISTS category_embedding_documents (
     id BIGSERIAL PRIMARY KEY,
     category_id UUID NOT NULL UNIQUE,
@@ -133,6 +155,27 @@ CREATE INDEX IF NOT EXISTS ix_category_embeddings_model
 CREATE INDEX IF NOT EXISTS ix_category_embeddings_embedding_cosine_hnsw
     ON category_embeddings USING hnsw (embedding vector_cosine_ops);
 
+CREATE TABLE IF NOT EXISTS article_category_matches (
+    id BIGSERIAL PRIMARY KEY,
+    article_id BIGINT NOT NULL REFERENCES article_embedding_documents(article_id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES category_embedding_documents(category_id) ON DELETE CASCADE,
+    score DOUBLE PRECISION NOT NULL,
+    rank SMALLINT NOT NULL,
+    source VARCHAR(40) NOT NULL DEFAULT 'semantic',
+    model_name VARCHAR(120) NOT NULL,
+    embedding_version VARCHAR(40) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (article_id, category_id, model_name, embedding_version)
+);
+
+CREATE INDEX IF NOT EXISTS ix_article_category_matches_article_id
+    ON article_category_matches (article_id, rank);
+CREATE INDEX IF NOT EXISTS ix_article_category_matches_category_id
+    ON article_category_matches (category_id);
+CREATE INDEX IF NOT EXISTS ix_article_category_matches_model
+    ON article_category_matches (model_name, embedding_version);
+
 CREATE TABLE IF NOT EXISTS embedding_jobs (
     id BIGSERIAL PRIMARY KEY,
     target_type VARCHAR(40) NOT NULL,
@@ -162,6 +205,28 @@ CREATE INDEX IF NOT EXISTS ix_embedding_jobs_status
 CREATE INDEX IF NOT EXISTS ix_embedding_jobs_target
     ON embedding_jobs (target_type, target_id);
 
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    aggregate_type VARCHAR(80) NOT NULL,
+    aggregate_id TEXT NOT NULL,
+    event_type VARCHAR(120) NOT NULL,
+    payload_version INTEGER NOT NULL DEFAULT 1,
+    payload JSONB NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'published', 'failed')),
+    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_embedding_outbox_status
+    ON outbox_events (status, available_at ASC, created_at ASC);
+CREATE INDEX IF NOT EXISTS ix_embedding_outbox_event_type
+    ON outbox_events (event_type, created_at DESC);
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_article_embedding_documents_set_updated_at') THEN
@@ -184,9 +249,29 @@ END $$;
 
 DO $$
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_article_category_matches_set_updated_at') THEN
+        CREATE TRIGGER trg_article_category_matches_set_updated_at
+        BEFORE UPDATE ON article_category_matches
+        FOR EACH ROW
+        EXECUTE FUNCTION set_embedding_updated_at();
+    END IF;
+END $$;
+
+DO $$
+BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_embedding_jobs_set_updated_at') THEN
         CREATE TRIGGER trg_embedding_jobs_set_updated_at
         BEFORE UPDATE ON embedding_jobs
+        FOR EACH ROW
+        EXECUTE FUNCTION set_embedding_updated_at();
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_embedding_outbox_events_set_updated_at') THEN
+        CREATE TRIGGER trg_embedding_outbox_events_set_updated_at
+        BEFORE UPDATE ON outbox_events
         FOR EACH ROW
         EXECUTE FUNCTION set_embedding_updated_at();
     END IF;

@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Article, ArticleStat, Category, CategoryArticle
@@ -12,6 +12,13 @@ class ArticleQueryRepository:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+
+    @staticmethod
+    def _category_source_priority():
+        return case(
+            (CategoryArticle.assignment_source == "semantic", 0),
+            else_=1,
+        )
 
     async def list_articles_with_extra(
         self,
@@ -27,7 +34,12 @@ class ArticleQueryRepository:
                 func.row_number()
                 .over(
                     partition_by=CategoryArticle.article_id,
-                    order_by=(CategoryArticle.is_primary.desc(), Category.name.asc()),
+                    order_by=(
+                        self._category_source_priority().asc(),
+                        CategoryArticle.is_primary.desc(),
+                        CategoryArticle.match_rank.asc().nullslast(),
+                        Category.name.asc(),
+                    ),
                 )
                 .label("category_rank"),
             )
@@ -88,7 +100,9 @@ class ArticleQueryRepository:
             select(
                 Article,
                 func.array_remove(
-                    func.array_agg(func.distinct(Category.name)),
+                    func.array_agg(
+                        func.distinct(Category.name)
+                    ),
                     None,
                 ).label("categories"),
                 func.coalesce(ArticleStat.view_count, 0).label("view_count"),

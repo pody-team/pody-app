@@ -3,9 +3,8 @@ from __future__ import annotations
 __all__ = [
     "ArticleSearchController",
     "ArticleEventController",
-    "CategoryEventController",
     "KafkaArticleConsumerController",
-    "KafkaCategoryConsumerController",
+    "KafkaArticleCategorySyncPublisher",
     "SystemController",
 ]
 
@@ -19,18 +18,14 @@ def __getattr__(name: str):
         from .article_event_controller import ArticleEventController
 
         return ArticleEventController
-    if name == "CategoryEventController":
-        from .category_event_controller import CategoryEventController
-
-        return CategoryEventController
     if name == "KafkaArticleConsumerController":
         from .kafka_article_consumer_controller import KafkaArticleConsumerController
 
         return KafkaArticleConsumerController
-    if name == "KafkaCategoryConsumerController":
-        from .kafka_category_consumer_controller import KafkaCategoryConsumerController
+    if name == "KafkaArticleCategorySyncPublisher":
+        from .kafka_article_category_sync_publisher import KafkaArticleCategorySyncPublisher
 
-        return KafkaCategoryConsumerController
+        return KafkaArticleCategorySyncPublisher
     if name == "SystemController":
         from .system_controller import SystemController
 

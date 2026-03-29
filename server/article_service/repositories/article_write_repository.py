@@ -6,12 +6,7 @@ from uuid import uuid4
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import Article, ArticleStat, Category, CategoryArticle, OutboxEvent
-from utils.category_embedding_event import (
-    CATEGORY_EMBEDDING_EVENT_TYPE,
-    CATEGORY_EMBEDDING_PAYLOAD_VERSION,
-    build_category_embedding_event_payload,
-)
+from models import Article, ArticleStat, Category, CategoryArticle
 from utils.category_slug import build_category_slug
 
 
@@ -76,7 +71,6 @@ class ArticleWriteRepository:
             raise ValueError("category_name is required")
 
         slug = build_category_slug(normalized_name)
-        category_changed = False
         category_stmt = select(Category).where(
             or_(
                 Category.slug == slug,
@@ -96,22 +90,24 @@ class ArticleWriteRepository:
             )
             self.session.add(category)
             await self.session.flush()
-            category_changed = True
         elif description and description.strip() and not category.description:
             category.description = description.strip()
             category.updated_at = datetime.utcnow()
-            category_changed = True
 
         link_stmt = select(CategoryArticle).where(
             CategoryArticle.article_id == article_id,
             CategoryArticle.category_id == category.id,
+            CategoryArticle.assignment_source == "manual",
         )
         link_result = await self.session.execute(link_stmt)
         existing_link = link_result.scalar_one_or_none()
 
         article_has_category_stmt = (
             select(CategoryArticle.id)
-            .where(CategoryArticle.article_id == article_id)
+            .where(
+                CategoryArticle.article_id == article_id,
+                CategoryArticle.assignment_source == "manual",
+            )
             .limit(1)
         )
         article_has_category_result = await self.session.execute(article_has_category_stmt)
@@ -121,22 +117,11 @@ class ArticleWriteRepository:
         if should_be_primary:
             await self.session.execute(
                 update(CategoryArticle)
-                .where(CategoryArticle.article_id == article_id)
-                .values(is_primary=False)
-            )
-
-        if category_changed:
-            self.session.add(
-                OutboxEvent(
-                    id=str(uuid4()),
-                    aggregate_type="category",
-                    aggregate_id=str(category.id),
-                    event_type=CATEGORY_EMBEDDING_EVENT_TYPE,
-                    payload_version=CATEGORY_EMBEDDING_PAYLOAD_VERSION,
-                    payload=build_category_embedding_event_payload(category),
-                    status="pending",
-                    available_at=datetime.utcnow(),
+                .where(
+                    CategoryArticle.article_id == article_id,
+                    CategoryArticle.assignment_source == "manual",
                 )
+                .values(is_primary=False)
             )
 
         if existing_link is None:
@@ -144,6 +129,7 @@ class ArticleWriteRepository:
                 CategoryArticle(
                     article_id=article_id,
                     category_id=category.id,
+                    assignment_source="manual",
                     is_primary=should_be_primary,
                 )
             )

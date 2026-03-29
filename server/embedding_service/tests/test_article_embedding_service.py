@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 from app.config.settings import (
     AppSettings,
+    ArticleCategoryMappingSettings,
+    CategoryBootstrapSettings,
     ArticleChunkSettings,
     DatabaseSettings,
     GeminiSettings,
@@ -25,6 +27,9 @@ class FakeRepository:
         self.processing_marks: list[tuple[int, int]] = []
         self.replaced_embeddings: list[dict[str, object]] = []
         self.failed_jobs: list[tuple[int, int, str]] = []
+        self.deleted_category_matches: list[int] = []
+        self.deleted_category_matches_with_sync: list[dict[str, object]] = []
+        self.refreshed_category_matches: list[dict[str, object]] = []
         self.search_rows: list[dict[str, object]] = [
             {
                 "article_id": 42,
@@ -80,6 +85,15 @@ class FakeRepository:
     def mark_job_failed(self, *, job_id: int, article_id: int, error_message: str) -> None:
         self.failed_jobs.append((job_id, article_id, error_message))
 
+    def delete_article_category_matches(self, *, article_id: int) -> None:
+        self.deleted_category_matches.append(article_id)
+
+    def delete_article_category_matches_and_enqueue_sync_event(self, **kwargs) -> None:
+        self.deleted_category_matches_with_sync.append(kwargs)
+
+    def refresh_article_category_matches_for_article(self, **kwargs) -> None:
+        self.refreshed_category_matches.append(kwargs)
+
     def search_article_chunks(self, **kwargs) -> list[dict[str, object]]:
         return list(self.search_rows)
 
@@ -105,10 +119,14 @@ class ArticleEmbeddingServiceTests(unittest.TestCase):
                 startup_timeout_seconds=120,
                 retry_delay_seconds=2.0,
             ),
+            category_bootstrap=CategoryBootstrapSettings(
+                enabled=False,
+                source_database=None,
+            ),
             kafka=KafkaSettings(
                 brokers=["localhost:9092"],
                 topic="article.embedding.requested",
-                category_topic="category.embedding.requested",
+                article_category_sync_topic="article.category.matches.generated",
                 client_id="embedding-service",
                 consumer_group="embedding-service",
                 auto_offset_reset="earliest",
@@ -118,6 +136,8 @@ class ArticleEmbeddingServiceTests(unittest.TestCase):
                 session_timeout_ms=10000,
                 startup_timeout_seconds=120,
                 retry_delay_seconds=2.0,
+                outbox_poll_interval_seconds=1.0,
+                outbox_batch_size=20,
             ),
             gemini=GeminiSettings(
                 api_keys=["key-1"],
@@ -133,6 +153,10 @@ class ArticleEmbeddingServiceTests(unittest.TestCase):
                 overlap_chars=180,
                 min_chunk_chars=250,
                 default_language_code="vi",
+            ),
+            article_category_mapping=ArticleCategoryMappingSettings(
+                max_matches=3,
+                min_score=0.2,
             ),
         )
         self.logger = logging.getLogger("embedding-service-tests")
@@ -183,6 +207,12 @@ class ArticleEmbeddingServiceTests(unittest.TestCase):
         self.assertEqual(len(repository.enqueued_jobs), 1)
         self.assertEqual(len(repository.processing_marks), 1)
         self.assertEqual(len(repository.replaced_embeddings), 1)
+        self.assertEqual(repository.replaced_embeddings[0]["max_matches"], 3)
+        self.assertEqual(repository.replaced_embeddings[0]["min_score"], 0.2)
+        self.assertEqual(
+            len(repository.replaced_embeddings[0]["document_embedding"]),
+            self.settings.gemini.output_dimensions,
+        )
         self.assertEqual(provider.calls[0][1], "RETRIEVAL_DOCUMENT")
 
     def test_non_public_article_is_skipped_without_calling_provider(self):
@@ -196,6 +226,16 @@ class ArticleEmbeddingServiceTests(unittest.TestCase):
         self.assertEqual(result.status, "skipped")
         self.assertEqual(result.reason, "non-public-status")
         self.assertEqual(len(repository.upserted_without_embedding), 1)
+        self.assertEqual(
+            repository.deleted_category_matches_with_sync,
+            [
+                {
+                    "article_id": 42,
+                    "model_name": "gemini-embedding-001",
+                    "embedding_version": "v1",
+                }
+            ],
+        )
         self.assertEqual(len(repository.enqueued_jobs), 0)
         self.assertEqual(provider.calls, [])
 

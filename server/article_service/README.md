@@ -379,7 +379,6 @@ Bang lien quan den feature moi:
 
 - `categories`
 - `category_articles`
-- `outbox_events`
 - `article_interactions`
 - `article_comments`
 - `article_metrics`
@@ -389,7 +388,7 @@ Huong mo rong tiep theo:
 
 - Bang trung gian giua `Category` va `User` se la `CategoryUser`.
 - Bang do khong nam trong `article_service`; no nen thuoc `identity-service` de tranh conflict domain.
-- `outbox_events` hien tai duoc dung de day `category.embedding.requested.v1` sang Kafka mot cach transaction-safe.
+- `categories` duoc seed san nhu mot taxonomy co dinh cho local flow, nen khong can route hay Kafka rieng de tao category.
 
 ## Cai Dat Va Chay
 

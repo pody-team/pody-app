@@ -4,29 +4,30 @@ from datetime import datetime, timezone
 
 from app.config.settings import (
     AppSettings,
+    ArticleCategoryMappingSettings,
     ArticleChunkSettings,
+    CategoryBootstrapSettings,
     DatabaseSettings,
     GeminiSettings,
     KafkaSettings,
 )
-from app.model.entity import CategoryEmbeddingDocument, EmbeddingJob
-from app.model.request import KafkaMessageContext
+from app.model.entity import CategoryCatalogItem, CategoryEmbeddingDocument
 from app.service.category_embedding_service import CategoryEmbeddingService
 from app.util.hashing import sha256_text
 
 
 class FakeCategoryRepository:
-    def __init__(self, document: CategoryEmbeddingDocument | None) -> None:
-        self.document = document
+    def __init__(self, documents: dict[str, CategoryEmbeddingDocument] | None = None) -> None:
+        self.documents = documents or {}
         self.synced_metadata: list[dict[str, object]] = []
         self.upserted_without_embedding: list[dict[str, object]] = []
-        self.enqueued_jobs: list[dict[str, object]] = []
-        self.processing_marks: list[tuple[int, str]] = []
         self.replaced_embeddings: list[dict[str, object]] = []
-        self.failed_jobs: list[tuple[int, str, str]] = []
+        self.refreshed_matches_calls: list[dict[str, object]] = []
+        self.ready_public_article_ids: list[int] = [42]
+        self.enqueued_sync_events: list[dict[str, object]] = []
 
     def get_category_document(self, *, category_id: str) -> CategoryEmbeddingDocument | None:
-        return self.document
+        return self.documents.get(category_id)
 
     def sync_category_metadata(self, **kwargs) -> None:
         self.synced_metadata.append(kwargs)
@@ -34,39 +35,17 @@ class FakeCategoryRepository:
     def upsert_category_document_without_embedding(self, **kwargs) -> None:
         self.upserted_without_embedding.append(kwargs)
 
-    def enqueue_category_job(self, **kwargs) -> EmbeddingJob:
-        self.enqueued_jobs.append(kwargs)
-        return EmbeddingJob(
-            id=101,
-            target_type="category",
-            target_id=11,
-            job_type="embed_category",
-            source_topic="category.embedding.requested",
-            source_partition=0,
-            source_offset=0,
-            source_key="category-key",
-            content_hash=str(kwargs["content_hash"]),
-            model_name=str(kwargs["model_name"]),
-            embedding_version=str(kwargs["embedding_version"]),
-            status="pending",
-            attempts=0,
-            error_message=None,
-            payload={},
-            scheduled_at=None,
-            started_at=None,
-            finished_at=None,
-            created_at=None,
-            updated_at=None,
-        )
-
-    def mark_category_job_processing(self, *, job_id: int, category_id: str) -> None:
-        self.processing_marks.append((job_id, category_id))
-
     def replace_category_embedding(self, **kwargs) -> None:
         self.replaced_embeddings.append(kwargs)
 
-    def mark_category_job_failed(self, *, job_id: int, category_id: str, error_message: str) -> None:
-        self.failed_jobs.append((job_id, category_id, error_message))
+    def refresh_article_category_matches_for_all_articles(self, **kwargs) -> None:
+        self.refreshed_matches_calls.append(kwargs)
+
+    def list_ready_public_article_ids(self) -> list[int]:
+        return list(self.ready_public_article_ids)
+
+    def enqueue_article_category_sync_event(self, **kwargs) -> None:
+        self.enqueued_sync_events.append(kwargs)
 
 
 class FakeProvider:
@@ -90,10 +69,20 @@ class CategoryEmbeddingServiceTests(unittest.TestCase):
                 startup_timeout_seconds=120,
                 retry_delay_seconds=2.0,
             ),
+            category_bootstrap=CategoryBootstrapSettings(
+                enabled=True,
+                source_database=DatabaseSettings(
+                    url="postgresql://postgres:postgres@localhost:5433/pody_article",
+                    pool_min_size=1,
+                    pool_max_size=3,
+                    startup_timeout_seconds=120,
+                    retry_delay_seconds=2.0,
+                ),
+            ),
             kafka=KafkaSettings(
                 brokers=["localhost:9092"],
                 topic="article.embedding.requested",
-                category_topic="category.embedding.requested",
+                article_category_sync_topic="article.category.matches.generated",
                 client_id="embedding-service",
                 consumer_group="embedding-service",
                 auto_offset_reset="earliest",
@@ -103,6 +92,8 @@ class CategoryEmbeddingServiceTests(unittest.TestCase):
                 session_timeout_ms=10000,
                 startup_timeout_seconds=120,
                 retry_delay_seconds=2.0,
+                outbox_poll_interval_seconds=1.0,
+                outbox_batch_size=20,
             ),
             gemini=GeminiSettings(
                 api_keys=["key-1"],
@@ -119,81 +110,137 @@ class CategoryEmbeddingServiceTests(unittest.TestCase):
                 min_chunk_chars=250,
                 default_language_code="vi",
             ),
+            article_category_mapping=ArticleCategoryMappingSettings(
+                max_matches=3,
+                min_score=0.2,
+            ),
         )
         self.logger = logging.getLogger("embedding-service-category-tests")
-        self.message = KafkaMessageContext(
-            topic="category.embedding.requested",
-            partition=0,
-            offset=9,
-            key="category-key",
-        )
 
-    def test_metadata_only_update_skips_reembed_but_syncs_document(self):
-        payload = self._category_payload(name="Cong nghe", description="Tin tuc moi")
-        content_hash = sha256_text("Cong nghe\n\nTin tuc moi")
+    def test_sync_categories_skips_current_embeddings_and_syncs_document(self):
+        category = self._category_item()
+        content_hash = sha256_text("Cong nghe\n\nTin tuc cong nghe va AI")
         repository = FakeCategoryRepository(
-            self._document(
-                content_hash=content_hash,
-                name="Cong nghe",
-                description="Tin tuc cu",
-            )
+            {
+                category.category_id: self._document(
+                    content_hash=content_hash,
+                    name=category.name,
+                    description=category.description or "",
+                )
+            }
         )
         provider = FakeProvider()
         service = CategoryEmbeddingService(repository, provider, self.settings, self.logger)
 
-        result = service.process_message(payload, self.message)
+        result = service.sync_categories([category])
 
-        self.assertEqual(result.status, "skipped")
+        self.assertEqual(result.processed_count, 0)
+        self.assertEqual(result.skipped_count, 1)
+        self.assertFalse(result.matches_refreshed)
         self.assertEqual(len(repository.synced_metadata), 1)
+        self.assertEqual(repository.refreshed_matches_calls, [])
         self.assertEqual(provider.calls, [])
 
-    def test_inactive_category_is_skipped_without_embedding(self):
-        repository = FakeCategoryRepository(None)
+    def test_sync_categories_skips_inactive_categories_without_embedding(self):
+        repository = FakeCategoryRepository()
         provider = FakeProvider()
         service = CategoryEmbeddingService(repository, provider, self.settings, self.logger)
 
-        result = service.process_message(self._category_payload(is_active=False), self.message)
+        result = service.sync_categories([self._category_item(is_active=False)])
 
-        self.assertEqual(result.status, "skipped")
-        self.assertEqual(result.reason, "inactive-category")
+        self.assertEqual(result.processed_count, 0)
+        self.assertEqual(result.skipped_count, 1)
+        self.assertFalse(result.matches_refreshed)
         self.assertEqual(len(repository.upserted_without_embedding), 1)
         self.assertEqual(provider.calls, [])
 
-    def test_category_change_enqueues_and_replaces_embedding(self):
-        repository = FakeCategoryRepository(None)
+    def test_sync_categories_embeds_only_missing_items_and_refreshes_matches_once(self):
+        current = self._category_item(
+            category_id="88f7fc9d-dc97-4e47-a2b1-f610a7a5f3f8",
+            slug="cong-nghe",
+            name="Cong nghe",
+            description="Tin tuc cong nghe va AI",
+        )
+        missing = self._category_item(
+            category_id="7eb28f3d-f9ca-4a28-b022-e91ce776f4a8",
+            slug="kinh-doanh",
+            name="Kinh doanh",
+            description="Tin tuc doanh nghiep va thi truong",
+        )
+        repository = FakeCategoryRepository(
+            {
+                current.category_id: self._document(
+                    content_hash=sha256_text("Cong nghe\n\nTin tuc cong nghe va AI"),
+                    name=current.name,
+                    description=current.description or "",
+                )
+            }
+        )
         provider = FakeProvider()
         service = CategoryEmbeddingService(repository, provider, self.settings, self.logger)
 
-        result = service.process_message(self._category_payload(), self.message)
+        result = service.sync_categories([current, missing])
 
-        self.assertEqual(result.status, "processed")
-        self.assertEqual(len(repository.enqueued_jobs), 1)
-        self.assertEqual(len(repository.processing_marks), 1)
+        self.assertEqual(result.processed_count, 1)
+        self.assertEqual(result.skipped_count, 1)
+        self.assertTrue(result.matches_refreshed)
         self.assertEqual(len(repository.replaced_embeddings), 1)
-        self.assertEqual(provider.calls[0][1], "RETRIEVAL_DOCUMENT")
+        self.assertEqual(repository.replaced_embeddings[0]["category"].category_id, missing.category_id)
+        self.assertEqual(len(repository.refreshed_matches_calls), 1)
+        self.assertEqual(
+            repository.enqueued_sync_events,
+            [
+                {
+                    "article_id": 42,
+                    "model_name": "gemini-embedding-001",
+                    "embedding_version": "v1",
+                }
+            ],
+        )
+        self.assertEqual(provider.calls[0][0], ["Kinh doanh\n\nTin tuc doanh nghiep va thi truong"])
+
+    def test_inactive_category_that_was_previously_active_refreshes_matches(self):
+        category = self._category_item(is_active=False)
+        repository = FakeCategoryRepository(
+            {
+                category.category_id: self._document(
+                    content_hash=sha256_text("Cong nghe\n\nTin tuc cong nghe va AI"),
+                    name="Cong nghe",
+                    description="Tin tuc cong nghe va AI",
+                )
+            }
+        )
+        provider = FakeProvider()
+        service = CategoryEmbeddingService(repository, provider, self.settings, self.logger)
+
+        result = service.sync_categories([category])
+
+        self.assertEqual(result.processed_count, 0)
+        self.assertEqual(result.skipped_count, 1)
+        self.assertTrue(result.matches_refreshed)
+        self.assertEqual(len(repository.refreshed_matches_calls), 1)
+        self.assertEqual(len(repository.enqueued_sync_events), 1)
+        self.assertEqual(provider.calls, [])
 
     @staticmethod
-    def _category_payload(
+    def _category_item(
         *,
+        category_id: str = "88f7fc9d-dc97-4e47-a2b1-f610a7a5f3f8",
+        slug: str = "cong-nghe",
         name: str = "Cong nghe",
         description: str = "Tin tuc cong nghe va AI",
         is_active: bool = True,
-    ) -> dict[str, object]:
-        now = datetime(2026, 3, 29, 12, 0, 0, tzinfo=timezone.utc).isoformat()
-        return {
-            "event_id": "72c2584f-6356-40d9-acb5-e6703660055c",
-            "idempotency_key": "category:88f7fc9d-dc97-4e47-a2b1-f610a7a5f3f8:abc123",
-            "event_type": "category.embedding.requested.v1",
-            "occurred_at": now,
-            "source_service": "article-service",
-            "category_id": "88f7fc9d-dc97-4e47-a2b1-f610a7a5f3f8",
-            "slug": "cong-nghe",
-            "name": name,
-            "description": description,
-            "is_active": is_active,
-            "created_at": now,
-            "updated_at": now,
-        }
+    ) -> CategoryCatalogItem:
+        now = datetime(2026, 3, 29, 12, 0, 0, tzinfo=timezone.utc)
+        return CategoryCatalogItem(
+            category_id=category_id,
+            slug=slug,
+            name=name,
+            description=description,
+            is_active=is_active,
+            created_at=now,
+            updated_at=now,
+        )
 
     @staticmethod
     def _document(

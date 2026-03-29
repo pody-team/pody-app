@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["ArticleEmbeddingService", "GeminiEmbeddingProvider"]
+__all__ = ["ArticleEmbeddingService", "CategoryEmbeddingService", "GeminiEmbeddingProvider"]
 
 
 def __getattr__(name: str):

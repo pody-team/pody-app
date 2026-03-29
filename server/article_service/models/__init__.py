@@ -11,7 +11,6 @@ from .base import Base
 from .category import Category
 from .category_article import CategoryArticle
 from .news_source import NewsSource
-from .outbox_event import OutboxEvent
 
 __all__ = [
     "Base",
@@ -20,7 +19,6 @@ __all__ = [
     "Category",
     "CategoryArticle",
     "ArticleCategory",
-    "OutboxEvent",
     "ArticleStat",
     "ArticleInteraction",
     "ArticleMetric",
