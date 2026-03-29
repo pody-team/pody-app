@@ -1,6 +1,7 @@
 {
   "name": "article-embedding-connector",
   "config": {
+    "tasks.max": "1",
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
     "database.hostname": "article-postgres",
     "database.port": "5432",
@@ -15,8 +16,8 @@
     "slot.name": "article_service_articles_slot",
     "publication.name": "article_service_articles_publication",
     "publication.autocreate.mode": "filtered",
-    "snapshot.mode": "never",
-    "skipped.operations": "d,t,r,u",
+    "snapshot.mode": "initial",
+    "skipped.operations": "d,t",
     "tombstones.on.delete": "false",
     "include.schema.changes": "false",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
