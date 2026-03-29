@@ -62,6 +62,7 @@ class DatabaseSettings:
 class KafkaSettings:
     brokers: list[str]
     topic: str
+    category_topic: str
     client_id: str
     consumer_group: str
     auto_offset_reset: str
@@ -148,6 +149,7 @@ def load_settings() -> AppSettings:
         kafka=KafkaSettings(
             brokers=_csv_env("KAFKA_BROKERS", ["localhost:9092"]),
             topic=_string_env("KAFKA_TOPIC", "article.embedding.requested"),
+            category_topic=_string_env("KAFKA_CATEGORY_TOPIC", "category.embedding.requested"),
             client_id=_string_env("KAFKA_CLIENT_ID", "embedding-service"),
             consumer_group=_string_env("KAFKA_CONSUMER_GROUP", "embedding-service"),
             auto_offset_reset=auto_offset_reset,
@@ -179,6 +181,8 @@ def load_settings() -> AppSettings:
         raise ValueError("KAFKA_BROKERS is required")
     if not settings.kafka.topic.strip():
         raise ValueError("KAFKA_TOPIC is required")
+    if not settings.kafka.category_topic.strip():
+        raise ValueError("KAFKA_CATEGORY_TOPIC is required")
     if settings.kafka.request_timeout_ms <= settings.kafka.session_timeout_ms:
         raise ValueError(
             "KAFKA_REQUEST_TIMEOUT_MS must be greater than KAFKA_SESSION_TIMEOUT_MS"

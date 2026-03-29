@@ -108,6 +108,7 @@ class ArticleEmbeddingServiceTests(unittest.TestCase):
             kafka=KafkaSettings(
                 brokers=["localhost:9092"],
                 topic="article.embedding.requested",
+                category_topic="category.embedding.requested",
                 client_id="embedding-service",
                 consumer_group="embedding-service",
                 auto_offset_reset="earliest",

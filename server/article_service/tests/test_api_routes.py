@@ -112,6 +112,16 @@ def create_client():
 
 
 class ArticleAPIRouteTests(unittest.TestCase):
+    def test_list_articles_returns_primary_category_string(self):
+        client, _ = create_client()
+
+        response = client.get("/api/v1/article")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["articles"][0]["category"], "Tech")
+
     def test_get_article_detail_includes_reactions_and_comment_count(self):
         client, repo = create_client()
         repo.reactions_by_user["42"] = "LOVE"
@@ -132,6 +142,7 @@ class ArticleAPIRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["comments_count"], 1)
+        self.assertEqual(payload["categories"], ["Tech"])
         self.assertEqual(payload["reactions"]["love_count"], 1)
         self.assertEqual(payload["reactions"]["current_user_reaction"], "LOVE")
         self.assertTrue(payload["is_loved"])

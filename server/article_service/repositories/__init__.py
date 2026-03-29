@@ -9,6 +9,7 @@ from .article_repository import ArticleRepository
 from .article_stats_repository import ArticleStatsRepository
 from .article_write_repository import ArticleWriteRepository
 from .news_source_repository import NewsSourceRepository
+from .outbox_event_repository import OutboxEventRepository
 
 __all__ = [
     "NewsSourceRepository",
@@ -19,5 +20,6 @@ __all__ = [
     "ArticleReactionRepository",
     "ArticleMetricRepository",
     "ArticleCommentRepository",
+    "OutboxEventRepository",
     "REACTION_TYPES",
 ]

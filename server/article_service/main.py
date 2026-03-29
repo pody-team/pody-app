@@ -13,8 +13,10 @@ from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import text
 
 from api import create_api
+from config.category_embedding_eventing import load_category_embedding_eventing_settings
 from config.database import DatabaseManager
 from config.redis_manager import RedisManager
+from services.category_embedding_outbox_worker import CategoryEmbeddingOutboxWorker
 from services.crawler_service import CrawlerService
 from utils.logger import get_logger
 
@@ -29,6 +31,12 @@ class NewscrawlerApplication:
         self.logger = get_logger(__name__)
         self.scheduler = AsyncIOScheduler()
         self.crawler_service = CrawlerService()
+        self.category_eventing_settings = load_category_embedding_eventing_settings()
+        self.category_embedding_outbox_worker = CategoryEmbeddingOutboxWorker(
+            DatabaseManager().session_factory,
+            self.category_eventing_settings,
+            self.logger.getChild("category-eventing"),
+        )
         self.is_running = False
 
         self.api = create_api(self.logger)
@@ -108,6 +116,7 @@ class NewscrawlerApplication:
             self.scheduler.start()
             self.is_running = True
             self.logger.info("Scheduler started successfully")
+            await self.category_embedding_outbox_worker.start()
 
             @self.api.on_event("startup")
             async def on_startup():
@@ -136,6 +145,9 @@ class NewscrawlerApplication:
             if self.scheduler.running:
                 self.scheduler.shutdown(wait=True)
                 self.logger.info("Scheduler stopped")
+
+            await self.category_embedding_outbox_worker.stop()
+            self.logger.info("Category embedding outbox worker stopped")
 
             await DatabaseManager().close()
             self.logger.info("Database connections closed")

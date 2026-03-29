@@ -8,6 +8,10 @@ def __getattr__(name: str):
         from .article_embedding_service import ArticleEmbeddingService
 
         return ArticleEmbeddingService
+    if name == "CategoryEmbeddingService":
+        from .category_embedding_service import CategoryEmbeddingService
+
+        return CategoryEmbeddingService
     if name == "GeminiEmbeddingProvider":
         from .gemini_provider import GeminiEmbeddingProvider
 

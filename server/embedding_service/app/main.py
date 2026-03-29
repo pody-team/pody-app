@@ -27,9 +27,10 @@ def create_app(
         app.state.system_controller = active_runtime.system_controller
         app.state.system_view = SystemView()
         logger.info(
-            "Starting embedding service on port %s for topic %s",
+            "Starting embedding service on port %s for article topic %s and category topic %s",
             resolved_settings.port,
             resolved_settings.kafka.topic,
+            resolved_settings.kafka.category_topic,
         )
         active_runtime.start()
         try:

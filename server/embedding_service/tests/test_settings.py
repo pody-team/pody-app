@@ -22,6 +22,7 @@ class SettingsTests(unittest.TestCase):
 
         self.assertEqual(settings.gemini.api_keys, ["key-a", "key-b", "key-c"])
         self.assertEqual(settings.kafka.topic, "article.embedding.requested")
+        self.assertEqual(settings.kafka.category_topic, "category.embedding.requested")
         self.assertEqual(
             settings.database.url,
             "postgresql://postgres:postgres@localhost:5434/pody_embedding",
@@ -85,6 +86,19 @@ class SettingsTests(unittest.TestCase):
             settings = load_settings()
 
         self.assertEqual(settings.gemini.quota_retry_delay_seconds, 180.0)
+
+    def test_load_settings_reads_category_topic_override(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EMBEDDING_DATABASE_URL": "postgresql://postgres:postgres@embedding-postgres:5432/pody_embedding",
+                "KAFKA_CATEGORY_TOPIC": "taxonomy.category.embedding.requested",
+            },
+            clear=True,
+        ):
+            settings = load_settings()
+
+        self.assertEqual(settings.kafka.category_topic, "taxonomy.category.embedding.requested")
 
     def test_load_settings_rejects_non_pgvector_dimensions(self):
         with patch.dict(

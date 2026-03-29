@@ -70,7 +70,9 @@ async def test_setup():
             
             # Check extension tables
             extensions = [
-                'article_categories', 
+                'categories',
+                'category_articles',
+                'outbox_events',
                 'article_stats', 
                 'article_interactions', 
                 'article_metrics',

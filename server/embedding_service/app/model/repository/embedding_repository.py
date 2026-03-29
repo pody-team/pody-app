@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from app.model.entity import ArticleEmbeddingDocument, EmbeddingJob
-from app.model.request import ArticleEvent, KafkaMessageContext
+from app.model.entity import ArticleEmbeddingDocument, CategoryEmbeddingDocument, EmbeddingJob
+from app.model.request import ArticleEvent, CategoryEvent, KafkaMessageContext
 from app.model.value_object import PreparedArticleChunk
 
 
@@ -40,6 +40,20 @@ class EmbeddingRepository:
         if row is None:
             return None
         return ArticleEmbeddingDocument.from_row(row)
+
+    def get_category_document(self, *, category_id: str) -> CategoryEmbeddingDocument | None:
+        with self._connection() as conn:
+            row = conn.execute(
+                """
+                SELECT *
+                FROM category_embedding_documents
+                WHERE category_id = %s::uuid
+                """,
+                (category_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return CategoryEmbeddingDocument.from_row(row)
 
     def sync_article_metadata(
         self,
@@ -294,6 +308,29 @@ class EmbeddingRepository:
                 (article_id,),
             )
 
+    def mark_category_job_processing(self, *, job_id: int, category_id: str) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE embedding_jobs
+                SET status = 'processing',
+                    attempts = attempts + 1,
+                    started_at = now(),
+                    error_message = NULL
+                WHERE id = %s
+                """,
+                (job_id,),
+            )
+            conn.execute(
+                """
+                UPDATE category_embedding_documents
+                SET sync_status = 'processing',
+                    last_error = NULL
+                WHERE category_id = %s::uuid
+                """,
+                (category_id,),
+            )
+
     def replace_article_embedding(
         self,
         *,
@@ -464,6 +501,304 @@ class EmbeddingRepository:
                 WHERE article_id = %s
                 """,
                 (error_message, article_id),
+            )
+
+    def sync_category_metadata(
+        self,
+        *,
+        event: CategoryEvent,
+        content_hash: str,
+        semantic_text: str,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE category_embedding_documents
+                SET slug = %s,
+                    name = %s,
+                    description = %s,
+                    is_active = %s,
+                    semantic_text = %s,
+                    content_hash = %s,
+                    last_error = NULL
+                WHERE category_id = %s::uuid
+                """,
+                (
+                    event.slug,
+                    event.name,
+                    event.description,
+                    event.is_active,
+                    semantic_text,
+                    content_hash,
+                    event.category_id,
+                ),
+            )
+
+    def upsert_category_document_without_embedding(
+        self,
+        *,
+        event: CategoryEvent,
+        content_hash: str,
+        semantic_text: str,
+        sync_status: str,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                INSERT INTO category_embedding_documents (
+                    category_id,
+                    slug,
+                    name,
+                    description,
+                    is_active,
+                    semantic_text,
+                    content_hash,
+                    sync_status,
+                    last_error
+                )
+                VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s, NULL)
+                ON CONFLICT (category_id) DO UPDATE SET
+                    slug = EXCLUDED.slug,
+                    name = EXCLUDED.name,
+                    description = EXCLUDED.description,
+                    is_active = EXCLUDED.is_active,
+                    semantic_text = EXCLUDED.semantic_text,
+                    content_hash = EXCLUDED.content_hash,
+                    sync_status = EXCLUDED.sync_status,
+                    last_error = NULL
+                """,
+                (
+                    event.category_id,
+                    event.slug,
+                    event.name,
+                    event.description,
+                    event.is_active,
+                    semantic_text,
+                    content_hash,
+                    sync_status,
+                ),
+            )
+
+    def enqueue_category_job(
+        self,
+        *,
+        event: CategoryEvent,
+        content_hash: str,
+        semantic_text: str,
+        model_name: str,
+        embedding_version: str,
+        message: KafkaMessageContext,
+    ) -> EmbeddingJob:
+        with self._connection() as conn, conn.transaction():
+            document_row = conn.execute(
+                """
+                INSERT INTO category_embedding_documents (
+                    category_id,
+                    slug,
+                    name,
+                    description,
+                    is_active,
+                    semantic_text,
+                    content_hash,
+                    sync_status,
+                    last_error
+                )
+                VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, 'pending', NULL)
+                ON CONFLICT (category_id) DO UPDATE SET
+                    slug = EXCLUDED.slug,
+                    name = EXCLUDED.name,
+                    description = EXCLUDED.description,
+                    is_active = EXCLUDED.is_active,
+                    semantic_text = EXCLUDED.semantic_text,
+                    content_hash = EXCLUDED.content_hash,
+                    sync_status = 'pending',
+                    last_error = NULL
+                RETURNING id
+                """,
+                (
+                    event.category_id,
+                    event.slug,
+                    event.name,
+                    event.description,
+                    event.is_active,
+                    semantic_text,
+                    content_hash,
+                ),
+            ).fetchone()
+            document_id = int(document_row["id"])
+            row = conn.execute(
+                """
+                INSERT INTO embedding_jobs (
+                    target_type,
+                    target_id,
+                    job_type,
+                    source_topic,
+                    source_partition,
+                    source_offset,
+                    source_key,
+                    content_hash,
+                    model_name,
+                    embedding_version,
+                    payload,
+                    status
+                )
+                VALUES (
+                    'category',
+                    %s,
+                    'embed_category',
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'pending'
+                )
+                ON CONFLICT (target_type, target_id, job_type, content_hash, model_name, embedding_version)
+                DO UPDATE SET
+                    source_topic = EXCLUDED.source_topic,
+                    source_partition = EXCLUDED.source_partition,
+                    source_offset = EXCLUDED.source_offset,
+                    source_key = EXCLUDED.source_key,
+                    payload = EXCLUDED.payload,
+                    status = 'pending',
+                    error_message = NULL,
+                    scheduled_at = now(),
+                    started_at = NULL,
+                    finished_at = NULL
+                RETURNING *
+                """,
+                (
+                    document_id,
+                    message.topic,
+                    message.partition,
+                    message.offset,
+                    message.key,
+                    content_hash,
+                    model_name,
+                    embedding_version,
+                    Jsonb(event.raw_payload),
+                ),
+            ).fetchone()
+            return EmbeddingJob.from_row(row)
+
+    def replace_category_embedding(
+        self,
+        *,
+        event: CategoryEvent,
+        content_hash: str,
+        semantic_text: str,
+        embedding: list[float],
+        model_name: str,
+        embedding_version: str,
+        output_dimensions: int,
+        job_id: int,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            document_row = conn.execute(
+                """
+                UPDATE category_embedding_documents
+                SET slug = %s,
+                    name = %s,
+                    description = %s,
+                    is_active = %s,
+                    semantic_text = %s,
+                    content_hash = %s
+                WHERE category_id = %s::uuid
+                RETURNING id
+                """,
+                (
+                    event.slug,
+                    event.name,
+                    event.description,
+                    event.is_active,
+                    semantic_text,
+                    content_hash,
+                    event.category_id,
+                ),
+            ).fetchone()
+            if document_row is None:
+                raise RuntimeError(
+                    f"Document for category {event.category_id} was not prepared before embedding"
+                )
+            document_id = int(document_row["id"])
+
+            conn.execute(
+                "DELETE FROM category_embeddings WHERE document_id = %s",
+                (document_id,),
+            )
+            conn.execute(
+                """
+                INSERT INTO category_embeddings (
+                    document_id,
+                    category_id,
+                    model_name,
+                    embedding_version,
+                    dimensions,
+                    embedding
+                )
+                VALUES (%s, %s::uuid, %s, %s, %s, %s::vector)
+                """,
+                (
+                    document_id,
+                    event.category_id,
+                    model_name,
+                    embedding_version,
+                    output_dimensions,
+                    _to_pgvector_literal(embedding),
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE category_embedding_documents
+                SET sync_status = 'ready',
+                    last_error = NULL,
+                    last_embedding_model = %s,
+                    last_embedding_version = %s,
+                    last_embedding_dimensions = %s,
+                    last_synced_at = now()
+                WHERE id = %s
+                """,
+                (
+                    model_name,
+                    embedding_version,
+                    output_dimensions,
+                    document_id,
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE embedding_jobs
+                SET status = 'completed',
+                    error_message = NULL,
+                    finished_at = now()
+                WHERE id = %s
+                """,
+                (job_id,),
+            )
+
+    def mark_category_job_failed(self, *, job_id: int, category_id: str, error_message: str) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE embedding_jobs
+                SET status = 'failed',
+                    error_message = %s,
+                    finished_at = now()
+                WHERE id = %s
+                """,
+                (error_message, job_id),
+            )
+            conn.execute(
+                """
+                UPDATE category_embedding_documents
+                SET sync_status = 'failed',
+                    last_error = %s
+                WHERE category_id = %s::uuid
+                """,
+                (error_message, category_id),
             )
 
     def search_article_chunks(

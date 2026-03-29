@@ -1,7 +1,6 @@
 # Embedding Service
 
-`embedding_service` is now an article-embedding pipeline for the local Pody
-stack.
+`embedding_service` is now an embedding pipeline for the local Pody stack.
 
 Detailed maintainer guide:
 
@@ -10,10 +9,11 @@ Detailed maintainer guide:
 ## Current scope
 
 - Consumes article CDC events from Kafka topic `article.embedding.requested`
-- Ensures the Kafka topic exists on startup
-- Stores article embedding data in a dedicated PostgreSQL database with `pgvector`
+- Consumes category events from Kafka topic `category.embedding.requested`
+- Ensures both Kafka topics exist on startup
+- Stores article and category embeddings in a dedicated PostgreSQL database with `pgvector`
 - Splits article text into chunks
-- Calls Google Gemini embeddings with support for multiple API keys
+- Reuses the same Gemini embedding provider for article and category documents
 - Persists documents, chunks, embeddings, and processing jobs
 - Exposes `GET /healthz`
 - Exposes `GET /api/v1/public/embedding/healthz`
@@ -56,6 +56,7 @@ EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS=60
 ARTICLE_CHUNK_TARGET_CHARS=1400
 ARTICLE_CHUNK_OVERLAP_CHARS=180
 ARTICLE_CHUNK_MIN_CHARS=250
+KAFKA_CATEGORY_TOPIC=category.embedding.requested
 ```
 
 ## Run with Docker Compose
@@ -81,4 +82,6 @@ docker logs -f pody-embedding-service
 - `article_embedding_documents`
 - `article_embedding_chunks`
 - `article_chunk_embeddings`
+- `category_embedding_documents`
+- `category_embeddings`
 - `embedding_jobs`

@@ -67,12 +67,26 @@ Dai dien cho bang `articles`.
 - Moi row la 1 bai bao.
 - Chua cac truong noi dung nhu `title`, `summary`, `content`, `author`, `original_url`, `thumbnail_url`, `published_at`, `source_id`, `status`.
 
+### [models/category.py](/D:/MyWorkSpace/pody/pody2/pody-app/server/article_service/models/category.py)
+
+Dai dien cho bang `categories`.
+
+- Day la bang category chuan cua `article_service`.
+- Moi category co `id`, `slug`, `name`, `description`, `is_active`.
+- Bang nay la source-of-truth cho category trong pham vi article/news.
+
+### [models/category_article.py](/D:/MyWorkSpace/pody/pody2/pody-app/server/article_service/models/category_article.py)
+
+Dai dien cho bang `category_articles`.
+
+- Day la bang trung gian giua `Article` va `Category`.
+- Mot bai bao co the co nhieu category.
+- Co them `is_primary` de xac dinh category chinh hien ra o list API.
+
 ### [models/article_category.py](/D:/MyWorkSpace/pody/pody2/pody-app/server/article_service/models/article_category.py)
 
-Dai dien cho bang `article_categories`.
-
-- Dung de gan category/tag cho bai bao.
-- Mot bai bao co the co nhieu category.
+- File nay chi con la compatibility shim de code cu import `ArticleCategory` khong bi vo.
+- Code moi nen dung `CategoryArticle`.
 
 ### [models/article_stat.py](/D:/MyWorkSpace/pody/pody2/pody-app/server/article_service/models/article_stat.py)
 
@@ -133,7 +147,12 @@ Chuc nang:
 - `list_articles_with_extra`
 - `get_article_detail`
 
-Repo nay join `articles`, `article_categories`, `article_stats` de tra ve du lieu cho list/detail.
+Repo nay join `articles`, `category_articles`, `categories`, `article_stats` de tra ve du lieu cho list/detail.
+
+Contract hien tai:
+
+- `GET /api/v1/article` tra ve `category` la primary category.
+- `GET /api/v1/article/{id}` tra ve `categories` la day du danh sach category active cua bai bao.
 
 ### [repositories/article_stats_repository.py](/D:/MyWorkSpace/pody/pody2/pody-app/server/article_service/repositories/article_stats_repository.py)
 
@@ -358,10 +377,19 @@ Schema SQL nam tai:
 
 Bang lien quan den feature moi:
 
+- `categories`
+- `category_articles`
+- `outbox_events`
 - `article_interactions`
 - `article_comments`
 - `article_metrics`
 - `article_stats`
+
+Huong mo rong tiep theo:
+
+- Bang trung gian giua `Category` va `User` se la `CategoryUser`.
+- Bang do khong nam trong `article_service`; no nen thuoc `identity-service` de tranh conflict domain.
+- `outbox_events` hien tai duoc dung de day `category.embedding.requested.v1` sang Kafka mot cach transaction-safe.
 
 ## Cai Dat Va Chay
 

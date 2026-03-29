@@ -86,6 +86,53 @@ CREATE INDEX IF NOT EXISTS ix_article_chunk_embeddings_model
 CREATE INDEX IF NOT EXISTS ix_article_chunk_embeddings_embedding_cosine_hnsw
     ON article_chunk_embeddings USING hnsw (embedding vector_cosine_ops);
 
+CREATE TABLE IF NOT EXISTS category_embedding_documents (
+    id BIGSERIAL PRIMARY KEY,
+    category_id UUID NOT NULL UNIQUE,
+    slug VARCHAR(120) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    semantic_text TEXT NOT NULL DEFAULT '',
+    content_hash CHAR(64) NOT NULL,
+    sync_status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    last_error TEXT,
+    last_embedding_model VARCHAR(120),
+    last_embedding_version VARCHAR(40),
+    last_embedding_dimensions INTEGER,
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_category_embedding_documents_slug
+    ON category_embedding_documents (slug);
+CREATE INDEX IF NOT EXISTS ix_category_embedding_documents_sync_status
+    ON category_embedding_documents (sync_status, last_synced_at DESC);
+CREATE INDEX IF NOT EXISTS ix_category_embedding_documents_content_hash
+    ON category_embedding_documents (content_hash);
+
+CREATE TABLE IF NOT EXISTS category_embeddings (
+    id BIGSERIAL PRIMARY KEY,
+    document_id BIGINT NOT NULL REFERENCES category_embedding_documents(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL,
+    model_name VARCHAR(120) NOT NULL,
+    embedding_version VARCHAR(40) NOT NULL,
+    dimensions INTEGER NOT NULL,
+    embedding VECTOR(1536) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (document_id, model_name, embedding_version)
+);
+
+CREATE INDEX IF NOT EXISTS ix_category_embeddings_category_id
+    ON category_embeddings (category_id);
+CREATE INDEX IF NOT EXISTS ix_category_embeddings_document_id
+    ON category_embeddings (document_id);
+CREATE INDEX IF NOT EXISTS ix_category_embeddings_model
+    ON category_embeddings (model_name, embedding_version);
+CREATE INDEX IF NOT EXISTS ix_category_embeddings_embedding_cosine_hnsw
+    ON category_embeddings USING hnsw (embedding vector_cosine_ops);
+
 CREATE TABLE IF NOT EXISTS embedding_jobs (
     id BIGSERIAL PRIMARY KEY,
     target_type VARCHAR(40) NOT NULL,
@@ -120,6 +167,16 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_article_embedding_documents_set_updated_at') THEN
         CREATE TRIGGER trg_article_embedding_documents_set_updated_at
         BEFORE UPDATE ON article_embedding_documents
+        FOR EACH ROW
+        EXECUTE FUNCTION set_embedding_updated_at();
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_category_embedding_documents_set_updated_at') THEN
+        CREATE TRIGGER trg_category_embedding_documents_set_updated_at
+        BEFORE UPDATE ON category_embedding_documents
         FOR EACH ROW
         EXECUTE FUNCTION set_embedding_updated_at();
     END IF;

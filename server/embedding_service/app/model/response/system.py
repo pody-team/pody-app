@@ -8,7 +8,8 @@ from typing import Any
 class ServiceOverviewResponse:
     name: str
     status: str
-    topic: str
+    article_topic: str
+    category_topic: str
     consumer_group: str
     embedding_model: str
     configured_api_keys: int
@@ -23,16 +24,25 @@ class HealthResponse:
     database_ready: bool
     provider_ready: bool
     configured_api_keys: int
-    topic: str
+    article_topic: str
+    category_topic: str
     consumer_group: str
-    topic_ready: bool
-    consumer_connected: bool
-    message_count: int
+    article_topic_ready: bool
+    category_topic_ready: bool
+    article_consumer_connected: bool
+    category_consumer_connected: bool
+    article_message_count: int
+    category_message_count: int
     processed_articles: int
     skipped_articles: int
     failed_articles: int
-    last_message_at: str | None
+    processed_categories: int
+    skipped_categories: int
+    failed_categories: int
+    last_article_message_at: str | None
+    last_category_message_at: str | None
     last_article_id: int | None
+    last_category_id: str | None
     last_error: str | None
 
     def to_dict(self) -> dict[str, Any]:

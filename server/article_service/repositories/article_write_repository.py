@@ -1,10 +1,18 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import select
+from uuid import uuid4
+
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import Article, ArticleCategory, ArticleStat
+from models import Article, ArticleStat, Category, CategoryArticle, OutboxEvent
+from utils.category_embedding_event import (
+    CATEGORY_EMBEDDING_EVENT_TYPE,
+    CATEGORY_EMBEDDING_PAYLOAD_VERSION,
+    build_category_embedding_event_payload,
+)
+from utils.category_slug import build_category_slug
 
 
 class ArticleWriteRepository:
@@ -56,5 +64,90 @@ class ArticleWriteRepository:
         await self.session.refresh(new_article)
         return new_article
 
-    async def add_category(self, article_id: int, category_name: str) -> None:
-        self.session.add(ArticleCategory(article_id=article_id, category_name=category_name))
+    async def add_category(
+        self,
+        article_id: int,
+        category_name: str,
+        description: Optional[str] = None,
+        is_primary: Optional[bool] = None,
+    ) -> None:
+        normalized_name = category_name.strip()
+        if not normalized_name:
+            raise ValueError("category_name is required")
+
+        slug = build_category_slug(normalized_name)
+        category_changed = False
+        category_stmt = select(Category).where(
+            or_(
+                Category.slug == slug,
+                func.lower(Category.name) == normalized_name.lower(),
+            )
+        )
+        category_result = await self.session.execute(category_stmt)
+        category = category_result.scalar_one_or_none()
+
+        if category is None:
+            category = Category(
+                id=str(uuid4()),
+                slug=slug,
+                name=normalized_name,
+                description=(description or "").strip() or None,
+                is_active=True,
+            )
+            self.session.add(category)
+            await self.session.flush()
+            category_changed = True
+        elif description and description.strip() and not category.description:
+            category.description = description.strip()
+            category.updated_at = datetime.utcnow()
+            category_changed = True
+
+        link_stmt = select(CategoryArticle).where(
+            CategoryArticle.article_id == article_id,
+            CategoryArticle.category_id == category.id,
+        )
+        link_result = await self.session.execute(link_stmt)
+        existing_link = link_result.scalar_one_or_none()
+
+        article_has_category_stmt = (
+            select(CategoryArticle.id)
+            .where(CategoryArticle.article_id == article_id)
+            .limit(1)
+        )
+        article_has_category_result = await self.session.execute(article_has_category_stmt)
+        article_has_category = article_has_category_result.scalar_one_or_none() is not None
+
+        should_be_primary = is_primary if is_primary is not None else not article_has_category
+        if should_be_primary:
+            await self.session.execute(
+                update(CategoryArticle)
+                .where(CategoryArticle.article_id == article_id)
+                .values(is_primary=False)
+            )
+
+        if category_changed:
+            self.session.add(
+                OutboxEvent(
+                    id=str(uuid4()),
+                    aggregate_type="category",
+                    aggregate_id=str(category.id),
+                    event_type=CATEGORY_EMBEDDING_EVENT_TYPE,
+                    payload_version=CATEGORY_EMBEDDING_PAYLOAD_VERSION,
+                    payload=build_category_embedding_event_payload(category),
+                    status="pending",
+                    available_at=datetime.utcnow(),
+                )
+            )
+
+        if existing_link is None:
+            self.session.add(
+                CategoryArticle(
+                    article_id=article_id,
+                    category_id=category.id,
+                    is_primary=should_be_primary,
+                )
+            )
+            return
+
+        if should_be_primary and not existing_link.is_primary:
+            existing_link.is_primary = True
