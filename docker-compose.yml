@@ -1,4 +1,101 @@
 services:
+  article-postgres:
+    image: postgres:16-alpine
+    container_name: pody-article-postgres
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=4
+      - -c
+      - max_replication_slots=4
+    environment:
+      POSTGRES_DB: pody_article
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pody_article"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  article-db-init:
+    image: postgres:16-alpine
+    container_name: pody-article-db-init
+    environment:
+      PGPASSWORD: postgres
+      ENABLE_ARTICLE_DEMO_SEED: ${ENABLE_ARTICLE_DEMO_SEED:-true}
+    volumes:
+      - ./server/sql/services:/workspace/sql:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        until pg_isready -h article-postgres -p 5432 -U postgres -d pody_article; do
+          echo "waiting for article-postgres";
+          sleep 1;
+        done
+        psql postgresql://postgres:postgres@article-postgres:5432/pody_article -v ON_ERROR_STOP=1 -f /workspace/sql/article_service.sql
+        if [ "$${ENABLE_ARTICLE_DEMO_SEED}" = "true" ]; then
+          psql postgresql://postgres:postgres@article-postgres:5432/pody_article -v ON_ERROR_STOP=1 -f /workspace/sql/article_service_demo_seed.sql
+        else
+          echo "skipping article demo seed"
+        fi
+    depends_on:
+      article-postgres:
+        condition: service_healthy
+    restart: "no"
+
+  embedding-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pody-embedding-postgres
+    environment:
+      POSTGRES_DB: pody_embedding
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pody_embedding"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  embedding-db-init:
+    image: pgvector/pgvector:pg16
+    container_name: pody-embedding-db-init
+    environment:
+      PGPASSWORD: postgres
+      EMBEDDING_DATABASE_URL: ${EMBEDDING_DATABASE_URL:?EMBEDDING_DATABASE_URL is required}
+      EMBEDDING_DB_RESET_ON_INIT: ${EMBEDDING_DB_RESET_ON_INIT:-false}
+    volumes:
+      - ./server/sql/services:/workspace/sql:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        until pg_isready -h embedding-postgres -p 5432 -U postgres -d pody_embedding; do
+          echo "waiting for embedding-postgres";
+          sleep 1;
+        done
+        if [ "$${EMBEDDING_DB_RESET_ON_INIT}" = "true" ]; then
+          psql "$${EMBEDDING_DATABASE_URL}" -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public CASCADE;"
+          psql "$${EMBEDDING_DATABASE_URL}" -v ON_ERROR_STOP=1 -c "CREATE SCHEMA public;"
+        else
+          echo "keeping existing embedding schema"
+        fi
+        psql "$${EMBEDDING_DATABASE_URL}" -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector;"
+        psql "$${EMBEDDING_DATABASE_URL}" -v ON_ERROR_STOP=1 -f /workspace/sql/embedding_service.sql
+    depends_on:
+      embedding-postgres:
+        condition: service_healthy
+    restart: "no"
+
   kafka:
     image: apache/kafka:4.0.0
     container_name: pody-kafka
@@ -24,6 +121,67 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  debezium-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: pody-debezium-connect
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: "1"
+      CONFIG_STORAGE_TOPIC: debezium.connect.configs
+      OFFSET_STORAGE_TOPIC: debezium.connect.offsets
+      STATUS_STORAGE_TOPIC: debezium.connect.statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      REST_ADVERTISED_HOST_NAME: debezium-connect
+    ports:
+      - "8083:8083"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      article-postgres:
+        condition: service_healthy
+
+  debezium-register:
+    image: python:3.12-slim
+    container_name: pody-debezium-register
+    working_dir: /workspace
+    volumes:
+      - ./debezium:/workspace/debezium:ro
+    command: ["python", "/workspace/debezium/register_connector.py"]
+    environment:
+      DEBEZIUM_CONNECT_URL: http://debezium-connect:8083
+      DEBEZIUM_CONNECTOR_FILE: /workspace/debezium/register-connector.json
+      DEBEZIUM_CONNECT_STARTUP_TIMEOUT_SECONDS: "120"
+      DEBEZIUM_CONNECT_POLL_INTERVAL_SECONDS: "2"
+    depends_on:
+      debezium-connect:
+        condition: service_started
+      article-db-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: pody-kafka-ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://debezium-connect:8083
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "8090:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      debezium-connect:
+        condition: service_started
 
   migrations:
     build:
@@ -248,12 +406,28 @@ services:
       DB_USE_NULL_POOL: ${ARTICLE_DB_USE_NULL_POOL:-true}
       DB_POOL_SIZE: ${ARTICLE_DB_POOL_SIZE:-8}
       DB_MAX_OVERFLOW: ${ARTICLE_DB_MAX_OVERFLOW:-4}
+      KAFKA_BROKERS: kafka:9092
+      ARTICLE_CATEGORY_SYNC_ENABLED: "true"
+      ARTICLE_CATEGORY_SYNC_TOPIC: article.category.matches.generated
+      ARTICLE_CATEGORY_SYNC_CLIENT_ID: article-service-category-sync
+      ARTICLE_CATEGORY_SYNC_CONSUMER_GROUP: article-service-category-sync
+      ARTICLE_CATEGORY_SYNC_AUTO_OFFSET_RESET: earliest
+      ARTICLE_CATEGORY_SYNC_TOPIC_PARTITIONS: "1"
+      ARTICLE_CATEGORY_SYNC_TOPIC_REPLICATION_FACTOR: "1"
+      ARTICLE_CATEGORY_SYNC_REQUEST_TIMEOUT_MS: "30000"
+      ARTICLE_CATEGORY_SYNC_SESSION_TIMEOUT_MS: "10000"
+      ARTICLE_CATEGORY_SYNC_STARTUP_TIMEOUT_SECONDS: "120"
+      ARTICLE_CATEGORY_SYNC_RETRY_DELAY_SECONDS: "2"
     ports:
       - "8084:8084"
     depends_on:
-      migrations:
+      kafka:
+        condition: service_healthy
+      article-db-init:
         condition: service_completed_successfully
       redis:
+        condition: service_healthy
+      article-postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8084/healthz"]
@@ -261,3 +435,75 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  embedding-service:
+    build:
+      context: ./server/embedding_service
+      dockerfile: Dockerfile
+    container_name: pody-embedding-service
+    environment:
+      EMBEDDING_DATABASE_URL: ${EMBEDDING_DATABASE_URL:?EMBEDDING_DATABASE_URL is required}
+      DATABASE_POOL_MIN_SIZE: "1"
+      DATABASE_POOL_MAX_SIZE: "5"
+      DATABASE_STARTUP_TIMEOUT_SECONDS: "120"
+      DATABASE_RETRY_DELAY_SECONDS: "2"
+      PORT: "8088"
+      LOG_LEVEL: ${EMBEDDING_LOG_LEVEL:-INFO}
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: embedding-service
+      KAFKA_TOPIC: article.embedding.requested
+      KAFKA_CONSUMER_GROUP: embedding-service
+      KAFKA_AUTO_OFFSET_RESET: earliest
+      KAFKA_TOPIC_PARTITIONS: "1"
+      KAFKA_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_REQUEST_TIMEOUT_MS: "30000"
+      KAFKA_SESSION_TIMEOUT_MS: "10000"
+      KAFKA_STARTUP_TIMEOUT_SECONDS: "120"
+      KAFKA_RETRY_DELAY_SECONDS: "2"
+      ARTICLE_CATEGORY_SYNC_TOPIC: article.category.matches.generated
+      OUTBOX_POLL_INTERVAL_SECONDS: "1"
+      OUTBOX_BATCH_SIZE: "20"
+      CATEGORY_BOOTSTRAP_ENABLED: "true"
+      CATEGORY_SOURCE_DATABASE_URL: ${ARTICLE_DATABASE_URL:?ARTICLE_DATABASE_URL is required}
+      EMBEDDING_GEMINI_API_KEYS: ${EMBEDDING_GEMINI_API_KEYS:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      EMBEDDING_GOOGLE_GENAI_BASE_URL: ${EMBEDDING_GOOGLE_GENAI_BASE_URL:-}
+      GOOGLE_GENAI_BASE_URL: ${GOOGLE_GENAI_BASE_URL:-}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+      EMBEDDING_VERSION: ${EMBEDDING_VERSION:-v1}
+      EMBEDDING_OUTPUT_DIMENSIONS: ${EMBEDDING_OUTPUT_DIMENSIONS:-1536}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-16}
+      EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS: ${EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS:-60}
+      ARTICLE_CHUNK_TARGET_CHARS: ${ARTICLE_CHUNK_TARGET_CHARS:-1400}
+      ARTICLE_CHUNK_OVERLAP_CHARS: ${ARTICLE_CHUNK_OVERLAP_CHARS:-180}
+      ARTICLE_CHUNK_MIN_CHARS: ${ARTICLE_CHUNK_MIN_CHARS:-250}
+      ARTICLE_DEFAULT_LANGUAGE_CODE: ${ARTICLE_DEFAULT_LANGUAGE_CODE:-vi}
+    ports:
+      - "8088:8088"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      article-db-init:
+        condition: service_completed_successfully
+      article-postgres:
+        condition: service_healthy
+      embedding-db-init:
+        condition: service_completed_successfully
+      embedding-postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://localhost:8088/healthz').getcode() == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+

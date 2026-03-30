@@ -55,8 +55,19 @@ class ArticleRepository:
             status=status,
         )
 
-    async def add_category(self, article_id: int, category_name: str) -> None:
-        await self.write.add_category(article_id, category_name)
+    async def add_category(
+        self,
+        article_id: int,
+        category_name: str,
+        description: Optional[str] = None,
+        is_primary: Optional[bool] = None,
+    ) -> None:
+        await self.write.add_category(
+            article_id,
+            category_name,
+            description=description,
+            is_primary=is_primary,
+        )
 
     async def list_articles_with_extra(self, limit: int = 20, offset: int = 0, category=None, query=None):
         return await self.query.list_articles_with_extra(limit=limit, offset=offset, category=category, query=query)

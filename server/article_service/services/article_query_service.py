@@ -62,6 +62,22 @@ class ArticleQueryService:
             ],
         }
 
+    async def list_categories(self) -> dict:
+        categories = await self.query_repository.list_categories_with_counts()
+        return {
+            "count": len(categories),
+            "categories": [
+                {
+                    "id": category.id,
+                    "slug": category.slug,
+                    "name": clean_text(category.name),
+                    "description": clean_text(category.description),
+                    "article_count": article_count,
+                }
+                for category, article_count in categories
+            ],
+        }
+
     async def get_article_detail(self, article_id: int, current_user_id=None) -> dict:
         detail = await self.query_repository.get_article_detail(article_id)
         if not detail:

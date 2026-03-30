@@ -54,8 +54,8 @@ async def test_api():
 
         # Test 4: Search & Category Filter
         print("\n4. Testing Category Filtering...")
-        # Get category from detail
-        category = detail.get('category', 'Tech')
+        categories = detail.get('categories') or []
+        category = categories[0] if categories else 'Tech'
         resp = await client.get(f"{BASE_URL}/article", params={"category": category})
         print(f"Status: {resp.status_code} for category '{category}'")
         assert resp.status_code == 200
