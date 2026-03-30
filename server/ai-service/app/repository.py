@@ -12,6 +12,8 @@ from .models import (
     AuthContext,
     ChatTurnResult,
     ChatMessage,
+    ProductionPlanSummary,
+    ChatThreadSummary,
     ChatThreadView,
     GeneratePlanRequest,
     GenerationJob,
@@ -97,6 +99,76 @@ class AIRepository:
     def get_thread(self, owner_user_id: UUID, thread_id: UUID) -> ChatThreadView:
         with self._connection() as conn:
             return self._get_thread(conn, owner_user_id, thread_id)
+
+    def list_threads(self, owner_user_id: UUID, limit: int = 30) -> list[ChatThreadSummary]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT ct.id,
+                       ct.title,
+                       ct.status,
+                       ct.created_at,
+                       ct.updated_at,
+                       last_message.text_content AS last_message_preview,
+                       EXISTS (
+                         SELECT 1
+                         FROM production_plans pp
+                         WHERE pp.thread_id = ct.id
+                       ) AS has_current_plan
+                FROM chat_threads ct
+                LEFT JOIN LATERAL (
+                  SELECT cm.text_content
+                  FROM chat_messages cm
+                  WHERE cm.thread_id = ct.id
+                  ORDER BY cm.created_at DESC, cm.id DESC
+                  LIMIT 1
+                ) last_message ON true
+                WHERE ct.owner_user_id = %s
+                ORDER BY ct.updated_at DESC, ct.created_at DESC
+                LIMIT %s
+                """,
+                (owner_user_id, limit),
+            ).fetchall()
+
+        return [ChatThreadSummary.model_validate(row) for row in rows]
+
+    def list_drafts(self, owner_user_id: UUID, limit: int = 50) -> list[ProductionPlanSummary]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT pp.id,
+                       pp.thread_id,
+                       pp.status,
+                       pp.series_title,
+                       COALESCE(pp.metadata->>'content_type', 'podcast') AS content_type,
+                       COUNT(pped.id)::int AS episode_count,
+                       pp.created_at,
+                       pp.updated_at
+                FROM production_plans pp
+                LEFT JOIN production_plan_episode_drafts pped ON pped.plan_id = pp.id
+                WHERE pp.owner_user_id = %s
+                GROUP BY pp.id
+                ORDER BY pp.updated_at DESC, pp.created_at DESC
+                LIMIT %s
+                """,
+                (owner_user_id, limit),
+            ).fetchall()
+
+        return [ProductionPlanSummary.model_validate(row) for row in rows]
+
+    def get_draft(self, owner_user_id: UUID, plan_id: UUID) -> ProductionPlan:
+        with self._connection() as conn:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM production_plans
+                WHERE id = %s AND owner_user_id = %s
+                """,
+                (plan_id, owner_user_id),
+            ).fetchone()
+            if row is None:
+                raise NotFoundError("draft not found")
+            return self._get_plan(conn, row["id"])
 
     def add_thread_message(
         self,

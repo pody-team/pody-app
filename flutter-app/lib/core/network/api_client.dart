@@ -225,6 +225,7 @@ class ApiClient {
         options: Options(
           method: method,
           responseType: ResponseType.stream,
+          receiveTimeout: const Duration(minutes: 30),
           headers: {
             'Accept': 'text/event-stream',
             if (body != null) 'Content-Type': 'application/json',

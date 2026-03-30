@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outbox Pattern Animation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        canvas {
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="outboxCanvas" width="1050" height="750"></canvas>
+
+<script>
+    const canvas = document.getElementById('outboxCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Tốc độ animation (càng nhỏ càng chậm)
+    const SPEED = 0.006; 
+
+    // Định nghĩa các khối (components)
+    const boxes = {
+        // --- Nửa trên: Không dùng Outbox ---
+        noUser:  { x: 30,  y: 150, w: 100, h: 50, label: 'User: Hiếu', color: '#e1bee7' },
+        noAPI:   { x: 220, y: 150, w: 120, h: 50, label: 'Identity API', color: '#bbdefb' },
+        noDB:    { x: 450, y: 70,  w: 120, h: 60, label: 'Postgres\n(Users Table)', color: '#c8e6c9' },
+        noKafka: { x: 450, y: 230, w: 120, h: 60, label: 'Kafka Broker', color: '#ffcc80' },
+        noNotif: { x: 700, y: 230, w: 140, h: 60, label: 'Notification Svc', color: '#b2dfdb' },
+
+        // --- Nửa dưới: Có dùng Outbox ---
+        obUser:  { x: 30,  y: 550, w: 100, h: 50, label: 'User: Hiếu', color: '#e1bee7' },
+        obAPI:   { x: 220, y: 550, w: 120, h: 50, label: 'Identity API', color: '#bbdefb' },
+        obDB:    { x: 450, y: 520, w: 140, h: 100, label: 'Postgres\n- Users Table\n- Outbox Table', color: '#c8e6c9' },
+        obPub:   { x: 700, y: 545, w: 120, h: 50, label: 'Outbox Publisher', color: '#f8bbd0' },
+        obKafka: { x: 700, y: 650, w: 120, h: 50, label: 'Kafka Broker', color: '#ffcc80' },
+        obNotif: { x: 900, y: 650, w: 120, h: 50, label: 'Notification Svc', color: '#b2dfdb' },
+    };
+
+    // State cho Animation
+    let state1 = 0;
+    let progress1 = 0;
+
+    let state2 = 0;
+    let progress2 = 0;
+
+    function drawRoundedRect(x, y, w, h, radius, fillStyle, strokeStyle) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        
+        if(fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
+        if(strokeStyle) { ctx.lineWidth = 2; ctx.strokeStyle = strokeStyle; ctx.stroke(); }
+    }
+
+    function drawText(text, x, y, width, height) {
+        ctx.fillStyle = '#333';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const lines = text.split('\n');
+        const lineHeight = 20;
+        const startY = y + height / 2 - ((lines.length - 1) * lineHeight) / 2;
+        
+        lines.forEach((line, index) => {
+            ctx.fillText(line, x + width / 2, startY + index * lineHeight);
+        });
+    }
+
+    function drawSystem() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Chia đôi màn hình
+        ctx.beginPath();
+        ctx.moveTo(0, 375);
+        ctx.lineTo(canvas.width, 375);
+        ctx.setLineDash([5, 5]);
+        ctx.strokeStyle = '#999';
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Tiêu đề
+        ctx.font = 'bold 18px Arial';
+        ctx.fillStyle = '#d32f2f';
+        ctx.textAlign = 'left';
+        ctx.fillText('1. KHÔNG DÙNG OUTBOX (Dual Write) - Nguy cơ mất Message nếu API sập', 20, 30);
+        
+        ctx.fillStyle = '#388e3c';
+        ctx.fillText('2. DÙNG OUTBOX PATTERN (Transactional Outbox) - Đảm bảo Atomicity', 20, 410);
+
+        // Vẽ kết nối mạng (Đường đứt nét)
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        
+        const connect = (b1, b2) => {
+            ctx.beginPath();
+            ctx.moveTo(b1.x + b1.w/2, b1.y + b1.h/2);
+            ctx.lineTo(b2.x + b2.w/2, b2.y + b2.h/2);
+            ctx.stroke();
+        };
+
+        // Kết nối phần 1
+        connect(boxes.noUser, boxes.noAPI);
+        connect(boxes.noAPI, boxes.noDB);
+        connect(boxes.noAPI, boxes.noKafka);
+        connect(boxes.noKafka, boxes.noNotif);
+
+        // Kết nối phần 2
+        connect(boxes.obUser, boxes.obAPI);
+        connect(boxes.obAPI, boxes.obDB);
+        connect(boxes.obDB, boxes.obPub);
+        connect(boxes.obPub, boxes.obKafka);
+        connect(boxes.obKafka, boxes.obNotif);
+        ctx.setLineDash([]);
+
+        // Vẽ các khối hộp
+        Object.values(boxes).forEach(b => {
+            drawRoundedRect(b.x, b.y, b.w, b.h, 8, b.color, '#666');
+            drawText(b.label, b.x, b.y, b.w, b.h);
+        });
+    }
+
+    function getCenter(box) {
+        return { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+    }
+
+    function drawToken(startBox, endBox, progress, color, labelText) {
+        const start = getCenter(startBox);
+        const end = getCenter(endBox);
+        const currentX = start.x + (end.x - start.x) * progress;
+        const currentY = start.y + (end.y - start.y) * progress;
+
+        ctx.beginPath();
+        ctx.arc(currentX, currentY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+
+        if (labelText) {
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(labelText, currentX, currentY - 15);
+        }
+    }
+
+    function updateAnimations() {
+        // --- Logic Luồng 1 (Không Outbox) ---
+        progress1 += SPEED;
+        if (progress1 > 1) {
+            progress1 = 0;
+            state1++;
+            if (state1 > 4) state1 = 0; // Reset luồng 1
+        }
+
+        if (state1 === 0) drawToken(boxes.noUser, boxes.noAPI, progress1, '#9c27b0', '1. Register');
+        else if (state1 === 1) drawToken(boxes.noAPI, boxes.noDB, progress1, '#f44336', '2. Save User');
+        else if (state1 === 2) drawToken(boxes.noAPI, boxes.noKafka, progress1, '#ff9800', '3. Publish Event');
+        else if (state1 === 3) drawToken(boxes.noKafka, boxes.noNotif, progress1, '#009688', '4. Consume');
+        // state 4 là thời gian nghỉ
+
+        // --- Logic Luồng 2 (Có Outbox) ---
+        progress2 += SPEED;
+        if (progress2 > 1) {
+            progress2 = 0;
+            state2++;
+            if (state2 > 6) state2 = 0; // Reset luồng 2
+        }
+
+        if (state2 === 0) drawToken(boxes.obUser, boxes.obAPI, progress2, '#9c27b0', '1. Register');
+        else if (state2 === 1) drawToken(boxes.obAPI, boxes.obDB, progress2, '#f44336', '2. BEGIN TRAN: User + Outbox');
+        else if (state2 === 2) drawToken(boxes.obDB, boxes.obPub, progress2, '#2196f3', '3. Worker Poll DB');
+        else if (state2 === 3) drawToken(boxes.obPub, boxes.obKafka, progress2, '#ff9800', '4. Publish to Kafka');
+        else if (state2 === 4) drawToken(boxes.obPub, boxes.obDB, progress2, '#4caf50', '5. Mark as Published');
+        else if (state2 === 5) drawToken(boxes.obKafka, boxes.obNotif, progress2, '#009688', '6. Delivery Event');
+        // state 6 là thời gian nghỉ
+    }
+
+    function loop() {
+        drawSystem();
+        updateAnimations();
+        requestAnimationFrame(loop);
+    }
+
+    // Khởi động
+    loop();
+</script>
+
+</body>
+</html>

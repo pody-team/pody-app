@@ -268,55 +268,149 @@ class AIChatThread {
   }
 }
 
-enum AIChatStreamEventType { status, assistantDelta, thread, done, error }
+class AIChatThreadSummary {
+  const AIChatThreadSummary({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastMessagePreview,
+    this.hasCurrentPlan = false,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? lastMessagePreview;
+  final bool hasCurrentPlan;
+
+  factory AIChatThreadSummary.fromJson(Map<String, dynamic> json) {
+    return AIChatThreadSummary(
+      id: _readString(json['id']),
+      title: _readString(json['title']),
+      status: _readString(json['status']),
+      createdAt: _readDateTime(json['created_at']),
+      updatedAt: _readDateTime(json['updated_at']),
+      lastMessagePreview: _readNullableString(json['last_message_preview']),
+      hasCurrentPlan: json['has_current_plan'] == true,
+    );
+  }
+}
+
+class AIProductionPlanSummary {
+  const AIProductionPlanSummary({
+    required this.id,
+    required this.status,
+    required this.seriesTitle,
+    required this.contentType,
+    required this.episodeCount,
+    required this.createdAt,
+    required this.updatedAt,
+    this.threadId,
+  });
+
+  final String id;
+  final String status;
+  final String seriesTitle;
+  final String contentType;
+  final int episodeCount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? threadId;
+
+  factory AIProductionPlanSummary.fromJson(Map<String, dynamic> json) {
+    return AIProductionPlanSummary(
+      id: _readString(json['id']),
+      status: _readString(json['status'], fallback: 'draft'),
+      seriesTitle: _readString(json['series_title']),
+      contentType: _readString(json['content_type'], fallback: 'podcast'),
+      episodeCount: _readInt(json['episode_count']),
+      createdAt: _readDateTime(json['created_at']),
+      updatedAt: _readDateTime(json['updated_at']),
+      threadId: _readNullableString(json['thread_id']),
+    );
+  }
+}
+
+enum AIChatStreamEventType {
+  status,
+  assistantDelta,
+  planUpdated,
+  thread,
+  done,
+  error,
+}
 
 class AIChatStreamEvent {
   const AIChatStreamEvent._({
     required this.type,
     this.message,
     this.deltaText,
+    this.plan,
     this.thread,
     this.threadId,
+    this.debugLabel,
   });
 
   final AIChatStreamEventType type;
   final String? message;
   final String? deltaText;
+  final AIProductionPlan? plan;
   final AIChatThread? thread;
   final String? threadId;
+  final String? debugLabel;
 
-  factory AIChatStreamEvent.status(String message) {
+  factory AIChatStreamEvent.status(String message, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.status,
       message: message,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.assistantDelta(String text) {
+  factory AIChatStreamEvent.assistantDelta(String text, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.assistantDelta,
       deltaText: text,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.thread(AIChatThread thread) {
+  factory AIChatStreamEvent.thread(AIChatThread thread, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.thread,
       thread: thread,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.done({String? threadId}) {
+  factory AIChatStreamEvent.planUpdated(
+    AIProductionPlan plan, {
+    String? debugLabel,
+  }) {
+    return AIChatStreamEvent._(
+      type: AIChatStreamEventType.planUpdated,
+      plan: plan,
+      debugLabel: debugLabel,
+    );
+  }
+
+  factory AIChatStreamEvent.done({String? threadId, String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.done,
       threadId: threadId,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.error(String message) {
+  factory AIChatStreamEvent.error(String message, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.error,
       message: message,
+      debugLabel: debugLabel,
     );
   }
 }

@@ -36,6 +36,30 @@ class AIRemoteDataSource {
     );
   }
 
+  Future<List<AIChatThreadSummary>> listThreads({int limit = 30}) async {
+    final response = await _apiClient.get(
+      '/api/v1/ai/chat-create/threads?limit=$limit',
+      requiresAuth: true,
+    );
+    final rawThreads = response['threads'] as List<dynamic>? ?? const [];
+    return rawThreads
+        .whereType<Map<String, dynamic>>()
+        .map(AIChatThreadSummary.fromJson)
+        .toList();
+  }
+
+  Future<List<AIProductionPlanSummary>> listDrafts({int limit = 50}) async {
+    final response = await _apiClient.get(
+      '/api/v1/ai/production-plans?limit=$limit',
+      requiresAuth: true,
+    );
+    final rawDrafts = response['drafts'] as List<dynamic>? ?? const [];
+    return rawDrafts
+        .whereType<Map<String, dynamic>>()
+        .map(AIProductionPlanSummary.fromJson)
+        .toList();
+  }
+
   Future<AIChatThread> getThread(String threadId) async {
     final response = await _apiClient.get(
       '/api/v1/ai/chat-create/threads/$threadId',
@@ -43,6 +67,16 @@ class AIRemoteDataSource {
     );
     return AIChatThread.fromJson(
       (response['thread'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
+  Future<AIProductionPlan> getDraft(String draftId) async {
+    final response = await _apiClient.get(
+      '/api/v1/ai/production-plans/$draftId',
+      requiresAuth: true,
+    );
+    return AIProductionPlan.fromJson(
+      (response['draft'] as Map<String, dynamic>?) ?? const {},
     );
   }
 
@@ -128,24 +162,40 @@ class AIRemoteDataSource {
 
     switch (eventName.trim()) {
       case 'status':
+        final phase = _readPayloadNullableString(payload['phase']);
+        final tool = _readPayloadNullableString(payload['tool']);
+        final debugLabel = tool ?? phase ?? 'status';
         return AIChatStreamEvent.status(
           _readPayloadString(payload['message'], fallback: 'AI dang xu ly...'),
+          debugLabel: debugLabel,
         );
       case 'assistant_delta':
         return AIChatStreamEvent.assistantDelta(
           _readPayloadString(payload['text'], fallback: ''),
+          debugLabel: 'assistant_delta',
+        );
+      case 'plan_updated':
+        final planJson = payload['plan'] as Map<String, dynamic>? ?? const {};
+        return AIChatStreamEvent.planUpdated(
+          AIProductionPlan.fromJson(planJson),
+          debugLabel: 'plan_updated',
         );
       case 'thread':
         final threadJson =
             payload['thread'] as Map<String, dynamic>? ?? const {};
-        return AIChatStreamEvent.thread(AIChatThread.fromJson(threadJson));
+        return AIChatStreamEvent.thread(
+          AIChatThread.fromJson(threadJson),
+          debugLabel: 'thread',
+        );
       case 'done':
         return AIChatStreamEvent.done(
           threadId: _readPayloadNullableString(payload['thread_id']),
+          debugLabel: 'done',
         );
       case 'error':
         return AIChatStreamEvent.error(
           _readPayloadString(payload['message'], fallback: 'AI service gap loi.'),
+          debugLabel: 'error',
         );
       default:
         return null;

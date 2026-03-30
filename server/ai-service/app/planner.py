@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Protocol
+from datetime import UTC, datetime
+from typing import Any, Callable, Protocol
 
 import httpx
 from google import genai
@@ -46,6 +47,7 @@ class CreateAgent(Protocol):
         conversation: list[str],
         current_thread_title: str | None,
         current_plan: ProductionPlan | None,
+        emit_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ChatTurnResult: ...
 
 
@@ -64,19 +66,24 @@ class PlanValidation:
 
 @dataclass
 class AgentPlanState:
+    mode: str = "default"
+    edit_focus: str | None = None
+    has_searched: bool = False
+    requires_plan: bool = False
     content: str | None = None
     output: PlannerOutput | None = None
     validation: PlanValidation | None = None
+    finalized_reply: str | None = None
 
 
 MAX_AGENT_ITERATIONS = 12
 
 PLAN_SYSTEM_PROMPT = """Bạn là AI Producer Agent của Pody.
 
-Mục tiêu của bạn là tạo production plan cho một podcast/show mới bằng cơ chế tool-calling, không phải trả JSON một phát rồi kết thúc.
+Mục tiêu của bạn là tạo production plan cho một podcast/show mới.
 
 Quy trình bắt buộc:
-1. Nếu cần research chủ đề, trend, hoặc fact mới, gọi `brave_search`.
+1. Luôn gọi `brave_search` trước khi viết hoặc sửa production plan.
 2. Nếu cần, gọi `list_voice_profiles` để xem danh sách giọng hợp lệ.
 3. Gọi `write_plan` để viết plan JSON hoàn chỉnh.
 4. Nếu `write_plan` hoặc `edit_plan` trả về `plan_valid=false`, bạn BẮT BUỘC sửa tiếp cho đến khi `plan_valid=true`.
@@ -87,7 +94,7 @@ Quy tắc plan:
 - `storytelling` phải có đúng 1 host kiểu `narrator` hoặc `host`.
 - `podcast` nên có từ 1 đến 3 host, tùy theo creator yêu cầu. Nếu creator không nói rõ và format là podcast, bạn có thể đề xuất 2 host để tạo cảm giác đối thoại.
 - `voice_profile_id` phải lấy từ danh sách voice được phép.
-- Khi chủ đề cần bám dữ kiện thật hoặc xu hướng hiện tại, ưu tiên search trước rồi mới viết plan.
+- Luôn search trước rồi mới viết plan, kể cả khi creator đã mô tả khá rõ.
 - Nếu creator nêu rõ số tập thì số episode phải khớp yêu cầu đó. Nếu creator không nêu rõ, bạn tự đề xuất số tập hợp lý cho concept đầu tiên.
 - `thread_title` ngắn gọn, rõ nghĩa.
 - `assistant_reply` là câu trả lời tiếng Việt ngắn gọn cho creator.
@@ -132,114 +139,215 @@ JSON bạn phải viết qua tool `write_plan` hoặc `edit_plan` có shape:
 
 Khi bạn kết thúc:
 - Không gọi thêm tool.
-- Trả lời creator bằng tiếng Việt, tối đa khoảng 100 từ.
+- Trả lời creator.
 """
 
-CREATE_AGENT_SYSTEM_PROMPT = """Bạn là Pody Create Agent.
+CREATE_AGENT_DEFAULT_SYSTEM_PROMPT = """Bạn là Pody Create Agent.
 
-Bạn là MỘT agent duy nhất cho màn Create, không tách riêng chatbot và planner.
+Bạn đang ở DEFAULT mode cho màn Create.
 
-Mỗi lượt hội thoại, bạn phải tự quyết định một trong hai cách hành xử:
+Trong mode này, bạn phải tự quyết định một trong hai cách hành xử:
 1. Chỉ trả lời như creative copilot nếu creator đang hỏi, brainstorm, xin góp ý, so sánh phương án, hoặc chưa muốn cập nhật draft chính thức.
-2. Gọi tool để tạo/cập nhật production plan khi creator thực sự muốn dựng draft show hoặc sửa draft hiện có.
+2. Gọi tool để tạo draft mới hoặc chuyển sang EDIT mode nếu creator muốn sửa draft hiện có.
 
 Nguyên tắc:
 - Không tự động tạo plan chỉ vì tin nhắn nhắc đến show/podcast.
-- Nếu creator chỉ muốn trò chuyện, bạn KHÔNG gọi tool nào và chỉ trả lời ngắn gọn, hữu ích bằng tiếng Việt.
-- Nếu creator muốn tạo hoặc cập nhật draft chính thức, bạn có thể dùng tool.
-- Khi đã dùng `write_plan` hoặc `edit_plan`, bạn PHẢI đảm bảo plan hợp lệ (`plan_valid=true`) trước khi kết thúc.
+- Nếu creator chỉ muốn trò chuyện, bạn vẫn trả lời ngắn gọn, hữu ích bằng tiếng Việt, nhưng trước đó vẫn phải gọi `brave_search` để lấy thêm context mới nhất.
+- Trước khi kết thúc bất kỳ lượt nào, bạn phải gọi `brave_search` ít nhất một lần.
+- Nếu creator muốn tạo draft chính thức từ đầu, bạn có thể dùng `write_plan`.
+- Nếu creator muốn sửa draft hiện có, hãy gọi `begin_edit_session` trước. Backend sẽ chuyển bạn sang EDIT mode với một system prompt khác và bộ tool riêng.
+- Khi đã dùng `write_plan`, bạn PHẢI đảm bảo plan hợp lệ (`plan_valid=true`) trước khi kết thúc.
+- Bạn CHỈ được kết thúc lượt hiện tại bằng cách gọi tool `finalize_turn`.
 - Nếu cần research facts/trends, gọi `brave_search`.
 - Nếu cần biết voice hợp lệ, gọi `list_voice_profiles`.
-- Nếu đã có draft hiện tại, `read_plan` sẽ đọc bản draft đó và `edit_plan` sẽ chỉnh nó.
 - Khi bạn không cần cập nhật draft, không được trả JSON.
-- Khi bạn cần cập nhật draft, bạn phải dùng tool thay vì chèn plan JSON thô vào câu trả lời.
+- Khi bạn cần tạo draft, bạn phải dùng tool thay vì chèn plan JSON thô vào câu trả lời.
 
 Khi kết thúc:
-- nếu không cập nhật draft: trả lời tự nhiên như copilot
-- nếu có cập nhật draft: trả lời ngắn gọn, tóm tắt những gì vừa thay đổi trong draft
+- nếu không cập nhật draft: trả lời tự nhiên
+- nếu có cập nhật draft: trả lời ngắn gọn, tóm tắt concept vừa tạo
 """
 
-PLAN_TOOLS = [
+CREATE_AGENT_EDIT_SYSTEM_PROMPT = """Bạn là Pody Create Agent.
+
+Bạn đang ở EDIT mode cho màn Create.
+
+Trong mode này, bạn đang cộng tác trên một production draft đã tồn tại. Nhiệm vụ của bạn là chỉnh sửa artifact hiện có một cách chính xác, không tạo lại toàn bộ cuộc trò chuyện từ đầu.
+
+Nguyên tắc:
+- Luôn xem draft hiện tại là source of truth.
+- Nếu cần nhìn lại toàn bộ draft, dùng `read_plan`.
+- Khi cần sửa draft, dùng `edit_plan`.
+- Nếu `edit_plan` trả về `plan_valid=false`, bạn BẮT BUỘC sửa tiếp cho tới khi `plan_valid=true`.
+- Luôn gọi `brave_search` ít nhất một lần trước khi chỉnh draft hoặc kết thúc lượt chỉnh draft.
+- Chỉ dùng `list_voice_profiles` khi việc chỉnh sửa liên quan đến host/voice.
+- Không trả plan JSON thô ra chat.
+- Bạn CHỈ được kết thúc lượt hiện tại bằng cách gọi tool `finalize_turn`.
+
+Khi kết thúc:
+- trả lời ngắn gọn, nói rõ bạn đã chỉnh gì trong draft hiện tại.
+"""
+
+BASE_PLAN_FUNCTION_DECLARATIONS = [
+    types.FunctionDeclaration(
+        name="brave_search",
+        description=(
+            "Search the web for topic research, trends, factual context, or examples before writing the show plan."
+        ),
+        parameters_json_schema={
+            "type": "object",
+            "required": ["query"],
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query in Vietnamese or English",
+                }
+            },
+        },
+    ),
+    types.FunctionDeclaration(
+        name="begin_edit_session",
+        description=(
+            "Enter edit mode for the current draft. "
+            "This returns the current draft content and switches the agent to EDIT mode."
+        ),
+        parameters_json_schema={
+            "type": "object",
+            "properties": {
+                "focus": {
+                    "type": "string",
+                    "description": "Optional section to focus on, such as show.title or episodes[1]",
+                }
+            },
+        },
+    ),
+    types.FunctionDeclaration(
+        name="list_voice_profiles",
+        description="Read the list of allowed AI voice profiles for this show plan.",
+        parameters_json_schema={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+    types.FunctionDeclaration(
+        name="write_plan",
+        description=(
+            "Write the full show production plan JSON as a string. "
+            "The tool validates the structure and tells you whether the plan is valid."
+        ),
+        parameters_json_schema={
+            "type": "object",
+            "required": ["content"],
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "Complete production plan JSON string",
+                }
+            },
+        },
+    ),
+    types.FunctionDeclaration(
+        name="read_plan",
+        description="Read the current plan JSON that was last written.",
+        parameters_json_schema={
+            "type": "object",
+            "properties": {},
+        },
+    ),
+    types.FunctionDeclaration(
+        name="edit_plan",
+        description=(
+            "Edit the current plan JSON. Use replace for targeted fixes or rewrite to replace the whole JSON."
+        ),
+        parameters_json_schema={
+            "type": "object",
+            "required": ["operation"],
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["replace", "rewrite"],
+                },
+                "search": {
+                    "type": "string",
+                    "description": "Text to find when operation is replace",
+                },
+                "replacement": {
+                    "type": "string",
+                    "description": "Replacement text when operation is replace",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "Full JSON string when operation is rewrite",
+                },
+            },
+        },
+    ),
+]
+
+PLANNER_TOOLS = [
     types.Tool(
         function_declarations=[
-            types.FunctionDeclaration(
-                name="brave_search",
-                description=(
-                    "Search the web for topic research, trends, factual context, or examples before writing the show plan."
-                ),
-                parameters_json_schema={
-                    "type": "object",
-                    "required": ["query"],
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "Search query in Vietnamese or English",
-                        }
-                    },
-                },
-            ),
-            types.FunctionDeclaration(
-                name="list_voice_profiles",
-                description="Read the list of allowed AI voice profiles for this show plan.",
-                parameters_json_schema={
-                    "type": "object",
-                    "properties": {},
-                },
-            ),
-            types.FunctionDeclaration(
-                name="write_plan",
-                description=(
-                    "Write the full show production plan JSON as a string. "
-                    "The tool validates the structure and tells you whether the plan is valid."
-                ),
-                parameters_json_schema={
-                    "type": "object",
-                    "required": ["content"],
-                    "properties": {
-                        "content": {
-                            "type": "string",
-                            "description": "Complete production plan JSON string",
-                        }
-                    },
-                },
-            ),
-            types.FunctionDeclaration(
-                name="read_plan",
-                description="Read the current plan JSON that was last written.",
-                parameters_json_schema={
-                    "type": "object",
-                    "properties": {},
-                },
-            ),
-            types.FunctionDeclaration(
-                name="edit_plan",
-                description=(
-                    "Edit the current plan JSON. Use replace for targeted fixes or rewrite to replace the whole JSON."
-                ),
-                parameters_json_schema={
-                    "type": "object",
-                    "required": ["operation"],
-                    "properties": {
-                        "operation": {
-                            "type": "string",
-                            "enum": ["replace", "rewrite"],
-                        },
-                        "search": {
-                            "type": "string",
-                            "description": "Text to find when operation is replace",
-                        },
-                        "replacement": {
-                            "type": "string",
-                            "description": "Replacement text when operation is replace",
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": "Full JSON string when operation is rewrite",
-                        },
-                    },
-                },
-            ),
+            declaration
+            for declaration in BASE_PLAN_FUNCTION_DECLARATIONS
+            if declaration.name != "begin_edit_session"
         ]
+    )
+]
+
+CREATE_AGENT_DEFAULT_TOOLS = [
+    types.Tool(
+        function_declarations=[
+            declaration
+            for declaration in BASE_PLAN_FUNCTION_DECLARATIONS
+            if declaration.name not in {"read_plan", "edit_plan"}
+        ]
+        + [
+            types.FunctionDeclaration(
+                name="finalize_turn",
+                description=(
+                    "Finalize the current turn after you are done. "
+                    "Use this for both plain chat replies and completed draft updates."
+                ),
+                parameters_json_schema={
+                    "type": "object",
+                    "required": ["message"],
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Final assistant reply to send back to the creator",
+                        }
+                    },
+                },
+            ),
+        ],
+    )
+]
+
+CREATE_AGENT_EDIT_TOOLS = [
+    types.Tool(
+        function_declarations=[
+            declaration
+            for declaration in BASE_PLAN_FUNCTION_DECLARATIONS
+            if declaration.name not in {"write_plan", "begin_edit_session"}
+        ]
+        + [
+            types.FunctionDeclaration(
+                name="finalize_turn",
+                description=(
+                    "Finalize the current turn after you are done editing the draft."
+                ),
+                parameters_json_schema={
+                    "type": "object",
+                    "required": ["message"],
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Final assistant reply to send back to the creator",
+                        }
+                    },
+                },
+            ),
+        ],
     )
 ]
 
@@ -414,7 +522,7 @@ class GoogleGenAIPlanner:
                 config=types.GenerateContentConfig(
                     temperature=0.7,
                     system_instruction=PLAN_SYSTEM_PROMPT,
-                    tools=PLAN_TOOLS,
+                    tools=PLANNER_TOOLS,
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
                     ),
@@ -509,13 +617,17 @@ class StubCreateAgent:
         conversation: list[str],
         current_thread_title: str | None,
         current_plan: ProductionPlan | None,
+        emit_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ChatTurnResult:
+        _ = emit_event
         should_plan = _should_create_or_update_plan(
             prompt=prompt,
             conversation=conversation,
             current_plan=current_plan,
         )
         if should_plan:
+            if emit_event is not None:
+                _emit_tool_status(emit_event, "write_plan")
             output = StubPlanner().generate(
                 prompt=prompt,
                 requested_episode_count=requested_episode_count,
@@ -523,6 +635,8 @@ class StubCreateAgent:
                 conversation=conversation,
                 current_plan_summary=_current_plan_summary(current_plan),
             )
+            if emit_event is not None:
+                _emit_plan_preview(emit_event, output)
             return ChatTurnResult(
                 thread_title=output.thread_title.strip() or output.series_title,
                 assistant_reply=output.assistant_reply,
@@ -564,7 +678,19 @@ class GoogleGenAICreateAgent:
         conversation: list[str],
         current_thread_title: str | None,
         current_plan: ProductionPlan | None,
+        emit_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ChatTurnResult:
+        requires_plan = _should_create_or_update_plan(
+            prompt=prompt,
+            conversation=conversation,
+            current_plan=current_plan,
+        )
+        state = _seed_agent_state(
+            current_plan=current_plan,
+            voice_profiles=voice_profiles,
+            requested_episode_count=requested_episode_count,
+            requires_plan=requires_plan,
+        )
         contents = [
             types.Content(
                 role="user",
@@ -581,20 +707,17 @@ class GoogleGenAICreateAgent:
                 ],
             )
         ]
-        state = _seed_agent_state(
-            current_plan=current_plan,
-            voice_profiles=voice_profiles,
-            requested_episode_count=requested_episode_count,
-        )
 
         for _ in range(MAX_AGENT_ITERATIONS):
+            system_prompt = _create_agent_system_prompt_for_mode(state.mode)
+            mode_tools = _create_agent_tools_for_mode(state.mode)
             response = self._client.models.generate_content(
                 model=self._model,
                 contents=contents,
                 config=types.GenerateContentConfig(
                     temperature=0.7,
-                    system_instruction=CREATE_AGENT_SYSTEM_PROMPT,
-                    tools=PLAN_TOOLS,
+                    system_instruction=system_prompt,
+                    tools=mode_tools,
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
                     ),
@@ -626,6 +749,7 @@ class GoogleGenAICreateAgent:
                             voice_profiles=voice_profiles,
                             requested_episode_count=requested_episode_count,
                             search_tool=self._search_tool,
+                            emit_event=emit_event,
                         )
                     except Exception as exc:
                         result = json.dumps({"error": str(exc)}, ensure_ascii=False)
@@ -637,6 +761,25 @@ class GoogleGenAICreateAgent:
                     )
 
                 contents.append(types.Content(role="user", parts=function_response_parts))
+                if state.finalized_reply is not None:
+                    final_reply = state.finalized_reply.strip()
+                    if state.output is not None:
+                        final_output = state.output.model_copy(deep=True)
+                        final_output.assistant_reply = (
+                            final_reply or final_output.assistant_reply or _default_assistant_reply(final_output)
+                        )
+                        if not final_output.thread_title.strip():
+                            final_output.thread_title = final_output.series_title
+                        return ChatTurnResult(
+                            thread_title=final_output.thread_title,
+                            assistant_reply=final_output.assistant_reply,
+                            plan_output=final_output,
+                        )
+                    return ChatTurnResult(
+                        thread_title=_derive_thread_title(prompt, current_thread_title),
+                        assistant_reply=final_reply or _default_chat_reply(current_plan),
+                        plan_output=None,
+                    )
                 continue
 
             if state.output is not None:
@@ -654,11 +797,9 @@ class GoogleGenAICreateAgent:
                 )
 
             if text:
-                if _should_create_or_update_plan(
-                    prompt=prompt,
-                    conversation=conversation,
-                    current_plan=current_plan,
-                ):
+                if requires_plan:
+                    if emit_event is not None:
+                        _emit_tool_status(emit_event, "write_plan")
                     fallback_output = self._planner_fallback.generate(
                         prompt=prompt,
                         requested_episode_count=requested_episode_count,
@@ -666,6 +807,8 @@ class GoogleGenAICreateAgent:
                         conversation=conversation,
                         current_plan_summary=_current_plan_summary(current_plan),
                     )
+                    if emit_event is not None:
+                        _emit_plan_preview(emit_event, fallback_output)
                     return ChatTurnResult(
                         thread_title=fallback_output.thread_title.strip()
                         or fallback_output.series_title,
@@ -739,7 +882,7 @@ class BraveSearchTool:
             params={
                 "q": query,
                 "count": 5,
-                "country": "VN",
+                "country": "ALL",
                 "search_lang": "vi",
                 "text_decorations": "false",
             },
@@ -850,9 +993,10 @@ def _seed_agent_state(
     current_plan: ProductionPlan | None,
     voice_profiles: list[VoiceProfile],
     requested_episode_count: int | None,
+    requires_plan: bool = False,
 ) -> AgentPlanState:
     if current_plan is None:
-        return AgentPlanState()
+        return AgentPlanState(requires_plan=requires_plan)
 
     output = _planner_output_from_plan(current_plan)
     validation = _validate_planner_content(
@@ -861,6 +1005,8 @@ def _seed_agent_state(
         requested_episode_count=requested_episode_count,
     )
     return AgentPlanState(
+        mode="default",
+        requires_plan=requires_plan,
         content=validation.normalized_json,
         output=validation.output or output,
         validation=validation,
@@ -901,6 +1047,40 @@ def _planner_output_from_plan(plan: ProductionPlan) -> PlannerOutput:
     )
 
 
+def _preview_plan_payload(output: PlannerOutput) -> dict[str, Any]:
+    now = datetime.now(UTC).isoformat()
+    return {
+        "id": "preview-plan",
+        "thread_id": None,
+        "status": "draft",
+        "series_title": output.series_title,
+        "series_description": output.series_description,
+        "tone_style": output.tone_style,
+        "target_language_code": output.language_code,
+        "show_draft": {
+            "id": None,
+            "slug": _slugify(output.series_title),
+            "title": output.series_title,
+            "description": output.series_description,
+            "cover_image_url": output.cover_image_url,
+            "primary_category": output.primary_category,
+            "categories": output.categories,
+            "language_code": output.language_code,
+            "content_type": output.content_type,
+            "hosts": [
+                host.model_dump(mode="json", exclude_none=True) for host in output.hosts
+            ],
+            "tags": output.tags,
+        },
+        "episodes": [
+            episode.model_dump(mode="json", exclude_none=True) for episode in output.episodes
+        ],
+        "tags": output.tags,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
 def _derive_thread_title(prompt: str, current_thread_title: str | None) -> str:
     if current_thread_title and current_thread_title.strip():
         return current_thread_title
@@ -923,6 +1103,12 @@ def _default_chat_reply(current_plan: ProductionPlan | None) -> str:
         "Mình có thể brainstorm cùng bạn trước. "
         "Bạn muốn show này dành cho ai, theo format podcast hay storytelling, và cảm giác người nghe nhận được là gì?"
     )
+
+
+def _slugify(value: str) -> str:
+    normalized = re.sub(r"[^a-zA-Z0-9]+", "-", (value or "").strip().lower())
+    normalized = normalized.strip("-")
+    return normalized or "new-show"
 
 
 _PLAN_ACTION_KEYWORDS = (
@@ -1030,6 +1216,18 @@ def _should_create_or_update_plan(
     return False
 
 
+def _create_agent_system_prompt_for_mode(mode: str) -> str:
+    if mode == "edit":
+        return CREATE_AGENT_EDIT_SYSTEM_PROMPT
+    return CREATE_AGENT_DEFAULT_SYSTEM_PROMPT
+
+
+def _create_agent_tools_for_mode(mode: str) -> list[types.Tool]:
+    if mode == "edit":
+        return CREATE_AGENT_EDIT_TOOLS
+    return CREATE_AGENT_DEFAULT_TOOLS
+
+
 def _execute_plan_tool(
     name: str,
     args: dict[str, Any],
@@ -1038,14 +1236,28 @@ def _execute_plan_tool(
     voice_profiles: list[VoiceProfile],
     requested_episode_count: int | None,
     search_tool: SearchTool,
+    emit_event: Callable[[dict[str, Any]], None] | None = None,
 ) -> str:
     if name == "brave_search":
         query = str(args.get("query", "")).strip()
         if not query:
             raise PlannerError("query is required for brave_search")
-        return search_tool.search(query=query)
+        _emit_tool_status(emit_event, name, query=query)
+        result = search_tool.search(query=query)
+        try:
+            payload = json.loads(result)
+        except json.JSONDecodeError:
+            state.has_searched = True
+            return result
+
+        if isinstance(payload, dict) and payload.get("error"):
+            return result
+
+        state.has_searched = True
+        return result
 
     if name == "list_voice_profiles":
+        _emit_tool_status(emit_event, name)
         payload = [
             {
                 "id": str(voice.id),
@@ -1059,7 +1271,45 @@ def _execute_plan_tool(
         ]
         return json.dumps(payload, ensure_ascii=False, indent=2)
 
+    if name == "begin_edit_session":
+        _emit_tool_status(emit_event, name)
+        if not state.content:
+            return json.dumps(
+                {
+                    "error": "No current draft available. Create a draft first before entering edit mode.",
+                },
+                ensure_ascii=False,
+            )
+
+        focus = str(args.get("focus", "")).strip() or None
+        state.mode = "edit"
+        state.edit_focus = focus
+
+        plan_payload = (
+            json.loads(state.content)
+            if state.content
+            else None
+        )
+        return json.dumps(
+            {
+                "success": True,
+                "mode": state.mode,
+                "focus": state.edit_focus,
+                "plan": plan_payload,
+            },
+            ensure_ascii=False,
+        )
+
     if name == "write_plan":
+        if not state.has_searched:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "You must call brave_search before writing the draft.",
+                },
+                ensure_ascii=False,
+            )
+        _emit_tool_status(emit_event, name)
         content = str(args.get("content", ""))
         validation = _validate_planner_content(
             content,
@@ -1069,12 +1319,22 @@ def _execute_plan_tool(
         state.validation = validation
         state.content = validation.normalized_json if validation.valid else content
         state.output = validation.output if validation.valid else None
+        if validation.valid and validation.output is not None and emit_event is not None:
+            emit_event(
+                {
+                    "event": "plan_updated",
+                    "data": {
+                        "plan": _preview_plan_payload(validation.output),
+                    },
+                }
+            )
         return json.dumps(
             _validation_payload(validation),
             ensure_ascii=False,
         )
 
     if name == "read_plan":
+        _emit_tool_status(emit_event, name)
         if not state.content:
             return json.dumps(
                 {"error": "No plan written yet. Use write_plan first."},
@@ -1083,6 +1343,15 @@ def _execute_plan_tool(
         return state.content
 
     if name == "edit_plan":
+        if not state.has_searched:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "You must call brave_search before editing the draft.",
+                },
+                ensure_ascii=False,
+            )
+        _emit_tool_status(emit_event, name)
         if not state.content:
             return json.dumps(
                 {"error": "No plan written yet. Use write_plan first."},
@@ -1112,12 +1381,108 @@ def _execute_plan_tool(
         state.validation = validation
         state.content = validation.normalized_json if validation.valid else content
         state.output = validation.output if validation.valid else None
+        if validation.valid and validation.output is not None and emit_event is not None:
+            emit_event(
+                {
+                    "event": "plan_updated",
+                    "data": {
+                        "plan": _preview_plan_payload(validation.output),
+                    },
+                }
+            )
         return json.dumps(
             _validation_payload(validation),
             ensure_ascii=False,
         )
 
+    if name == "finalize_turn":
+        if not state.has_searched:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "You must call brave_search before finalizing the turn.",
+                },
+                ensure_ascii=False,
+            )
+        if state.requires_plan and state.output is None:
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "You must create or update the draft before finalizing the turn.",
+                },
+                ensure_ascii=False,
+            )
+        _emit_tool_status(emit_event, name)
+        message = str(args.get("message", "")).strip()
+        if not message:
+            raise PlannerError("message is required for finalize_turn")
+        state.finalized_reply = message
+        return json.dumps(
+            {
+                "success": True,
+                "finalized": True,
+            },
+            ensure_ascii=False,
+        )
+
     raise PlannerError(f"Unknown tool: {name}")
+
+
+def _emit_tool_status(
+    emit_event: Callable[[dict[str, Any]], None] | None,
+    tool_name: str,
+    *,
+    query: str | None = None,
+) -> None:
+    if emit_event is None:
+        return
+    emit_event(
+        {
+            "event": "status",
+            "data": {
+                "phase": "tool",
+                "tool": tool_name,
+                "message": _tool_status_message(tool_name, query=query),
+            },
+        }
+    )
+
+
+def _emit_plan_preview(
+    emit_event: Callable[[dict[str, Any]], None],
+    output: PlannerOutput,
+) -> None:
+    emit_event(
+        {
+            "event": "plan_updated",
+            "data": {
+                "plan": _preview_plan_payload(output),
+            },
+        }
+    )
+
+
+def _tool_status_message(tool_name: str, *, query: str | None = None) -> str:
+    if tool_name == "brave_search":
+        if query:
+            compact_query = re.sub(r"\s+", " ", query).strip()
+            if len(compact_query) > 72:
+                compact_query = f"{compact_query[:69].rstrip()}..."
+            return f"Đang tìm kiếm thông tin về “{compact_query}”..."
+        return "Đang tìm kiếm thông tin liên quan..."
+    if tool_name == "list_voice_profiles":
+        return "Đang rà các giọng AI phù hợp..."
+    if tool_name == "begin_edit_session":
+        return "Đang mở bản draft để chỉnh sửa..."
+    if tool_name == "write_plan":
+        return "Đang chỉnh sửa draft..."
+    if tool_name == "read_plan":
+        return "Đang đọc bản draft hiện tại..."
+    if tool_name == "edit_plan":
+        return "Đang cập nhật bản draft..."
+    if tool_name == "finalize_turn":
+        return "Đang hoàn thiện phản hồi cho bạn..."
+    return "Đang thực hiện bước tiếp theo..."
 
 
 def _validation_payload(validation: PlanValidation) -> dict[str, Any]:

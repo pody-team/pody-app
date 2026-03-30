@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from queue import Queue
+import threading
 from uuid import UUID, uuid4
 
 from app.models import (
     AIHostDraft,
     AuthContext,
     ChatMessage,
+    ProductionPlanSummary,
+    ChatThreadSummary,
     ChatTurnResult,
     ChatThreadView,
     CreateThreadRequest,
@@ -81,6 +85,7 @@ class FakeCreateAgent:
         conversation: list[str],
         current_thread_title: str | None,
         current_plan: ProductionPlan | None,
+        emit_event=None,
     ) -> ChatTurnResult:
         _ = requested_episode_count
         _ = voice_profiles
@@ -88,6 +93,7 @@ class FakeCreateAgent:
         _ = conversation
         _ = current_thread_title
         _ = current_plan
+        _ = emit_event
         self.calls += 1
         if self.result == "chat":
             return ChatTurnResult(
@@ -95,16 +101,75 @@ class FakeCreateAgent:
                 assistant_reply=f"Chat reply for: {prompt}",
                 plan_output=None,
             )
+        output = FakePlanner().generate(
+            prompt=prompt,
+            requested_episode_count=requested_episode_count,
+            voice_profiles=voice_profiles,
+            conversation=conversation,
+            current_plan_summary=None,
+        )
+        if emit_event is not None:
+            emit_event(
+                {
+                    "event": "plan_updated",
+                    "data": {
+                        "plan": {
+                            "series_title": output.series_title,
+                        }
+                    },
+                }
+            )
         return ChatTurnResult(
             thread_title="AI Builder Lab",
             assistant_reply="Mình đã dựng xong bản draft đầu tiên.",
-            plan_output=FakePlanner().generate(
-                prompt=prompt,
-                requested_episode_count=requested_episode_count,
-                voice_profiles=voice_profiles,
-                conversation=conversation,
-                current_plan_summary=None,
-            ),
+            plan_output=output,
+        )
+
+
+class BlockingToolCreateAgent:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.tool_emitted = threading.Event()
+        self.release = threading.Event()
+
+    def respond(
+        self,
+        *,
+        prompt: str,
+        requested_episode_count: int | None,
+        voice_profiles: list[VoiceProfile],
+        conversation: list[str],
+        current_thread_title: str | None,
+        current_plan: ProductionPlan | None,
+        emit_event=None,
+    ) -> ChatTurnResult:
+        _ = prompt
+        _ = requested_episode_count
+        _ = voice_profiles
+        _ = conversation
+        _ = current_thread_title
+        _ = current_plan
+        self.calls += 1
+
+        if emit_event is not None:
+            emit_event(
+                {
+                    "event": "status",
+                    "data": {
+                        "phase": "tool",
+                        "tool": "brave_search",
+                        "message": "Đang tìm kiếm thông tin liên quan...",
+                    },
+                }
+            )
+            self.tool_emitted.set()
+            if not self.release.wait(timeout=2):
+                raise TimeoutError("timed out waiting to finish create agent")
+
+        return ChatTurnResult(
+            thread_title="Founder format brainstorm",
+            assistant_reply="Chat reply for: founder format",
+            plan_output=None,
         )
 
 
@@ -143,6 +208,55 @@ class FakeRepository:
     def get_thread(self, owner_user_id: UUID, thread_id: UUID) -> ChatThreadView:
         _ = owner_user_id
         return self.threads[thread_id]
+
+    def list_threads(self, owner_user_id: UUID, limit: int = 30) -> list[ChatThreadSummary]:
+        _ = owner_user_id
+        threads = sorted(
+            self.threads.values(),
+            key=lambda thread: thread.updated_at,
+            reverse=True,
+        )[:limit]
+        return [
+            ChatThreadSummary(
+                id=thread.id,
+                title=thread.title,
+                status=thread.status,
+                created_at=thread.created_at,
+                updated_at=thread.updated_at,
+                last_message_preview=thread.messages[-1].text_content if thread.messages else None,
+                has_current_plan=thread.current_plan is not None,
+            )
+            for thread in threads
+        ]
+
+    def list_drafts(self, owner_user_id: UUID, limit: int = 50) -> list[ProductionPlanSummary]:
+        _ = owner_user_id
+        threads = sorted(
+            self.threads.values(),
+            key=lambda thread: thread.updated_at,
+            reverse=True,
+        )[:limit]
+        return [
+            ProductionPlanSummary(
+                id=thread.current_plan.id,
+                thread_id=thread.id,
+                status=thread.current_plan.status,
+                series_title=thread.current_plan.series_title,
+                content_type=thread.current_plan.show_draft.content_type,
+                episode_count=len(thread.current_plan.episodes),
+                created_at=thread.current_plan.created_at,
+                updated_at=thread.current_plan.updated_at,
+            )
+            for thread in threads
+            if thread.current_plan is not None
+        ]
+
+    def get_draft(self, owner_user_id: UUID, plan_id: UUID) -> ProductionPlan:
+        _ = owner_user_id
+        for thread in self.threads.values():
+            if thread.current_plan is not None and thread.current_plan.id == plan_id:
+                return thread.current_plan
+        raise KeyError(plan_id)
 
     def add_thread_message(self, auth: AuthContext, thread_id: UUID, message: str, turn) -> ChatThreadView:
         _ = auth
@@ -248,3 +362,97 @@ def test_create_thread_generates_plan_when_user_explicitly_asks_to_create_show()
     assert create_agent.calls == 1
     assert thread.current_plan is not None
     assert thread.current_plan.show_draft.content_type == "podcast"
+
+
+def test_list_drafts_returns_saved_plans() -> None:
+    repository = FakeRepository()
+    create_agent = FakeCreateAgent("plan")
+    planner = FakePlanner()
+    service = AIService(repository, create_agent, planner, "stub")
+
+    thread = service.create_thread(
+        _auth(),
+        CreateThreadRequest(prompt="Tạo một podcast AI cho founder và product manager"),
+    )
+
+    drafts = service.list_drafts(_auth(), 20)
+
+    assert len(drafts) == 1
+    assert drafts[0].series_title == thread.current_plan.series_title
+    assert drafts[0].episode_count == 1
+
+
+def test_stream_create_thread_emits_plan_preview_before_thread() -> None:
+    repository = FakeRepository()
+    create_agent = FakeCreateAgent("plan")
+    planner = FakePlanner()
+    service = AIService(repository, create_agent, planner, "stub")
+
+    events = list(
+        service.stream_create_thread(
+            _auth(),
+            CreateThreadRequest(prompt="Tạo một podcast AI cho founder và product manager"),
+        )
+    )
+
+    event_names = [event["event"] for event in events]
+    assert "plan_updated" in event_names
+    assert "thread" in event_names
+    assert event_names.index("plan_updated") < event_names.index("thread")
+
+
+def test_stream_create_thread_emits_tool_status_while_turn_is_still_running() -> None:
+    repository = FakeRepository()
+    create_agent = BlockingToolCreateAgent()
+    planner = FakePlanner()
+    service = AIService(repository, create_agent, planner, "stub")
+
+    stream = service.stream_create_thread(
+        _auth(),
+        CreateThreadRequest(prompt="Format nao hop hon cho show danh cho founder?"),
+    )
+
+    first_event = next(stream)
+    assert first_event["event"] == "status"
+    assert first_event["data"]["phase"] == "thinking"
+
+    next_event_queue: Queue[dict[str, object]] = Queue()
+    error_queue: Queue[BaseException] = Queue()
+
+    def read_next_event() -> None:
+        try:
+            next_event_queue.put(next(stream))
+        except BaseException as exc:
+            error_queue.put(exc)
+
+    reader = threading.Thread(target=read_next_event, daemon=True)
+    reader.start()
+
+    assert create_agent.tool_emitted.wait(timeout=1)
+    second_event = next_event_queue.get(timeout=1)
+    assert second_event["event"] == "status"
+    assert second_event["data"]["tool"] == "brave_search"
+
+    create_agent.release.set()
+    reader.join(timeout=1)
+
+    assert error_queue.empty()
+    remaining_event_names = [event["event"] for event in stream]
+    assert "thread" in remaining_event_names
+
+
+def test_list_threads_returns_recent_threads() -> None:
+    repository = FakeRepository()
+    create_agent = FakeCreateAgent("chat")
+    planner = FakePlanner()
+    service = AIService(repository, create_agent, planner, "stub")
+    auth = _auth()
+
+    first = service.create_thread(auth, CreateThreadRequest(prompt="Thread 1"))
+    second = service.create_thread(auth, CreateThreadRequest(prompt="Thread 2"))
+
+    summaries = service.list_threads(auth)
+
+    assert len(summaries) >= 2
+    assert summaries[0].id == second.id
+    assert summaries[1].id == first.id

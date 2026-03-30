@@ -16,8 +16,20 @@ class AIRepository {
     return _remoteDataSource.createThread(prompt: prompt);
   }
 
+  Future<List<AIChatThreadSummary>> listThreads({int limit = 30}) {
+    return _remoteDataSource.listThreads(limit: limit);
+  }
+
+  Future<List<AIProductionPlanSummary>> listDrafts({int limit = 50}) {
+    return _remoteDataSource.listDrafts(limit: limit);
+  }
+
   Future<AIChatThread> getThread(String threadId) {
     return _remoteDataSource.getThread(threadId);
+  }
+
+  Future<AIProductionPlan> getDraft(String draftId) {
+    return _remoteDataSource.getDraft(draftId);
   }
 
   Future<AIChatThread> addThreadMessage({
