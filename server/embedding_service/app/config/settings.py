@@ -225,7 +225,10 @@ def load_settings() -> AppSettings:
             api_keys=api_keys,
             embedding_model=_string_env("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001"),
             embedding_version=_string_env("EMBEDDING_VERSION", "v1"),
-            base_url=_optional_string_env("EMBEDDING_GOOGLE_GENAI_BASE_URL"),
+            base_url=_optional_string_env(
+                "EMBEDDING_GOOGLE_GENAI_BASE_URL",
+                "GOOGLE_GENAI_BASE_URL",
+            ),
             output_dimensions=_int_env("EMBEDDING_OUTPUT_DIMENSIONS", PGVECTOR_DIMENSIONS),
             batch_size=_int_env("EMBEDDING_BATCH_SIZE", 16),
             quota_retry_delay_seconds=_float_env("EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS", 60.0),

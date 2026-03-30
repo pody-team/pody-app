@@ -56,7 +56,7 @@ class SettingsTests(unittest.TestCase):
             "postgresql://postgres:postgres@embedding-postgres:5432/pody_embedding",
         )
 
-    def test_load_settings_uses_embedding_specific_base_url_only(self):
+    def test_load_settings_prefers_embedding_specific_base_url(self):
         with patch.dict(
             os.environ,
             {
@@ -71,7 +71,7 @@ class SettingsTests(unittest.TestCase):
 
         self.assertEqual(settings.gemini.base_url, "http://embedding-proxy:3031")
 
-    def test_load_settings_does_not_fallback_to_shared_google_base_url(self):
+    def test_load_settings_falls_back_to_shared_google_base_url(self):
         with patch.dict(
             os.environ,
             {
@@ -83,7 +83,7 @@ class SettingsTests(unittest.TestCase):
         ):
             settings = load_settings()
 
-        self.assertIsNone(settings.gemini.base_url)
+        self.assertEqual(settings.gemini.base_url, "http://host.docker.internal:3030")
 
     def test_load_settings_reads_quota_retry_delay(self):
         with patch.dict(

@@ -49,6 +49,7 @@ Important runtime env vars:
 EMBEDDING_DATABASE_URL=postgresql://postgres:postgres@embedding-postgres:5432/pody_embedding
 EMBEDDING_DATABASE_URL_LOCAL=postgresql://postgres:postgres@localhost:5434/pody_embedding
 EMBEDDING_GOOGLE_GENAI_BASE_URL=
+GOOGLE_GENAI_BASE_URL=http://host.docker.internal:3030
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 EMBEDDING_VERSION=v1
 EMBEDDING_OUTPUT_DIMENSIONS=1536
@@ -60,6 +61,8 @@ ARTICLE_CHUNK_MIN_CHARS=250
 CATEGORY_BOOTSTRAP_ENABLED=true
 CATEGORY_SOURCE_DATABASE_URL=postgresql://postgres:postgres@article-postgres:5432/pody_article
 ```
+
+`EMBEDDING_GOOGLE_GENAI_BASE_URL` has the highest priority for `embedding-service`. If it is empty, the service now falls back to `GOOGLE_GENAI_BASE_URL`, which lets the embedding pipeline reuse the shared proxy configuration.
 
 ## Run with Docker Compose
 

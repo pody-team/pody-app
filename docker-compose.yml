@@ -469,6 +469,7 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_GOOGLE_GENAI_BASE_URL: ${EMBEDDING_GOOGLE_GENAI_BASE_URL:-}
+      GOOGLE_GENAI_BASE_URL: ${GOOGLE_GENAI_BASE_URL:-}
       GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
       EMBEDDING_VERSION: ${EMBEDDING_VERSION:-v1}
       EMBEDDING_OUTPUT_DIMENSIONS: ${EMBEDDING_OUTPUT_DIMENSIONS:-1536}
@@ -480,6 +481,8 @@ services:
       ARTICLE_DEFAULT_LANGUAGE_CODE: ${ARTICLE_DEFAULT_LANGUAGE_CODE:-vi}
     ports:
       - "8088:8088"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       kafka:
         condition: service_healthy

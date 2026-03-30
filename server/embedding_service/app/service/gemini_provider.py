@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import threading
+from dataclasses import dataclass
 
+import httpx
 from google import genai
 from google.genai import types
 
@@ -13,6 +15,12 @@ class EmbeddingRateLimitError(RuntimeError):
     def __init__(self, message: str, *, retry_delay_seconds: float) -> None:
         super().__init__(message)
         self.retry_delay_seconds = retry_delay_seconds
+
+
+@dataclass(frozen=True)
+class _ProviderClient:
+    api_key: str
+    sdk_client: genai.Client | None = None
 
 
 class GeminiEmbeddingProvider:
@@ -51,7 +59,12 @@ class GeminiEmbeddingProvider:
         for _ in range(len(self._clients)):
             client_index, client = self._current_client()
             try:
-                client.models.get(model=self._settings.embedding_model)
+                if self._settings.base_url:
+                    self._probe_via_http(client.api_key)
+                else:
+                    if client.sdk_client is None:
+                        raise RuntimeError("Gemini SDK client is not configured")
+                    client.sdk_client.models.get(model=self._settings.embedding_model)
                 self._probe_ready = True
                 self._last_error = None
                 self._logger.info(
@@ -87,11 +100,10 @@ class GeminiEmbeddingProvider:
             embeddings.extend(self._embed_batch(batch, task_type=task_type))
         return embeddings
 
-    def _build_client(self, api_key: str) -> genai.Client:
-        http_options = None
+    def _build_client(self, api_key: str) -> _ProviderClient:
         if self._settings.base_url:
-            http_options = types.HttpOptions(baseUrl=self._settings.base_url)
-        return genai.Client(api_key=api_key, http_options=http_options)
+            return _ProviderClient(api_key=api_key)
+        return _ProviderClient(api_key=api_key, sdk_client=genai.Client(api_key=api_key))
 
     def _build_config(self, *, task_type: str) -> types.EmbedContentConfig:
         payload: dict[str, object] = {
@@ -101,7 +113,7 @@ class GeminiEmbeddingProvider:
             payload["output_dimensionality"] = self._settings.output_dimensions
         return types.EmbedContentConfig(**payload)
 
-    def _current_client(self) -> tuple[int, genai.Client]:
+    def _current_client(self) -> tuple[int, _ProviderClient]:
         with self._lock:
             return self._client_index, self._clients[self._client_index]
 
@@ -114,12 +126,21 @@ class GeminiEmbeddingProvider:
         for _ in range(len(self._clients)):
             client_index, client = self._current_client()
             try:
-                response = client.models.embed_content(
-                    model=self._settings.embedding_model,
-                    contents=texts,
-                    config=self._build_config(task_type=task_type),
-                )
-                embeddings = [_extract_embedding_values(item) for item in response.embeddings]
+                if self._settings.base_url:
+                    embeddings = self._embed_batch_via_http(
+                        client.api_key,
+                        texts,
+                        task_type=task_type,
+                    )
+                else:
+                    if client.sdk_client is None:
+                        raise RuntimeError("Gemini SDK client is not configured")
+                    response = client.sdk_client.models.embed_content(
+                        model=self._settings.embedding_model,
+                        contents=texts,
+                        config=self._build_config(task_type=task_type),
+                    )
+                    embeddings = [_extract_embedding_values(item) for item in response.embeddings]
                 if len(embeddings) != len(texts):
                     raise RuntimeError(
                         f"Gemini returned {len(embeddings)} embeddings for {len(texts)} texts"
@@ -148,6 +169,63 @@ class GeminiEmbeddingProvider:
             retry_delay_seconds=self._settings.quota_retry_delay_seconds,
         ) from last_error
 
+    def _probe_via_http(self, api_key: str) -> None:
+        with self._http_client() as client:
+            response = client.get(
+                f"/v1beta/models/{self._settings.embedding_model}",
+                headers=self._build_proxy_headers(api_key),
+            )
+            response.raise_for_status()
+
+    def _embed_batch_via_http(
+        self,
+        api_key: str,
+        texts: list[str],
+        *,
+        task_type: str,
+    ) -> list[list[float]]:
+        requests = []
+        for text in texts:
+            request_payload: dict[str, object] = {
+                "model": f"models/{self._settings.embedding_model}",
+                "content": {
+                    "parts": [{"text": text}],
+                },
+                "taskType": task_type,
+            }
+            if self._settings.output_dimensions is not None:
+                request_payload["outputDimensionality"] = self._settings.output_dimensions
+            requests.append(request_payload)
+
+        with self._http_client() as client:
+            response = client.post(
+                f"/v1beta/models/{self._settings.embedding_model}:batchEmbedContents",
+                headers=self._build_proxy_headers(api_key),
+                json={"requests": requests},
+            )
+            response.raise_for_status()
+
+        body = response.json()
+        embeddings = body.get("embeddings")
+        if not isinstance(embeddings, list):
+            raise RuntimeError("Gemini embedding response does not contain embeddings")
+        return [_extract_embedding_values(item) for item in embeddings]
+
+    def _http_client(self) -> httpx.Client:
+        if not self._settings.base_url:
+            raise RuntimeError("Gemini proxy base URL is not configured")
+        return httpx.Client(
+            base_url=self._settings.base_url.rstrip("/"),
+            timeout=30.0,
+        )
+
+    @staticmethod
+    def _build_proxy_headers(api_key: str) -> dict[str, str]:
+        return {
+            "x-goog-api-key": api_key,
+            "Content-Type": "application/json",
+        }
+
     @staticmethod
     def _should_rotate(exc: Exception) -> bool:
         message = str(exc).lower()
@@ -164,9 +242,18 @@ class GeminiEmbeddingProvider:
 
 
 def _extract_embedding_values(item: object) -> list[float]:
-    values = getattr(item, "values", None)
-    if values is None and isinstance(item, dict):
+    values = None
+    if isinstance(item, dict):
         values = item.get("values")
+        if values is None:
+            nested_embedding = item.get("embedding")
+            if isinstance(nested_embedding, dict):
+                values = nested_embedding.get("values")
+    else:
+        values = getattr(item, "values", None)
+        if values is None:
+            embedding = getattr(item, "embedding", None)
+            values = getattr(embedding, "values", None)
     if not isinstance(values, (list, tuple)):
         raise RuntimeError("Gemini embedding response item does not contain numeric values")
     return [float(value) for value in values]

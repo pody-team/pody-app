@@ -723,6 +723,7 @@ EMBEDDING_OUTPUT_DIMENSIONS=1536
 EMBEDDING_BATCH_SIZE=16
 EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS=60
 EMBEDDING_GOOGLE_GENAI_BASE_URL=
+GOOGLE_GENAI_BASE_URL=http://host.docker.internal:3030
 ```
 
 Fallback key:
@@ -739,6 +740,13 @@ Service se collect key theo thu tu:
 3. `GEMINI_API_KEY`
 
 Va se loai bo key trung lap.
+
+Base URL cho Gemini embedding duoc resolve theo thu tu:
+
+1. `EMBEDDING_GOOGLE_GENAI_BASE_URL`
+2. `GOOGLE_GENAI_BASE_URL`
+
+Dieu nay cho phep `embedding-service` dung chung proxy voi cac service khac neu ban chi muon khai bao mot bien trong `.env`.
 
 ### 15.3. Kafka
 
