@@ -269,6 +269,7 @@ Nhung endpoint hien co:
 
 - `GET /healthz`
 - `GET /api/v1/article`
+- `GET /api/v1/article/categories`
 - `GET /api/v1/article/{article_id}`
 - `GET /api/v1/article/{article_id}/reactions`
 - `POST /api/v1/article/{article_id}/reactions`
@@ -286,6 +287,21 @@ GET /api/v1/article
   -> api.py
   -> ArticleQueryService.list_articles()
   -> ArticleQueryRepository.list_articles_with_extra()
+  -> PostgreSQL
+```
+
+`GET /api/v1/article` ho tro:
+
+- `category`: loc theo ten hoac slug the loai.
+- `q`: tim kiem trong `title` va `summary`.
+
+### 1.1 Xem danh sach the loai
+
+```text
+GET /api/v1/article/categories
+  -> api.py
+  -> ArticleQueryService.list_categories()
+  -> ArticleQueryRepository.list_categories_with_counts()
   -> PostgreSQL
 ```
 

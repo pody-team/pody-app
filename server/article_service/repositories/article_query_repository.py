@@ -125,3 +125,20 @@ class ArticleQueryRepository:
             return None
 
         return row[0], row.categories or [], row.view_count
+
+    async def list_categories_with_counts(self) -> List[Tuple[Category, int]]:
+        article_count = func.count(func.distinct(CategoryArticle.article_id))
+        stmt = (
+            select(
+                Category,
+                article_count.label("article_count"),
+            )
+            .outerjoin(CategoryArticle, Category.id == CategoryArticle.category_id)
+            .outerjoin(Article, Article.id == CategoryArticle.article_id)
+            .where(Category.is_active.is_(True))
+            .group_by(Category.id)
+            .order_by(article_count.desc(), Category.name.asc())
+        )
+
+        result = await self.session.execute(stmt)
+        return [(row[0], row.article_count) for row in result.all()]

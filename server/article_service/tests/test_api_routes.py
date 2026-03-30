@@ -27,6 +27,20 @@ class FakeArticleRepository:
             source_id=9,
             status="PUBLISHED",
         )
+        self.categories = [
+            SimpleNamespace(
+                id="205f73c5-8394-48e1-a0c9-bdbfa8245041",
+                slug="tech",
+                name="Tech",
+                description="Cong nghe va san pham so",
+            ),
+            SimpleNamespace(
+                id="1463d0e3-5dc9-4ea6-a08b-d1916c76bfdf",
+                slug="business",
+                name="Business",
+                description="Kinh doanh",
+            ),
+        ]
         self.view_count = 3
         self.comments = []
         self.reactions_by_user = {}
@@ -41,6 +55,12 @@ class FakeArticleRepository:
         if article_id != self.article.id:
             return None
         return self.article, ["Tech"], self.view_count
+
+    async def list_categories_with_counts(self):
+        return [
+            (self.categories[0], 12),
+            (self.categories[1], 4),
+        ]
 
     async def increment_view_count(self, article_id: int):
         self.view_count += 1
@@ -146,6 +166,27 @@ class ArticleAPIRouteTests(unittest.TestCase):
         self.assertEqual(payload["reactions"]["love_count"], 1)
         self.assertEqual(payload["reactions"]["current_user_reaction"], "LOVE")
         self.assertTrue(payload["is_loved"])
+
+    def test_list_categories_returns_real_category_payload(self):
+        client, _ = create_client()
+
+        response = client.get("/api/v1/article/categories")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["count"], 2)
+        self.assertEqual(payload["categories"][0]["slug"], "tech")
+        self.assertEqual(payload["categories"][0]["article_count"], 12)
+
+    def test_list_categories_with_trailing_slash_returns_real_category_payload(self):
+        client, _ = create_client()
+
+        response = client.get("/api/v1/article/categories/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["count"], 2)
+        self.assertEqual(payload["categories"][1]["slug"], "business")
 
     def test_post_reaction_requires_auth_or_legacy_user_id(self):
         client, _ = create_client()

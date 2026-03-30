@@ -39,6 +39,22 @@ def create_api(logger) -> FastAPI:
             logger.error(f"API Error fetching articles: {str(exc)}")
             raise HTTPException(status_code=500, detail="Internal server error") from exc
 
+    # Keep static category routes registered before the dynamic article-id route.
+    # Starlette/FastAPI path matching is order-sensitive, so `/categories`
+    # must be handled here instead of falling through to `/{article_id}`.
+    @api.get("/api/v1/article/categories")
+    @api.get("/api/v1/article/categories/")
+    async def list_categories(
+        article_query_service: ArticleQueryService = Depends(get_article_query_service),
+    ):
+        try:
+            return await article_query_service.list_categories()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(f"API Error fetching article categories: {str(exc)}")
+            raise HTTPException(status_code=500, detail="Internal server error") from exc
+
     @api.get("/api/v1/article/{article_id}")
     async def get_article(
         article_id: int,
