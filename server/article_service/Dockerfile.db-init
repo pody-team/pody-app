@@ -1,0 +1,6 @@
+FROM postgres:16-alpine
+
+WORKDIR /workspace
+
+COPY ./sql/services/article_service.sql /workspace/sql/article_service.sql
+COPY ./sql/services/article_service_demo_seed.sql /workspace/sql/article_service_demo_seed.sql

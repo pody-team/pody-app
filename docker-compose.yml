@@ -24,13 +24,13 @@ services:
       start_period: 10s
 
   article-db-init:
-    image: postgres:16-alpine
+    build:
+      context: ./server
+      dockerfile: article_service/Dockerfile.db-init
     container_name: pody-article-db-init
     environment:
       PGPASSWORD: postgres
       ENABLE_ARTICLE_DEMO_SEED: ${ENABLE_ARTICLE_DEMO_SEED:-true}
-    volumes:
-      - ./server/sql/services:/workspace/sql:ro
     command:
       - /bin/sh
       - -ec
@@ -67,14 +67,14 @@ services:
       start_period: 10s
 
   embedding-db-init:
-    image: pgvector/pgvector:pg16
+    build:
+      context: ./server
+      dockerfile: embedding_service/Dockerfile.db-init
     container_name: pody-embedding-db-init
     environment:
       PGPASSWORD: postgres
       EMBEDDING_DATABASE_URL: ${EMBEDDING_DATABASE_URL:?EMBEDDING_DATABASE_URL is required}
       EMBEDDING_DB_RESET_ON_INIT: ${EMBEDDING_DB_RESET_ON_INIT:-false}
-    volumes:
-      - ./server/sql/services:/workspace/sql:ro
     command:
       - /bin/sh
       - -ec
@@ -89,7 +89,6 @@ services:
         else
           echo "keeping existing embedding schema"
         fi
-        psql "$${EMBEDDING_DATABASE_URL}" -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector;"
         psql "$${EMBEDDING_DATABASE_URL}" -v ON_ERROR_STOP=1 -f /workspace/sql/embedding_service.sql
     depends_on:
       embedding-postgres:
@@ -518,4 +517,3 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
-

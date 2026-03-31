@@ -1,0 +1,5 @@
+FROM pgvector/pgvector:pg16
+
+WORKDIR /workspace
+
+COPY ./sql/services/embedding_service.sql /workspace/sql/embedding_service.sql
