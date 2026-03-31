@@ -18,6 +18,7 @@ import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/notifications/data/notification_remote_data_source.dart';
 import 'package:pody/features/notifications/data/notification_repository.dart';
 import 'package:pody/models/news/news_article.dart';
+import 'package:pody/models/news/news_category.dart';
 
 import 'package:pody/main.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
@@ -116,6 +117,18 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
 
 class _FakeArticleApiService extends ArticleApiService {
   _FakeArticleApiService(super.apiClient);
+
+  @override
+  Future<List<NewsCategory>> fetchCategories() async {
+    return const <NewsCategory>[
+      NewsCategory(
+        id: 'all',
+        slug: 'cong-nghe',
+        name: 'Công nghệ',
+        articleCount: 0,
+      ),
+    ];
+  }
 
   @override
   Future<List<NewsArticle>> fetchArticles({

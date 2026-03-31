@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/data/article_scope.dart';
-import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
@@ -27,13 +28,17 @@ class _NewsScreenState extends State<NewsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  int _selectedCategoryIndex = 0;
-  String _searchQuery = '';
+  Timer? _searchDebounce;
   bool _isLoading = false;
   bool _isLoadingMore = false;
+  bool _isLoadingCategories = false;
   bool _hasMore = true;
   int _offset = 0;
+  String _searchQuery = '';
+  String? _selectedCategorySlug;
+  String? _selectedCategoryName;
   String? _errorMessage;
+  List<NewsCategory> _categories = const <NewsCategory>[];
   List<NewsArticle> _articles = const <NewsArticle>[];
 
   @override
@@ -41,17 +46,60 @@ class _NewsScreenState extends State<NewsScreen> {
     super.initState();
     _scrollController.addListener(_handleScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchArticles(reset: true);
+      _loadInitialData();
     });
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _scrollController
       ..removeListener(_handleScroll)
       ..dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadInitialData() async {
+    await _fetchCategories();
+    await _fetchArticles(reset: true);
+  }
+
+  Future<void> _fetchCategories() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isLoadingCategories = true);
+
+    try {
+      final categories = await ArticleScope.of(context).fetchCategories();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _categories = categories;
+        _isLoadingCategories = false;
+        final stillExists = _categories.any(
+          (category) => category.slug == _selectedCategorySlug,
+        );
+        if (!stillExists) {
+          _selectedCategorySlug = null;
+          _selectedCategoryName = null;
+        }
+      });
+    } on ApiException {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoadingCategories = false);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoadingCategories = false);
+    }
   }
 
   Future<void> _fetchArticles({bool reset = false}) async {
@@ -74,12 +122,9 @@ class _NewsScreenState extends State<NewsScreen> {
       setState(() => _isLoadingMore = true);
     }
 
-    final articleService = ArticleScope.of(context);
-    String? categoryFilter = _categoryFilterForIndex(_selectedCategoryIndex);
-
     try {
-      final results = await articleService.fetchArticles(
-        category: categoryFilter,
+      final results = await ArticleScope.of(context).fetchArticles(
+        category: _selectedCategorySlug,
         query: _searchQuery.isEmpty ? null : _searchQuery,
         limit: _pageSize,
         offset: reset ? 0 : _offset,
@@ -96,6 +141,9 @@ class _NewsScreenState extends State<NewsScreen> {
         _isLoading = false;
         _isLoadingMore = false;
         _errorMessage = null;
+        if (_categories.isEmpty && results.isNotEmpty) {
+          _categories = _buildFallbackCategories(results);
+        }
       });
     } on ApiException catch (error) {
       if (!mounted) {
@@ -124,6 +172,11 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
+  Future<void> _refreshArticles() async {
+    await _fetchCategories();
+    await _fetchArticles(reset: true);
+  }
+
   void _handleScroll() {
     if (!_scrollController.hasClients) {
       return;
@@ -134,30 +187,114 @@ class _NewsScreenState extends State<NewsScreen> {
     }
   }
 
-  Future<void> _refreshArticles() => _fetchArticles(reset: true);
+  void _handleSearchChanged(String value) {
+    if (mounted) {
+      setState(() {});
+    }
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) {
+        return;
+      }
+      final trimmed = value.trim();
+      if (trimmed == _searchQuery) {
+        return;
+      }
+      setState(() => _searchQuery = trimmed);
+      _fetchArticles(reset: true);
+    });
+  }
 
-  void _submitSearch() {
-    setState(() => _searchQuery = _searchController.text.trim());
+  void _submitSearch([String? value]) {
+    _searchDebounce?.cancel();
+    final trimmed = (value ?? _searchController.text).trim();
+    if (trimmed == _searchQuery) {
+      return;
+    }
+    setState(() => _searchQuery = trimmed);
     _fetchArticles(reset: true);
   }
 
-  String? _categoryFilterForIndex(int index) {
-    if (index == 0) {
-      return null;
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    _fetchArticles(reset: true);
+  }
+
+  void _selectCategory(NewsCategory? category) {
+    setState(() {
+      _selectedCategorySlug = category?.slug;
+      _selectedCategoryName = category?.name;
+    });
+    _fetchArticles(reset: true);
+  }
+
+  List<NewsCategory> _buildFallbackCategories(List<NewsArticle> articles) {
+    final counts = <String, int>{};
+    final labels = <String, String>{};
+
+    for (final article in articles) {
+      final names = article.categories.isNotEmpty
+          ? article.categories
+          : <String>[article.category];
+      for (final name in names) {
+        final trimmed = name.trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+        final slug = trimmed.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+        labels.putIfAbsent(slug, () => trimmed);
+        counts[slug] = (counts[slug] ?? 0) + 1;
+      }
     }
-    final raw = MockData.newsCategories[index];
-    final withoutEmoji = raw.replaceAll(RegExp(r'^[^\wÀ-ỹ]+'), '').trim();
-    if (withoutEmoji.isEmpty) {
-      return null;
-    }
-    final parts = withoutEmoji.split(' ');
-    return parts.length > 1 ? parts.last : withoutEmoji;
+
+    final categories = counts.entries.map((entry) {
+      return NewsCategory(
+        id: entry.key,
+        slug: entry.key,
+        name: labels[entry.key] ?? entry.key,
+        articleCount: entry.value,
+      );
+    }).toList();
+
+    categories.sort((a, b) {
+      final byCount = b.articleCount.compareTo(a.articleCount);
+      if (byCount != 0) {
+        return byCount;
+      }
+      return a.name.compareTo(b.name);
+    });
+    return categories;
   }
 
   void _toggleAdded(NewsArticle article) {
     setState(() {
       article.isAdded = !article.isAdded;
     });
+  }
+
+  String get _heroTitle {
+    if (_searchQuery.isNotEmpty) {
+      return 'Kết quả theo từ khóa';
+    }
+    if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
+      return _selectedCategoryName!;
+    }
+    return 'Bản tin công nghệ sáng nay';
+  }
+
+  String get _heroSubtitle {
+    if (_searchQuery.isNotEmpty && _selectedCategoryName != null) {
+      return 'Đang lọc bài viết về $_selectedCategoryName theo từ khóa "$_searchQuery".';
+    }
+    if (_searchQuery.isNotEmpty) {
+      return 'Những bài viết mới nhất khớp với "$_searchQuery".';
+    }
+    if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
+      return 'Những bài nổi bật mới nhất trong chủ đề $_selectedCategoryName.';
+    }
+    return 'Tổng hợp các bài báo mới từ article service để bạn đọc, chọn và tạo bản tin.';
   }
 
   @override
@@ -295,7 +432,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'AI Playlist',
+                  _selectedCategoryName ?? 'AI Playlist',
                   style: GoogleFonts.workSans(
                     color: _newsPrimary,
                     fontSize: 12,
@@ -305,7 +442,7 @@ class _NewsScreenState extends State<NewsScreen> {
               ),
               const Spacer(),
               Text(
-                '~12 phút',
+                '${_articles.length} bài',
                 style: GoogleFonts.workSans(
                   color: _newsMuted,
                   fontSize: 12,
@@ -316,7 +453,7 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Bản tin công nghệ\nsáng nay của bạn',
+            _heroTitle,
             style: GoogleFonts.newsreader(
               color: _newsNeutral,
               fontSize: 34,
@@ -326,12 +463,32 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Dựa trên ${highlightedCount > 0 ? highlightedCount : 5} bài viết bạn đã chọn và dòng tin mới nhất từ article service.',
+            _heroSubtitle,
             style: GoogleFonts.workSans(
               fontSize: 14,
               color: _newsMuted,
               height: 1.5,
             ),
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildMiniStat(
+                icon: Icons.check_circle_outline,
+                label:
+                    '${highlightedCount > 0 ? highlightedCount : 0} bài đã chọn',
+              ),
+              _buildMiniStat(
+                icon: Icons.grid_view_rounded,
+                label: '${_categories.length} chủ đề',
+              ),
+              _buildMiniStat(
+                icon: Icons.newspaper_rounded,
+                label: _hasMore ? 'Còn thêm bài viết' : 'Đã tải hết',
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           Row(
@@ -378,8 +535,34 @@ class _NewsScreenState extends State<NewsScreen> {
     );
   }
 
+  Widget _buildMiniStat({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _newsSurface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _newsPrimary, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.workSans(
+              color: _newsNeutral,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSearchBar() {
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: _newsSurface,
         borderRadius: BorderRadius.circular(20),
@@ -394,12 +577,19 @@ class _NewsScreenState extends State<NewsScreen> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              onSubmitted: (_) => _submitSearch(),
+              onChanged: _handleSearchChanged,
+              onSubmitted: _submitSearch,
+              cursorColor: _newsPrimary,
+              textInputAction: TextInputAction.search,
               style: GoogleFonts.workSans(color: _newsNeutral, fontSize: 15),
               decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFFFFFEFC),
                 hintText: 'Tìm bài báo, chủ đề hoặc tác giả...',
                 hintStyle: GoogleFonts.workSans(color: _newsMuted),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 16,
@@ -407,6 +597,11 @@ class _NewsScreenState extends State<NewsScreen> {
               ),
             ),
           ),
+          if (_searchController.text.isNotEmpty)
+            IconButton(
+              onPressed: _clearSearch,
+              icon: const Icon(Icons.close_rounded, color: _newsMuted),
+            ),
           IconButton(
             onPressed: _submitSearch,
             icon: const Icon(Icons.arrow_forward_rounded, color: _newsMuted),
@@ -417,52 +612,101 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildCategories() {
-    final categories = MockData.newsCategories;
     return Container(
       height: 42,
       margin: const EdgeInsets.only(top: 12),
-      child: ListView.separated(
+      child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final isSelected = _selectedCategoryIndex == index;
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedCategoryIndex = index;
-              });
-              _fetchArticles(reset: true);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected ? _newsPrimary : _newsSurface,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: isSelected
-                      ? _newsPrimary
-                      : _newsNeutral.withValues(alpha: 0.08),
+        children: [
+          _buildCategoryChip(
+            label: 'Tất cả',
+            isSelected: _selectedCategorySlug == null,
+            onTap: () => _selectCategory(null),
+          ),
+          ..._categories.map(
+            (category) => _buildCategoryChip(
+              label: category.name,
+              isSelected: _selectedCategorySlug == category.slug,
+              onTap: () => _selectCategory(category),
+              count: category.articleCount,
+            ),
+          ),
+          if (_isLoadingCategories)
+            const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _newsPrimary,
+                  ),
                 ),
               ),
-              child: Text(
-                categories[index],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    int? count,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? _newsPrimary : _newsSurface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isSelected
+                  ? _newsPrimary
+                  : _newsNeutral.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
                 style: GoogleFonts.workSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: isSelected ? Colors.white : _newsNeutral,
                 ),
               ),
-            ),
-          );
-        },
+              if (count != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '$count',
+                  style: GoogleFonts.workSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : _newsMuted,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildHighlightStory(NewsArticle article) {
+    final categories = article.categories.isNotEmpty
+        ? article.categories
+        : <String>[article.category];
+
     return InkWell(
       borderRadius: BorderRadius.circular(28),
       onTap: () {
@@ -487,10 +731,49 @@ class _NewsScreenState extends State<NewsScreen> {
               borderRadius: BorderRadius.circular(22),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(article.imageUrl, fit: BoxFit.cover),
+                child: Image.network(
+                  article.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: _newsSurfaceStrong,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: _newsMuted,
+                        size: 40,
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.take(3).map((category) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _newsSurfaceStrong,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    category,
+                    style: GoogleFonts.workSans(
+                      color: _newsPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
             Text(
               article.title,
               style: GoogleFonts.newsreader(
@@ -514,22 +797,19 @@ class _NewsScreenState extends State<NewsScreen> {
             const SizedBox(height: 14),
             Row(
               children: [
-                Text(
-                  article.publisher,
-                  style: GoogleFonts.workSans(
-                    color: _newsNeutral,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    '${article.publisher} • ${article.time}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.workSans(
+                      color: _newsNeutral,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('•', style: GoogleFonts.workSans(color: _newsMuted)),
-                const SizedBox(width: 8),
-                Text(
-                  article.time,
-                  style: GoogleFonts.workSans(color: _newsMuted, fontSize: 12),
-                ),
-                const Spacer(),
                 _buildAddButton(article),
               ],
             ),
@@ -569,6 +849,18 @@ class _NewsScreenState extends State<NewsScreen> {
                   width: 82,
                   height: 82,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 82,
+                      height: 82,
+                      color: _newsSurfaceStrong,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: _newsMuted,
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 14),
@@ -599,30 +891,15 @@ class _NewsScreenState extends State<NewsScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Text(
-                          article.publisher,
-                          style: GoogleFonts.workSans(
-                            color: _newsMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '•',
-                          style: GoogleFonts.workSans(color: _newsMuted),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          article.time,
-                          style: GoogleFonts.workSans(
-                            color: _newsMuted,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      '${article.publisher} • ${article.time}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.workSans(
+                        color: _newsMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),

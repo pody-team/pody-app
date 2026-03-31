@@ -6,6 +6,7 @@ class NewsArticle {
   final String imageUrl;
   final String publisher;
   final String category;
+  final List<String> categories;
   final String time;
   final int viewCount;
   final int commentsCount;
@@ -25,6 +26,7 @@ class NewsArticle {
     required this.imageUrl,
     required this.publisher,
     this.category = 'Tech',
+    this.categories = const <String>[],
     required this.time,
     this.viewCount = 0,
     this.commentsCount = 0,
@@ -50,6 +52,7 @@ class NewsArticle {
       imageUrl: _readImageUrl(json['thumbnail_url']),
       publisher: (author != null && author.isNotEmpty) ? author : 'Pody News',
       category: categories.isNotEmpty ? categories.first : 'The gioi',
+      categories: categories,
       time: _readPublishedAt(json['published_at']) ?? 'Vua xong',
       viewCount: _readInt(json['view_count']),
       commentsCount: _readInt(json['comments_count']),
@@ -70,6 +73,7 @@ class NewsArticle {
     String? imageUrl,
     String? publisher,
     String? category,
+    List<String>? categories,
     String? time,
     int? viewCount,
     int? commentsCount,
@@ -89,6 +93,7 @@ class NewsArticle {
       imageUrl: imageUrl ?? this.imageUrl,
       publisher: publisher ?? this.publisher,
       category: category ?? this.category,
+      categories: categories ?? this.categories,
       time: time ?? this.time,
       viewCount: viewCount ?? this.viewCount,
       commentsCount: commentsCount ?? this.commentsCount,

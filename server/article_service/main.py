@@ -13,8 +13,10 @@ from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import text
 
 from api import create_api
+from config import load_article_category_sync_consumer_settings
 from config.database import DatabaseManager
 from config.redis_manager import RedisManager
+from services.article_category_sync_consumer import ArticleCategorySyncConsumer
 from services.crawler_service import CrawlerService
 from utils.logger import get_logger
 
@@ -29,6 +31,10 @@ class NewscrawlerApplication:
         self.logger = get_logger(__name__)
         self.scheduler = AsyncIOScheduler()
         self.crawler_service = CrawlerService()
+        self.category_sync_consumer = ArticleCategorySyncConsumer(
+            load_article_category_sync_consumer_settings(),
+            self.logger.getChild("category-sync"),
+        )
         self.is_running = False
 
         self.api = create_api(self.logger)
@@ -108,6 +114,8 @@ class NewscrawlerApplication:
             self.scheduler.start()
             self.is_running = True
             self.logger.info("Scheduler started successfully")
+            self.category_sync_consumer.start()
+            self.logger.info("Article-category sync consumer started")
 
             @self.api.on_event("startup")
             async def on_startup():
@@ -133,6 +141,7 @@ class NewscrawlerApplication:
     async def shutdown(self):
         self.logger.info("Shutting down application...")
         try:
+            self.category_sync_consumer.stop()
             if self.scheduler.running:
                 self.scheduler.shutdown(wait=True)
                 self.logger.info("Scheduler stopped")

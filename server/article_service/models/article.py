@@ -4,6 +4,7 @@ Article model.
 from datetime import datetime
 
 from sqlalchemy import BigInteger, Column, DateTime, String, Text
+from sqlalchemy.orm import relationship
 
 from .base import Base
 
@@ -23,6 +24,7 @@ class Article(Base):
     thumbnail_url = Column(String(1000), nullable=True)
     title = Column(String, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    category_links = relationship("CategoryArticle", back_populates="article", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Article(id={self.id}, title='{self.title[:30]}...', source_id={self.source_id})>"

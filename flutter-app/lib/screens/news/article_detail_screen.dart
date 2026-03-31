@@ -126,7 +126,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final authController = AuthScope.of(context);
     if (authController.session == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ban can dang nhap de react bai viet.')),
+        const SnackBar(content: Text('Bạn cần đăng nhập để react bài viết.')),
       );
       return;
     }
@@ -143,7 +143,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     if (updatedArticle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Khong gui duoc tuong tac toi backend.'),
+          content: Text('Không gửi được tương tác tới backend.'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -161,7 +161,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Da cap nhat tuong tac $type.'),
+        content: Text('Đã cập nhật tương tác $type.'),
         duration: const Duration(seconds: 1),
         backgroundColor: kTikRed,
       ),
@@ -178,7 +178,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
     final session = authController.session;
     if (session == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ban can dang nhap de binh luan.')),
+        const SnackBar(content: Text('Bạn cần đăng nhập để bình luận.')),
       );
       return;
     }
@@ -289,28 +289,44 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
   }
 
   Widget _buildMetaRow() {
+    final categories = _article.categories.isNotEmpty
+        ? _article.categories
+        : <String>[_article.category];
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: kTikRed.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            _article.category,
-            style: TextStyle(
-              color: kTikRed,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: categories.map((category) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: kTikRed.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: kTikRed,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 12),
         const Icon(Icons.visibility_outlined, color: Colors.white54, size: 16),
         const SizedBox(width: 4),
         Text(
-          '${_article.viewCount} luot xem',
+          '${_article.viewCount} lượt xem',
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
       ],
@@ -350,7 +366,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tuong tac',
+          'Tương tác',
           style: TextStyle(
             color: Colors.white,
             fontSize: 16,
@@ -359,7 +375,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Cham vao tung nut de react nhanh hoac nhay toi phan binh luan.',
+          'Chạm vào từng nút để react nhanh hoặc nhảy tới phần bình luận.',
           style: TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
         ),
         const SizedBox(height: 12),
@@ -390,7 +406,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ),
             _buildActionChip(
               icon: Icons.chat_bubble_outline,
-              label: '${_article.commentsCount} binh luan',
+              label: '${_article.commentsCount} bình luận',
               color: Colors.lightBlueAccent,
               isActive: false,
               onTap: _scrollToComments,
@@ -478,7 +494,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
 
     if (_article.content.isEmpty) {
       return const Text(
-        'Bai viet nay chua co noi dung chi tiet.',
+        'Bài viết này chưa có nội dung chi tiết.',
         style: TextStyle(fontSize: 16, color: Colors.white70, height: 1.6),
       );
     }
@@ -529,7 +545,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Binh luan',
+          'Bình luận',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -548,7 +564,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           )
         else if (_comments.isEmpty)
           const Text(
-            'Chua co binh luan nao.',
+            'Chưa có bình luận nào.',
             style: TextStyle(color: Colors.white54),
           )
         else
@@ -572,7 +588,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             maxLines: 4,
             style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
-              hintText: 'Viet binh luan cua ban...',
+              hintText: 'Viết bình luận của bạn...',
               hintStyle: TextStyle(color: Colors.white38),
               border: InputBorder.none,
             ),
@@ -592,7 +608,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Gui'),
+                  : const Text('Gửi'),
             ),
           ),
         ],
@@ -689,7 +705,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           Expanded(
             child: _buildInteractionBtn(
               icon: _isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-              label: 'Thich ${_article.likeCount}',
+              label: 'Thích ${_article.likeCount}',
               color: _isLiked ? kTikRed : Colors.white70,
               onTap: () => _handleInteraction('LIKE'),
             ),
@@ -698,7 +714,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           Expanded(
             child: _buildInteractionBtn(
               icon: _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
-              label: 'Ghet ${_article.dislikeCount}',
+              label: 'Ghét ${_article.dislikeCount}',
               color: _isDisliked ? Colors.orange : Colors.white70,
               onTap: () => _handleInteraction('DISLIKE'),
             ),
@@ -707,7 +723,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
           Expanded(
             child: _buildInteractionBtn(
               icon: _isLoved ? Icons.favorite : Icons.favorite_outline,
-              label: 'Tim ${_article.loveCount}',
+              label: 'Thả tim ${_article.loveCount}',
               color: _isLoved ? Colors.pink : Colors.white70,
               onTap: () => _handleInteraction('LOVE'),
             ),

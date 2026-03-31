@@ -2,6 +2,7 @@
 Repositories package - Data access layer.
 """
 from .article_comment_repository import ArticleCommentRepository
+from .article_category_projection_repository import ArticleCategoryProjectionRepository
 from .article_metric_repository import ArticleMetricRepository
 from .article_query_repository import ArticleQueryRepository
 from .article_reaction_repository import ArticleReactionRepository, REACTION_TYPES
@@ -14,6 +15,7 @@ __all__ = [
     "NewsSourceRepository",
     "ArticleRepository",
     "ArticleWriteRepository",
+    "ArticleCategoryProjectionRepository",
     "ArticleQueryRepository",
     "ArticleStatsRepository",
     "ArticleReactionRepository",

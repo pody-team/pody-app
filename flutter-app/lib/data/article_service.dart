@@ -2,6 +2,7 @@ import 'package:pody/core/network/api_client.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pody/models/news/news_article.dart';
+import 'package:pody/models/news/news_category.dart';
 import 'package:pody/models/social/comment.dart';
 
 class ArticleApiService {
@@ -51,6 +52,25 @@ class ArticleApiService {
           .toList();
     } catch (e) {
       debugPrint('Error fetching articles: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<NewsCategory>> fetchCategories() async {
+    try {
+      final response = await _apiClient.get('$_publicBasePath/categories');
+      final categoryList = response['categories'];
+      if (categoryList is! List) {
+        return const <NewsCategory>[];
+      }
+
+      return categoryList
+          .whereType<Map<String, dynamic>>()
+          .map(NewsCategory.fromJson)
+          .where((category) => category.name.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
       rethrow;
     }
   }
