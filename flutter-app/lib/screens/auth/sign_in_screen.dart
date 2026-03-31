@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/auth/presentation/auth_error_message.dart';
@@ -6,7 +7,6 @@ import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
 import 'package:pody/screens/auth/forgot_password_screen.dart';
 import 'package:pody/screens/auth/sign_up_screen.dart';
-import 'package:pody/theme/app_colors.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({
@@ -206,193 +206,191 @@ class _SignInScreenState extends State<SignInScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBgBlack,
-      body: Stack(
-        children: [
-          AuthBackgroundOrb(
-            top: -100,
-            left: -100,
-            diameter: 300,
-            color: kTikTeal.withValues(alpha: 0.15),
-          ),
-          AuthBackgroundOrb(
-            bottom: -60,
-            right: -100,
-            diameter: 300,
-            color: kTikRed.withValues(alpha: 0.15),
-          ),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 40,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: AutofillGroup(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 20),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.headphones, color: kTikRed, size: 42),
-                            SizedBox(width: 12),
-                            Text(
-                              'Pody',
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: -1,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Đăng nhập để tiếp tục nghe, tạo và quản lý show.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: kTextSec,
-                            fontWeight: FontWeight.w500,
-                            height: 1.5,
-                          ),
-                        ),
-                        if ((widget.noticeMessage ?? '').trim().isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          AuthInfoCard(
-                            title: 'Bạn đã sẵn sàng đăng nhập',
-                            message: widget.noticeMessage!.trim(),
-                            icon: Icons.check_circle_outline,
-                            footer: Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton(
-                                onPressed: widget.onNoticeDismissed,
-                                child: const Text(
-                                  'Đã hiểu',
-                                  style: TextStyle(color: kTikTeal),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 48),
-                        AuthTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          hintText: 'name@example.com',
-                          prefixIcon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          validator: _validateEmail,
-                        ),
-                        const SizedBox(height: 16),
-                        AuthTextField(
-                          controller: _passwordController,
-                          label: 'Mật khẩu',
-                          hintText: 'Nhập mật khẩu của bạn',
-                          prefixIcon: Icons.lock_outline,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          obscureText: _isObscured,
-                          validator: _validatePassword,
-                          onFieldSubmitted: (_) => _login(),
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() => _isObscured = !_isObscured);
-                            },
-                            icon: Icon(
-                              _isObscured
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ForgotPasswordScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'Quên mật khẩu?',
-                              style: TextStyle(color: kTikTeal),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        AuthPrimaryButton(
-                          label: 'Đăng nhập',
-                          isLoading: _isSubmitting,
-                          onPressed: _login,
-                        ),
-                        const SizedBox(height: 28),
-                        const AuthDividerLabel(label: 'Hoặc tiếp tục với'),
-                        const SizedBox(height: 28),
-                        Row(
-                          children: [
-                            AuthSocialButton(
-                              label: 'Google',
-                              icon: Icons.g_mobiledata,
-                              onPressed: _isSubmitting
-                                  ? null
-                                  : _loginWithGoogle,
-                            ),
-                            const SizedBox(width: 16),
-                            AuthSocialButton(
-                              label: 'Apple',
-                              icon: Icons.apple,
-                              onPressed: () {
-                                _showPlaceholderAuthMessage('Apple');
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'Chưa có tài khoản?',
-                              style: TextStyle(color: kTextSec, fontSize: 14),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const SignUpScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Tạo tài khoản',
-                                style: TextStyle(color: kTikRed),
-                              ),
-                            ),
-                          ],
+    return AuthPageScaffold(
+      topPadding: 40,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Form(
+          key: _formKey,
+          child: AutofillGroup(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: kAuthSurface,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: kAuthPrimary.withValues(alpha: 0.10),
+                          blurRadius: 22,
+                          offset: const Offset(0, 12),
                         ),
                       ],
                     ),
+                    child: const Icon(
+                      Icons.headphones_rounded,
+                      color: kAuthPrimary,
+                      size: 34,
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 24),
+                const AuthHeroHeader(
+                  title: 'Đăng nhập vào Pody',
+                  subtitle:
+                      'Tiếp tục nghe, tạo và quản lý show bằng dữ liệu thật.',
+                  badge: 'Tài khoản',
+                  alignCenter: true,
+                ),
+                if ((widget.noticeMessage ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  AuthInfoCard(
+                    title: 'Bạn đã sẵn sàng đăng nhập',
+                    message: widget.noticeMessage!.trim(),
+                    icon: Icons.check_circle_outline,
+                    accentColor: kAuthTertiary,
+                    footer: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: widget.onNoticeDismissed,
+                        child: Text(
+                          'Đã hiểu',
+                          style: GoogleFonts.workSans(color: kAuthPrimary),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 36),
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: kAuthCanvasSoft.withValues(alpha: 0.78),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: kAuthNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      AuthTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        hintText: 'name@example.com',
+                        prefixIcon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 16),
+                      AuthTextField(
+                        controller: _passwordController,
+                        label: 'Mật khẩu',
+                        hintText: 'Nhập mật khẩu của bạn',
+                        prefixIcon: Icons.lock_outline,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        obscureText: _isObscured,
+                        validator: _validatePassword,
+                        onFieldSubmitted: (_) => _login(),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() => _isObscured = !_isObscured);
+                          },
+                          icon: Icon(
+                            _isObscured
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: kAuthMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Quên mật khẩu?',
+                            style: GoogleFonts.workSans(color: kAuthPrimary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      AuthPrimaryButton(
+                        label: 'Đăng nhập',
+                        isLoading: _isSubmitting,
+                        onPressed: _login,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+                const AuthDividerLabel(label: 'Hoặc tiếp tục với'),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    AuthSocialButton(
+                      label: 'Google',
+                      icon: Icons.g_mobiledata,
+                      onPressed: _isSubmitting ? null : _loginWithGoogle,
+                    ),
+                    const SizedBox(width: 16),
+                    AuthSocialButton(
+                      label: 'Apple',
+                      icon: Icons.apple,
+                      onPressed: () {
+                        _showPlaceholderAuthMessage('Apple');
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Chưa có tài khoản?',
+                      style: GoogleFonts.workSans(
+                        color: kAuthMuted,
+                        fontSize: 14,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SignUpScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Tạo tài khoản',
+                        style: GoogleFonts.workSans(
+                          color: kAuthPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

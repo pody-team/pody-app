@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/show/player_screen.dart';
 import 'package:pody/screens/show/show_detail_screen.dart';
@@ -12,12 +11,18 @@ void openPlayerScreen(
   Show? show,
   Episode? episode,
   VoidCallback? onOpenShow,
+  bool startPlayback = true,
 }) {
-  final p = show ?? MockData.shows.first;
-  final e = episode ?? p.episodes.first;
+  if (show == null || episode == null) {
+    return;
+  }
 
   // Update global player state so mini player reflects the current episode
-  PlayerState.instance.play(show: p, episode: e);
+  PlayerState.instance.play(
+    show: show,
+    episode: episode,
+    autoplay: startPlayback,
+  );
 
   showModalBottomSheet(
     context: context,

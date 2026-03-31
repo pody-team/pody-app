@@ -103,6 +103,8 @@ def test_validate_planner_content_normalizes_role_and_voice() -> None:
     assert str(validation.output.hosts[0].voice_profile_id) == str(_voice_profile().id)
     assert validation.output.categories == ["Cong nghe"]
     assert validation.output.assistant_reply
+    assert "2 host" in validation.output.assistant_reply
+    assert "Nova, Atlas" in validation.output.assistant_reply
 
 
 def test_validate_planner_content_rejects_wrong_requested_episode_count() -> None:
@@ -188,6 +190,51 @@ def test_validate_planner_content_rejects_storytelling_with_multiple_hosts() -> 
 
     assert validation.valid is False
     assert any("Storytelling shows must have exactly 1 host" in error for error in validation.errors)
+
+
+def test_validate_planner_content_rejects_when_prompt_requires_two_hosts() -> None:
+    content = json.dumps(
+        {
+            "thread_title": "Go Builder Lab",
+            "assistant_reply": "Atlas va Lumi se dong hanh cung ban.",
+            "series_title": "Go Builder Lab",
+            "series_description": "Hoc Go co he thong",
+            "primary_category": "Cong nghe",
+            "categories": ["Cong nghe"],
+            "language_code": "vi",
+            "content_type": "podcast",
+            "tone_style": "practical",
+            "tags": ["golang"],
+            "hosts": [
+                {
+                    "display_name": "Atlas",
+                    "voice_profile_id": str(_voice_profile().id),
+                    "role": "host",
+                    "bio": "AI host",
+                }
+            ],
+            "episodes": [
+                {
+                    "episode_number": 1,
+                    "title": "Tap 1",
+                    "description": "desc 1",
+                    "estimated_duration_seconds": 900,
+                    "status": "draft",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    validation = _validate_planner_content(
+        content,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        requested_host_count=2,
+    )
+
+    assert validation.valid is False
+    assert any("Expected exactly 2 hosts" in error for error in validation.errors)
 
 
 def test_brave_search_tool_returns_soft_error_when_not_configured() -> None:

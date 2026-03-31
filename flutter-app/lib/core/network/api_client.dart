@@ -149,6 +149,36 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> put(
+    String path, {
+    Map<String, dynamic>? body,
+    String? bearerToken,
+    bool requiresAuth = false,
+  }) {
+    return _send(
+      'PUT',
+      path,
+      body: body,
+      bearerToken: bearerToken,
+      requiresAuth: requiresAuth,
+    );
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    Map<String, dynamic>? body,
+    String? bearerToken,
+    bool requiresAuth = false,
+  }) {
+    return _send(
+      'DELETE',
+      path,
+      body: body,
+      bearerToken: bearerToken,
+      requiresAuth: requiresAuth,
+    );
+  }
+
   Future<void> patchWithoutResponseBody(
     String path, {
     Map<String, dynamic>? body,

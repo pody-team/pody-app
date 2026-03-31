@@ -335,6 +335,49 @@ class AIProductionPlanSummary {
   }
 }
 
+class AIGenerationJob {
+  const AIGenerationJob({
+    required this.id,
+    required this.planId,
+    required this.jobType,
+    required this.status,
+    required this.createdAt,
+    this.episodeDraftId,
+    this.provider,
+    this.errorMessage,
+    this.startedAt,
+    this.finishedAt,
+  });
+
+  final String id;
+  final String planId;
+  final String? episodeDraftId;
+  final String jobType;
+  final String status;
+  final String? provider;
+  final String? errorMessage;
+  final DateTime? startedAt;
+  final DateTime? finishedAt;
+  final DateTime createdAt;
+
+  bool get isQueued => status == 'queued' || status == 'running';
+
+  factory AIGenerationJob.fromJson(Map<String, dynamic> json) {
+    return AIGenerationJob(
+      id: _readString(json['id']),
+      planId: _readString(json['plan_id']),
+      episodeDraftId: _readNullableString(json['episode_draft_id']),
+      jobType: _readString(json['job_type']),
+      status: _readString(json['status']),
+      provider: _readNullableString(json['provider']),
+      errorMessage: _readNullableString(json['error_message']),
+      startedAt: _readNullableDateTime(json['started_at']),
+      finishedAt: _readNullableDateTime(json['finished_at']),
+      createdAt: _readDateTime(json['created_at']),
+    );
+  }
+}
+
 enum AIChatStreamEventType {
   status,
   assistantDelta,
@@ -464,6 +507,19 @@ DateTime _readDateTime(Object? value) {
   }
 
   return DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+DateTime? _readNullableDateTime(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    return DateTime.tryParse(value)?.toLocal();
+  }
+  return null;
 }
 
 String _formatDuration(int totalSeconds) {

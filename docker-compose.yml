@@ -155,16 +155,28 @@ services:
     container_name: pody-ai-service
     environment:
       DATABASE_URL: ${AI_DATABASE_URL:?AI_DATABASE_URL is required}
+      CONTENT_DATABASE_URL: ${CONTENT_DATABASE_URL:?CONTENT_DATABASE_URL is required}
       PORT: "8085"
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GOOGLE_GENAI_MODEL: ${GOOGLE_GENAI_MODEL:-gemini-2.5-flash}
+      GOOGLE_TTS_MODEL: ${GOOGLE_TTS_MODEL:-gemini-2.5-flash-tts}
       GOOGLE_GENAI_BASE_URL: ${GOOGLE_GENAI_BASE_URL:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
+      GOOGLE_CLOUD_STORAGE_BUCKET: ${GOOGLE_CLOUD_STORAGE_BUCKET:-}
+      GOOGLE_CLOUD_STORAGE_PUBLIC_BASE_URL: ${GOOGLE_CLOUD_STORAGE_PUBLIC_BASE_URL:-}
+      TRANSCRIPT_ALIGNMENT_MODE: ${TRANSCRIPT_ALIGNMENT_MODE:-mms}
+      GOOGLE_APPLICATION_CREDENTIALS: /var/secrets/google/application_default_credentials.json
+      NOTIFICATION_SERVICE_URL: http://notification-service:8087
+      NOTIFICATION_INTERNAL_API_KEY: change-me
       BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
       BRAVE_SEARCH_BASE_URL: ${BRAVE_SEARCH_BASE_URL:-https://api.search.brave.com/res/v1/web/search}
       AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-auto}
     ports:
       - "8085:8085"
+    volumes:
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/var/secrets/google/application_default_credentials.json:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

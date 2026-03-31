@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/utils/player_utils.dart';
+
+const Color _historyCanvas = Color(0xFFFFFBF6);
+const Color _historySurface = Color(0xFFFFFEFC);
+const Color _historySurfaceStrong = Color(0xFFF2E6D9);
+const Color _historyPrimary = Color(0xFFBF5700);
+const Color _historyTertiary = Color(0xFF566931);
+const Color _historyNeutral = Color(0xFF3E2723);
+const Color _historyMuted = Color(0xFF7E665F);
 
 class ListeningHistoryScreen extends StatelessWidget {
   const ListeningHistoryScreen({super.key});
@@ -11,254 +20,271 @@ class ListeningHistoryScreen extends StatelessWidget {
     final totalHours = MockData.currentUser.listeningHours;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
+      backgroundColor: _historyCanvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0E13),
+        backgroundColor: _historyCanvas,
+        surfaceTintColor: _historyCanvas,
         elevation: 0,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.white,
-            size: 20,
-          ),
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: _historyNeutral),
         ),
-        title: const Text(
+        title: Text(
           'Lịch sử nghe',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+          style: GoogleFonts.newsreader(
+            color: _historyNeutral,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        centerTitle: true,
       ),
-      body: Column(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
         children: [
-          // Stats summary card
           Container(
-            margin: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.white.withValues(alpha: 0.08),
-                  Colors.white.withValues(alpha: 0.03),
-                ],
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFF4E6), Color(0xFFF5EAD8)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: _historyPrimary.withValues(alpha: 0.10),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _summaryItem(
-                  Icons.headphones,
-                  '${totalHours}h',
-                  'Tổng giờ nghe',
-                ),
-                Container(width: 1, height: 36, color: Colors.white12),
-                _summaryItem(
-                  Icons.queue_music,
-                  '${progress.length}',
-                  'Tập đã nghe',
-                ),
-                Container(width: 1, height: 36, color: Colors.white12),
-                _summaryItem(
-                  Icons.local_fire_department,
-                  '7',
-                  'Ngày liên tiếp',
-                ),
-              ],
-            ),
-          ),
-
-          // Section title
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'GẦN ĐÂY',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white.withValues(alpha: 0.4),
-                    letterSpacing: 1.5,
+                  'Nhịp nghe gần đây',
+                  style: GoogleFonts.newsreader(
+                    color: _historyNeutral,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(height: 10),
                 Text(
-                  '${progress.length} tập',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.3),
+                  'Theo dõi lại các tập bạn đã mở gần đây và tiếp tục nghe từ đúng điểm dở dang.',
+                  style: GoogleFonts.workSans(
+                    color: _historyMuted,
+                    fontSize: 14,
+                    height: 1.5,
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // History list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              itemCount: progress.length,
-              itemBuilder: (context, index) {
-                final p = progress[index];
-                final episode = MockData.getEpisodeById(p.episodeId);
-                final show = MockData.getShowById(p.showId);
-                if (episode == null || show == null) {
-                  return const SizedBox.shrink();
-                }
-
-                return GestureDetector(
-                  onTap: () =>
-                      openPlayerScreen(context, show: show, episode: episode),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.05),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryTile(
+                        value: '${totalHours}h',
+                        label: 'Tổng giờ nghe',
+                        icon: Icons.headphones_rounded,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        // Thumbnail
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            episode.images.isNotEmpty
-                                ? episode.images.first
-                                : show.imageUrl,
-                            width: 52,
-                            height: 52,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                episode.title,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                show.title,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              // Progress bar
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(2),
-                                      child: LinearProgressIndicator(
-                                        value: p.progress,
-                                        backgroundColor: Colors.white
-                                            .withValues(alpha: 0.08),
-                                        valueColor: AlwaysStoppedAnimation(
-                                          p.progress >= 1.0
-                                              ? Colors.green.withValues(
-                                                  alpha: 0.6,
-                                                )
-                                              : Colors.white.withValues(
-                                                  alpha: 0.5,
-                                                ),
-                                        ),
-                                        minHeight: 3,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    p.progress >= 1.0
-                                        ? '✓'
-                                        : '${(p.progress * 100).toInt()}%',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: p.progress >= 1.0
-                                          ? Colors.green.withValues(alpha: 0.7)
-                                          : Colors.white.withValues(alpha: 0.4),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Play icon
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            p.progress >= 1.0
-                                ? Icons.replay
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _SummaryTile(
+                        value: '${progress.length}',
+                        label: 'Tập đã nghe',
+                        icon: Icons.queue_music_rounded,
+                      ),
                     ),
-                  ),
-                );
-              },
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: _SummaryTile(
+                        value: '7',
+                        label: 'Ngày liên tiếp',
+                        icon: Icons.local_fire_department_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+          const SizedBox(height: 18),
+          Text(
+            'Gần đây',
+            style: GoogleFonts.newsreader(
+              color: _historyNeutral,
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${progress.length} tập được lưu từ tiến độ nghe hiện tại.',
+            style: GoogleFonts.workSans(
+              color: _historyMuted,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...List.generate(progress.length, (index) {
+            final p = progress[index];
+            final episode = MockData.getEpisodeById(p.episodeId);
+            final show = MockData.getShowById(p.showId);
+            if (episode == null || show == null) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () =>
+                    openPlayerScreen(context, show: show, episode: episode),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _historySurface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _historyNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          episode.images.isNotEmpty
+                              ? episode.images.first
+                              : show.imageUrl,
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              episode.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.workSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: _historyNeutral,
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              show.title,
+                              style: GoogleFonts.workSans(
+                                fontSize: 12,
+                                color: _historyMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                value: p.progress,
+                                minHeight: 6,
+                                backgroundColor: _historySurfaceStrong,
+                                valueColor: AlwaysStoppedAnimation(
+                                  p.progress >= 1
+                                      ? _historyTertiary
+                                      : _historyPrimary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              p.progress >= 1
+                                  ? 'Đã nghe xong'
+                                  : 'Đã nghe ${(p.progress * 100).toInt()}%',
+                              style: GoogleFonts.workSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: p.progress >= 1
+                                    ? _historyTertiary
+                                    : _historyMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: _historySurfaceStrong,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          p.progress >= 1
+                              ? Icons.replay_rounded
+                              : Icons.play_arrow_rounded,
+                          color: _historyPrimary,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
   }
+}
 
-  static Widget _summaryItem(IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white60, size: 20),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+class _SummaryTile extends StatelessWidget {
+  const _SummaryTile({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _historySurface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: _historyPrimary, size: 20),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.workSans(
+              color: _historyNeutral,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.white.withValues(alpha: 0.4),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.workSans(
+              color: _historyMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -8,10 +8,11 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends wget \
+  && apt-get install -y --no-install-recommends wget libgomp1 \
   && rm -rf /var/lib/apt/lists/* \
   && pip install --no-cache-dir --upgrade pip \
-  && pip install --no-cache-dir -r /app/requirements.txt
+  && pip install --no-cache-dir -r /app/requirements.txt \
+  && pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 COPY app /app/app
 

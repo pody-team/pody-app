@@ -1,587 +1,316 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:pody/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
 
-class ShowDetailScreen extends StatelessWidget {
-  final Show show;
+const Color _legacyDetailCanvas = Color(0xFFFFFBF6);
+const Color _legacyDetailSurface = Color(0xFFFFFEFC);
+const Color _legacyDetailSurfaceStrong = Color(0xFFF2E6D9);
+const Color _legacyDetailPrimary = Color(0xFFBF5700);
+const Color _legacyDetailNeutral = Color(0xFF3E2723);
+const Color _legacyDetailMuted = Color(0xFF7E665F);
 
+class ShowDetailScreen extends StatelessWidget {
   const ShowDetailScreen({super.key, required this.show});
+
+  final Show show;
 
   @override
   Widget build(BuildContext context) {
+    final author = MockData.getUserById(show.authorId);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
-      body: Stack(
-        children: [
-          // Main scrollable content
-          CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Stack(
+      backgroundColor: _legacyDetailCanvas,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            backgroundColor: _legacyDetailCanvas,
+            surfaceTintColor: _legacyDetailCanvas,
+            pinned: true,
+            elevation: 0,
+            leading: IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(
+                Icons.arrow_back_ios_new,
+                color: _legacyDetailNeutral,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: _legacyDetailSurface,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: _legacyDetailNeutral.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
                   children: [
-                    // Gradient background glow
-                    Container(
-                      height: 400,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0x33FFFFFF), // white/20
-                            Color(0x800F0E13), // background-dark/50
-                            Color(0xFF0F0E13),
-                          ],
-                        ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.network(
+                        show.imageUrl,
+                        width: 198,
+                        height: 198,
+                        fit: BoxFit.cover,
                       ),
                     ),
-
-                    // Content over gradient
-                    Padding(
-                      padding: const EdgeInsets.only(top: 100),
-                      child: Column(
-                        children: [
-                          // Cover Art
-                          Center(
-                            child: Container(
-                              width: 192,
-                              height: 192,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFFFFFFFF,
-                                    ).withValues(alpha: 0.3),
-                                    blurRadius: 20,
-                                  ),
-                                ],
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(24),
+                    const SizedBox(height: 20),
+                    Text(
+                      show.title,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.newsreader(
+                        color: _legacyDetailNeutral,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        height: 1.02,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Host: ${show.hostsLabel}',
+                      style: GoogleFonts.workSans(
+                        color: _legacyDetailMuted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (author != null) ...[
+                      const SizedBox(height: 14),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: () => openUserDetail(context, author),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _legacyDetailSurfaceStrong,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
                                 child: Image.network(
-                                  show.imageUrl,
+                                  author.avatarUrl,
+                                  width: 24,
+                                  height: 24,
                                   fit: BoxFit.cover,
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Podcast Title
-                          Text(
-                            show.title,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-
-                          // Hosted by
-                          Text(
-                            'Hosted by ${show.hostsLabel}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFFCCCCCC),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Author row
-                          Builder(
-                            builder: (context) {
-                              final author = MockData.getUserById(
-                                show.authorId,
-                              );
-                              if (author == null) {
-                                return const SizedBox.shrink();
-                              }
-                              return GestureDetector(
-                                onTap: () {
-                                  openUserDetail(context, author);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.06),
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          author.avatarUrl,
-                                          width: 24,
-                                          height: 24,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        author.name,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        color: Colors.white.withValues(
-                                          alpha: 0.3,
-                                        ),
-                                        size: 12,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Tags row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildTag('Tech'),
                               const SizedBox(width: 8),
-                              _buildTag('Society'),
-                              const SizedBox(width: 12),
-                              const Text(
-                                '•',
-                                style: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 14,
+                              Text(
+                                author.name,
+                                style: GoogleFonts.workSans(
+                                  color: _legacyDetailNeutral,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Weekly',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white38,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                '•',
-                                style: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.headset,
-                                    color: Colors.white38,
-                                    size: 12,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    '1.2M Lượt nghe',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white38,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
-
-                          // Description card
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFF18181B,
-                                    ).withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.05,
-                                      ),
-                                    ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _LegacyTag(show.category),
+                        const _LegacyTag('Hàng tuần'),
+                        _LegacyTag('${show.totalEpisodeCount} tập'),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Khám phá những góc nhìn mới mẻ về công nghệ, tương lai và con người qua một format âm thanh dễ nghe và rõ ràng hơn.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.workSans(
+                        color: _legacyDetailMuted,
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: show.episodes.isEmpty
+                                ? null
+                                : () => openPlayerScreen(
+                                    context,
+                                    show: show,
+                                    episode: show.episodes.first,
                                   ),
-                                  child: RichText(
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                    text: const TextSpan(
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFFCBD5E1),
-                                        height: 1.6,
-                                      ),
-                                      children: [
-                                        TextSpan(
-                                          text:
-                                              'Khám phá những góc nhìn mới mẻ về công nghệ, tương lai và con người. Chúng ta đi sâu vào những chủ đề "khô khan" như MVC, AI, hay Blockchain nhưng dưới lăng kính đời thường, hài hước và dễ hiểu. ',
-                                        ),
-                                        TextSpan(
-                                          text: 'Show more',
-                                          style: TextStyle(
-                                            color: Color(0xFFCCCCCC),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                            icon: const Icon(Icons.play_arrow_rounded),
+                            label: const Text('Nghe ngay'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _legacyDetailPrimary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              textStyle: GoogleFonts.workSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                          const SizedBox(height: 32),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 10),
+                        OutlinedButton(
+                          onPressed: () {},
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _legacyDetailNeutral,
+                            side: BorderSide(
+                              color: _legacyDetailNeutral.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                          ),
+                          child: const Icon(Icons.favorite_border_rounded),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-
-              // Episodes Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'All Episodes',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Text(
+                'Các tập',
+                style: GoogleFonts.newsreader(
+                  color: _legacyDetailNeutral,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final episode = show.episodes[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () =>
+                        openPlayerScreen(context, show: show, episode: episode),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _legacyDetailSurface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: _legacyDetailNeutral.withValues(alpha: 0.08),
                         ),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: _legacyDetailSurfaceStrong,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${index + 1}',
+                              style: GoogleFonts.workSans(
+                                color: _legacyDetailPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  episode.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.workSans(
+                                    color: _legacyDetailNeutral,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '${episode.duration.inMinutes} phút',
+                                  style: GoogleFonts.workSans(
+                                    color: _legacyDetailMuted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.play_circle_fill_rounded,
+                            color: _legacyDetailPrimary,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-              // Episode List
-              SliverPadding(
-                padding: const EdgeInsets.only(
-                  left: 24,
-                  right: 24,
-                  bottom: 120,
-                ),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index > show.episodes.length * 2 - 2) return null;
-                      if (index.isOdd) return const SizedBox(height: 16);
-
-                      final epIndex = index ~/ 2;
-                      final ep = show.episodes[epIndex];
-                      return _buildEpisodeCard(
-                        number: '${show.episodes.length - epIndex}',
-                        title: ep.title,
-                        desc: ep.description,
-                        duration: ep.formattedDuration,
-                        date: 'Recently',
-                        listenCount: Episode.formatCount(ep.likes),
-                        progress: epIndex == 0 ? 0.33 : null,
-                        trailing: epIndex == 0
-                            ? Icons.download
-                            : Icons.add_circle,
-                        trailingColor: epIndex == 0
-                            ? Colors.white38
-                            : Colors.white38,
-                        onTap: () {
-                          openPlayerScreen(context, show: show, episode: ep);
-                        },
-                      );
-                    },
-                    childCount: show.episodes.isEmpty
-                        ? 0
-                        : show.episodes.length * 2 - 1,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          // Fixed Header Bar
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + 8,
-                left: 16,
-                right: 16,
-                bottom: 12,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    const Color(0xFF0F0E13),
-                    const Color(0xFF0F0E13).withValues(alpha: 0.9),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildHeaderButton(
-                    Icons.arrow_back_ios,
-                    () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: 40),
-                  _buildHeaderButton(Icons.more_horiz, () {}),
-                ],
-              ),
+                );
+              }, childCount: show.episodes.length),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildHeaderButton(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
-        ),
-      ),
-    );
-  }
+class _LegacyTag extends StatelessWidget {
+  const _LegacyTag(this.label);
 
-  Widget _buildTag(String text) {
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: _legacyDetailSurfaceStrong,
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        text,
-        style: const TextStyle(
+        label,
+        style: GoogleFonts.workSans(
+          color: _legacyDetailNeutral,
           fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Colors.white38,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEpisodeCard({
-    required String number,
-    required String title,
-    required String desc,
-    required String duration,
-    required String date,
-    required String listenCount,
-    double? progress,
-    required IconData trailing,
-    required Color trailingColor,
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kBgCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Episode Number
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                number,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white38,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        duration,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white38,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    desc,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white38,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          date,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white38,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.headset,
-                              color: Colors.white38,
-                              size: 10,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              listenCount,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white38,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (progress != null) ...[
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 100,
-                          height: 4,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              value: progress,
-                              backgroundColor: Colors.white.withValues(
-                                alpha: 0.05,
-                              ),
-                              valueColor: const AlwaysStoppedAnimation(
-                                Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Trailing action
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Icon(trailing, color: trailingColor, size: 20),
-            ),
-          ],
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

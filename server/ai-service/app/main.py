@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.security import APIKeyHeader
 
 from .config import Settings, load_settings
+from .dialogue_agent import build_dialogue_agent
 from .models import (
     AddThreadMessageRequest,
     AuthContext,
@@ -27,6 +28,7 @@ from .models import (
     ProductionPlansResponse,
     VoiceProfilesResponse,
 )
+from .notifications import NotificationClient
 from .planner import (
     PlannerError,
     build_create_agent,
@@ -34,6 +36,13 @@ from .planner import (
 )
 from .repository import AIRepository, NotFoundError, create_pool
 from .service import AIService
+from .show_creation import (
+    ContentCreationStore,
+    GeminiTTSSynthesizer,
+    GoogleCloudAudioStore,
+    create_content_pool,
+)
+from .transcript_generation import SubprocessTranscriptGenerator
 
 PUBLIC_AI_OPENAPI_URL = "/api/v1/public/ai/openapi.yaml"
 auth_user_id_header = APIKeyHeader(name="X-Auth-User-ID", auto_error=False)
@@ -92,7 +101,9 @@ def create_app(service: AIService | None = None, settings: Settings | None = Non
 
         pool = create_pool(resolved_settings.database_url)
         repository = AIRepository(pool)
+        content_pool = create_content_pool(resolved_settings.content_database_url)
         create_agent = build_create_agent(resolved_settings)
+        dialogue_agent = build_dialogue_agent(resolved_settings)
         planner = build_planner(resolved_settings)
         provider_name = "google-genai" if resolved_settings.use_google_provider else "stub"
         app.state.ai_service = AIService(
@@ -100,10 +111,35 @@ def create_app(service: AIService | None = None, settings: Settings | None = Non
             create_agent,
             planner,
             provider_name,
+            show_creation_store=ContentCreationStore(
+                content_pool,
+                audio_store=GoogleCloudAudioStore(
+                    project=resolved_settings.google_cloud_project,
+                    bucket_name=resolved_settings.google_cloud_storage_bucket,
+                    public_base_url=resolved_settings.google_cloud_storage_public_base_url,
+                ),
+            ),
+            speech_synthesizer=GeminiTTSSynthesizer(
+                project=resolved_settings.google_cloud_project,
+                location=resolved_settings.google_cloud_location,
+                model=resolved_settings.google_tts_model,
+            ),
+            dialogue_agent=dialogue_agent,
+            transcript_generator=SubprocessTranscriptGenerator(
+                alignment_mode=resolved_settings.transcript_alignment_mode,
+                timeout_seconds=resolved_settings.transcript_timeout_seconds,
+            ),
+            notification_client=NotificationClient(
+                base_url=resolved_settings.notification_service_url,
+                internal_api_key=resolved_settings.notification_internal_api_key,
+            ),
         )
+        app.state.ai_service.start_background_workers()
         try:
             yield
         finally:
+            app.state.ai_service.shutdown_background_workers()
+            content_pool.close()
             pool.close()
 
     app = FastAPI(
@@ -350,6 +386,20 @@ def create_app(service: AIService | None = None, settings: Settings | None = Non
         ai_service: Annotated[AIService, Depends(get_service)],
     ):
         return {"job": ai_service.get_job(auth, job_id)}
+
+    @app.post(
+        "/api/v1/ai/production-plans/{plan_id}/create-show",
+        status_code=status.HTTP_202_ACCEPTED,
+        tags=["Production Plans"],
+        summary="Queue asynchronous show creation from a saved production plan",
+        response_model=GenerationJobResponse,
+    )
+    def create_show_from_plan(
+        plan_id: UUID,
+        auth: Annotated[AuthContext, Depends(require_auth)],
+        ai_service: Annotated[AIService, Depends(get_service)],
+    ):
+        return {"job": ai_service.create_show_from_plan(auth, plan_id)}
 
     return app
 

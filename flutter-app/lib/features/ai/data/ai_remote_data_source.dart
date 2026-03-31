@@ -80,6 +80,16 @@ class AIRemoteDataSource {
     );
   }
 
+  Future<AIGenerationJob> createShowFromPlan(String planId) async {
+    final response = await _apiClient.post(
+      '/api/v1/ai/production-plans/$planId/create-show',
+      requiresAuth: true,
+    );
+    return AIGenerationJob.fromJson(
+      (response['job'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
   Future<AIChatThread> addThreadMessage({
     required String threadId,
     required String message,

@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/content/presentation/content_scope.dart';
+
+const Color _createCanvas = Color(0xFFFFFBF6);
+const Color _createSurface = Color(0xFFFFFEFC);
+const Color _createSurfaceStrong = Color(0xFFF2E6D9);
+const Color _createPrimary = Color(0xFFBF5700);
+const Color _createSecondary = Color(0xFFE1AD01);
+const Color _createNeutral = Color(0xFF3E2723);
+const Color _createMuted = Color(0xFF7E665F);
 
 class CreateShowScreen extends StatefulWidget {
   const CreateShowScreen({this.initialSeed, super.key});
@@ -79,7 +88,9 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
   Future<void> _loadCategories() async {
     setState(() => _isLoadingCategories = true);
     try {
-      final categories = await ContentScope.of(context).listCreateShowCategories();
+      final categories = await ContentScope.of(
+        context,
+      ).listCreateShowCategories();
       if (!mounted) {
         return;
       }
@@ -127,9 +138,7 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
       return;
     }
     setState(() {
-      _hosts.add(
-        _HostDraftForm(displayName: '', bio: '', role: 'co_host'),
-      );
+      _hosts.add(_HostDraftForm(displayName: '', bio: '', role: 'co_host'));
       _normalizeHostsForContentType();
     });
   }
@@ -153,7 +162,7 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
     final hosts = _buildHostsInput();
     if (hosts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Can it nhat 1 host hop le.')),
+        const SnackBar(content: Text('Cần ít nhất 1 host hợp lệ.')),
       );
       return;
     }
@@ -216,250 +225,330 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
     if (error is ApiException) {
       return error.message;
     }
-    return 'Khong the tao show luc nay. Thu lai sau it phut nua.';
+    return 'Không thể tạo show lúc này. Thử lại sau ít phút nữa.';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
+      backgroundColor: _createCanvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0E13),
+        backgroundColor: _createCanvas,
+        surfaceTintColor: _createCanvas,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          icon: const Icon(Icons.arrow_back_ios_new, color: _createNeutral),
           onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Tao show moi',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          'Tạo show mới',
+          style: GoogleFonts.newsreader(
+            color: _createNeutral,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
             children: [
-              _buildSectionTitle('Thong tin show'),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _titleController,
-                label: 'Ten show',
-                hintText: 'Vi du: Future Builders',
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Hay nhap ten show.';
-                  }
-                  if (value.trim().length < 3) {
-                    return 'Ten show nen dai it nhat 3 ky tu.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _descriptionController,
-                label: 'Mo ta ngan',
-                hintText: 'Show nay se ke dieu gi va phuc vu ai?',
-                maxLines: 4,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _coverImageUrlController,
-                label: 'Anh bia (tuy chon)',
-                hintText: 'https://...',
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 24),
-              _buildSectionTitle('Dinh dang'),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTypeChip(
-                      label: 'Podcast',
-                      value: 'podcast',
-                    ),
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFF4E6), Color(0xFFF3E5D2)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTypeChip(
-                      label: 'Storytelling',
-                      value: 'storytelling',
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: _createPrimary.withValues(alpha: 0.10),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _createSurface,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Creator studio',
+                        style: GoogleFonts.workSans(
+                          color: _createPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Định nghĩa show\nngay từ đầu',
+                      style: GoogleFonts.newsreader(
+                        color: _createNeutral,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        height: 1.02,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Điền thông tin cốt lõi để tạo một show dùng dữ liệu thật trên content service.',
+                      style: GoogleFonts.workSans(
+                        color: _createMuted,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'Thông tin show',
+                children: [
+                  _buildTextField(
+                    controller: _titleController,
+                    label: 'Tên show',
+                    hintText: 'Ví dụ: Future Builders',
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Hãy nhập tên show.';
+                      }
+                      if (value.trim().length < 3) {
+                        return 'Tên show nên dài ít nhất 3 ký tự.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    controller: _descriptionController,
+                    label: 'Mô tả ngắn',
+                    hintText: 'Show này sẽ kể điều gì và phục vụ ai?',
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    controller: _coverImageUrlController,
+                    label: 'Ảnh bìa',
+                    hintText: 'https://... (tuỳ chọn)',
+                    keyboardType: TextInputType.url,
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              _buildSectionTitle('Phan loai'),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _categoryController,
-                label: 'Category chinh',
-                hintText: 'Vi du: Cong nghe',
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Hay chon hoac nhap category chinh.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 10),
-              if (_isLoadingCategories)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Dang tai goi y category...',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              if (_suggestedCategories.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _suggestedCategories.map((category) {
-                    final selected =
-                        _categoryController.text.trim().toLowerCase() ==
-                        category.trim().toLowerCase();
-                    return ChoiceChip(
-                      label: Text(category),
-                      selected: selected,
-                      onSelected: (_) {
-                        setState(() {
-                          _categoryController.text = category;
-                        });
-                      },
-                      selectedColor: const Color(0xFFE7C6A0),
-                      backgroundColor: Colors.white.withValues(alpha: 0.06),
-                      labelStyle: TextStyle(
-                        color: selected
-                            ? const Color(0xFF1A171E)
-                            : Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      side: BorderSide(
-                        color: selected
-                            ? const Color(0xFFE7C6A0)
-                            : Colors.white.withValues(alpha: 0.08),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              const SizedBox(height: 24),
-              Row(
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'Định dạng',
                 children: [
-                  _buildSectionTitle(
-                    _contentType == 'storytelling' ? 'Narrator' : 'Hosts',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTypeChip(
+                          label: 'Podcast',
+                          value: 'podcast',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTypeChip(
+                          label: 'Storytelling',
+                          value: 'storytelling',
+                        ),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  if (_contentType == 'podcast')
-                    TextButton.icon(
-                      onPressed: _hosts.length >= 3 || _isSubmitting ? null : _addHost,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Them host'),
-                    ),
                 ],
               ),
-              const SizedBox(height: 12),
-              ...List.generate(_hosts.length, (index) {
-                final host = _hosts[index];
-                final isStorytelling = _contentType == 'storytelling';
-                final roleLabel = isStorytelling
-                    ? 'Narrator'
-                    : (index == 0 ? 'Host chinh' : 'Co-host');
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.08),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'Phân loại',
+                children: [
+                  _buildTextField(
+                    controller: _categoryController,
+                    label: 'Category chính',
+                    hintText: 'Ví dụ: Công nghệ',
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Hãy chọn hoặc nhập category chính.';
+                      }
+                      return null;
+                    },
+                  ),
+                  if (_isLoadingCategories)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(
+                        'Đang tải gợi ý category...',
+                        style: GoogleFonts.workSans(
+                          color: _createMuted,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  if (_suggestedCategories.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _suggestedCategories.map((category) {
+                        final selected =
+                            _categoryController.text.trim().toLowerCase() ==
+                            category.trim().toLowerCase();
+                        return ChoiceChip(
+                          label: Text(category),
+                          selected: selected,
+                          onSelected: (_) {
+                            setState(() {
+                              _categoryController.text = category;
+                            });
+                          },
+                          selectedColor: _createSecondary.withValues(
+                            alpha: 0.18,
+                          ),
+                          backgroundColor: _createSurfaceStrong,
+                          labelStyle: GoogleFonts.workSans(
+                            color: selected ? _createPrimary : _createNeutral,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                          side: BorderSide(
+                            color: selected
+                                ? _createSecondary
+                                : _createNeutral.withValues(alpha: 0.08),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: _contentType == 'storytelling' ? 'Narrator' : 'Hosts',
+                trailing: _contentType == 'podcast'
+                    ? TextButton.icon(
+                        onPressed: _hosts.length >= 3 || _isSubmitting
+                            ? null
+                            : _addHost,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Thêm host'),
+                      )
+                    : null,
+                children: [
+                  ...List.generate(_hosts.length, (index) {
+                    final host = _hosts[index];
+                    final isStorytelling = _contentType == 'storytelling';
+                    final roleLabel = isStorytelling
+                        ? 'Narrator'
+                        : (index == 0 ? 'Host chính' : 'Co-host');
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _createSurfaceStrong,
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              roleLabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (_contentType == 'podcast' && _hosts.length > 1)
-                              IconButton(
-                                onPressed: _isSubmitting ? null : () => _removeHost(index),
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.white54,
+                            Row(
+                              children: [
+                                Text(
+                                  roleLabel,
+                                  style: GoogleFonts.workSans(
+                                    color: _createNeutral,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              ),
+                                const Spacer(),
+                                if (_contentType == 'podcast' &&
+                                    _hosts.length > 1)
+                                  IconButton(
+                                    onPressed: _isSubmitting
+                                        ? null
+                                        : () => _removeHost(index),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: _createMuted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: host.displayNameController,
+                              label: 'Tên host',
+                              hintText: index == 0
+                                  ? 'Ví dụ: Nova'
+                                  : 'Ví dụ: Atlas',
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Hãy nhập tên host.';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            _buildTextField(
+                              controller: host.bioController,
+                              label: 'Persona summary',
+                              hintText:
+                                  'Host này nói chuyện theo phong cách nào?',
+                              maxLines: 3,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          controller: host.displayNameController,
-                          label: 'Ten host',
-                          hintText: index == 0 ? 'Vi du: Nova' : 'Vi du: Atlas',
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Hay nhap ten host.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        _buildTextField(
-                          controller: host.bioController,
-                          label: 'Persona summary',
-                          hintText: 'Host nay noi chuyen theo phong cach nao?',
-                          maxLines: 3,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
+                      ),
+                    );
+                  }),
+                ],
+              ),
               const SizedBox(height: 28),
               FilledButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE7C6A0),
-                  foregroundColor: const Color(0xFF1A171E),
+                  backgroundColor: _createPrimary,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  textStyle: GoogleFonts.workSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 child: _isSubmitting
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
                       )
-                    : const Text(
-                        'Tao show',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                    : const Text('Tạo show'),
               ),
               const SizedBox(height: 12),
               Text(
                 _contentType == 'storytelling'
-                    ? 'Storytelling duoc tao voi 1 narrator o cap show. Episode se ke thua narrator nay.'
-                    : 'Podcast duoc tao voi 1 den 3 host o cap show. Episode se ke thua danh sach host nay.',
+                    ? 'Storytelling được tạo với 1 narrator ở cấp show. Episode sẽ kế thừa narrator này.'
+                    : 'Podcast được tạo với 1 đến 3 host ở cấp show. Episode sẽ kế thừa danh sách host này.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
+                style: GoogleFonts.workSans(
+                  color: _createMuted,
                   fontSize: 12,
                   height: 1.5,
                 ),
@@ -475,40 +564,22 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
     final selected = _contentType == value;
     return InkWell(
       onTap: _isSubmitting ? null : () => _setContentType(value),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFFE7C6A0)
-              : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected
-                ? const Color(0xFFE7C6A0)
-                : Colors.white.withValues(alpha: 0.08),
-          ),
+          color: selected ? _createPrimary : _createSurfaceStrong,
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Center(
           child: Text(
             label,
-            style: TextStyle(
-              color: selected ? const Color(0xFF1A171E) : Colors.white,
+            style: GoogleFonts.workSans(
+              color: selected ? Colors.white : _createNeutral,
               fontWeight: FontWeight.w700,
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
       ),
     );
   }
@@ -526,30 +597,80 @@ class _CreateShowScreenState extends State<CreateShowScreen> {
       validator: validator,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: GoogleFonts.workSans(color: _createNeutral),
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.28)),
+        labelStyle: GoogleFonts.workSans(color: _createMuted),
+        hintStyle: GoogleFonts.workSans(
+          color: _createMuted.withValues(alpha: 0.72),
+        ),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: _createSurfaceStrong,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: _createNeutral.withValues(alpha: 0.08)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: _createNeutral.withValues(alpha: 0.08)),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE7C6A0)),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: _createPrimary, width: 1.4),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFFF8A80)),
+        errorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          borderSide: BorderSide(color: Color(0xFFC16452)),
         ),
+      ),
+    );
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.children,
+    this.trailing,
+  });
+
+  final String title;
+  final List<Widget> children;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _createSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _createNeutral.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.newsreader(
+                  color: _createNeutral,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              switch (trailing) {
+                final widget? => widget,
+                null => const SizedBox.shrink(),
+              },
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
       ),
     );
   }

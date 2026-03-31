@@ -26,6 +26,24 @@ class ContentRepository {
     return _remoteDataSource.getEpisodeDetail(episodeId);
   }
 
+  Future<List<ContentBookmarkedEpisode>> listBookmarkedEpisodes() {
+    return _remoteDataSource.listBookmarkedEpisodes();
+  }
+
+  Future<ContentEpisodeBookmarkStatus> getEpisodeBookmarkStatus(
+    String episodeId,
+  ) {
+    return _remoteDataSource.getEpisodeBookmarkStatus(episodeId);
+  }
+
+  Future<ContentEpisodeBookmarkStatus> saveEpisodeBookmark(String episodeId) {
+    return _remoteDataSource.saveEpisodeBookmark(episodeId);
+  }
+
+  Future<ContentEpisodeBookmarkStatus> deleteEpisodeBookmark(String episodeId) {
+    return _remoteDataSource.deleteEpisodeBookmark(episodeId);
+  }
+
   Future<List<ContentShowSummary>> listMyShows() {
     return _remoteDataSource.listMyShows();
   }

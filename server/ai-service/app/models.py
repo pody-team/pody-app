@@ -67,6 +67,10 @@ class ShowDraft(BaseModel):
     hosts: list[AIHostDraft] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 
+    @property
+    def primary_host(self) -> AIHostDraft | None:
+        return self.hosts[0] if self.hosts else None
+
 
 class ProductionPlan(BaseModel):
     id: UUID

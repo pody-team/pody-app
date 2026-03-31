@@ -15,7 +15,12 @@ import 'package:pody/features/auth/data/google_auth_data_source.dart';
 import 'package:pody/features/auth/domain/auth_session.dart';
 import 'package:pody/features/auth/domain/auth_user.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
+import 'package:pody/features/content/data/content_remote_data_source.dart';
+import 'package:pody/features/content/data/content_repository.dart';
+import 'package:pody/features/content/domain/content_models.dart';
+import 'package:pody/features/content/presentation/content_scope.dart';
 import 'package:pody/screens/creation/create_screen.dart';
+import 'package:pody/screens/creation/edit_plan_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -37,34 +42,31 @@ void main() {
     },
   );
 
-  testWidgets(
-    'new button resets current thread',
-    (WidgetTester tester) async {
-      final aiRemote = _FakeAIRemoteDataSource(
-        ApiClient(baseUrl: 'http://localhost:8080'),
-      );
-      final authController = await _buildAuthenticatedController();
+  testWidgets('new button resets current thread', (WidgetTester tester) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
 
-      await tester.pumpWidget(_buildScreen(authController, aiRemote));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(_buildScreen(authController, aiRemote));
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text(_createScreenPrompts.first));
-      await tester.tap(find.text(_createScreenPrompts.first));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text(_createScreenPrompts.first));
+    await tester.tap(find.text(_createScreenPrompts.first));
+    await tester.pumpAndSettle();
 
-      expect(aiRemote.createThreadCalls, 1);
-      expect(find.byTooltip('New chat'), findsOneWidget);
-      expect(find.text('Assistant reply 1'), findsOneWidget);
+    expect(aiRemote.createThreadCalls, 1);
+    expect(find.byTooltip('New chat'), findsOneWidget);
+    expect(find.text('Assistant reply 1'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('New chat'));
-      await tester.pumpAndSettle();
-      await tester.pump();
+    await tester.tap(find.byTooltip('New chat'));
+    await tester.pumpAndSettle();
+    await tester.pump();
 
-      expect(find.byTooltip('New chat'), findsOneWidget);
-      expect(find.text('Assistant reply 1'), findsNothing);
-      expect(find.text(_createScreenPrompts.first), findsOneWidget);
-    },
-  );
+    expect(find.byTooltip('New chat'), findsOneWidget);
+    expect(find.text('Assistant reply 1'), findsNothing);
+    expect(find.text(_createScreenPrompts.first), findsOneWidget);
+  });
 
   testWidgets(
     'history button opens previous threads and loads selected thread',
@@ -125,8 +127,34 @@ void main() {
     },
   );
 
+  testWidgets('drafts section shows all drafts and opens draft detail', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+
+    await tester.pumpWidget(_buildScreen(authController, aiRemote));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Lịch sử chat'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Drafts'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tất cả draft'), findsOneWidget);
+    expect(find.text('Midnight Reset'), findsOneWidget);
+
+    await tester.tap(find.text('Midnight Reset').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
+  });
+
   testWidgets(
-    'drafts section shows all drafts and opens draft detail',
+    'plan card create action queues backend job and shows pending snackbar',
     (WidgetTester tester) async {
       final aiRemote = _FakeAIRemoteDataSource(
         ApiClient(baseUrl: 'http://localhost:8080'),
@@ -136,21 +164,82 @@ void main() {
       await tester.pumpWidget(_buildScreen(authController, aiRemote));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('Lịch sử chat'));
+      await tester.ensureVisible(find.text(_createScreenPrompts.first));
+      await tester.tap(find.text(_createScreenPrompts.first));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Drafts'));
+      expect(find.byTooltip('Tạo show'), findsOneWidget);
+      expect(find.byTooltip('Edit Plan'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Tạo show'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Tất cả draft'), findsOneWidget);
-      expect(find.text('Midnight Reset'), findsOneWidget);
-
-      await tester.tap(find.text('Midnight Reset').first);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
+      expect(aiRemote.createShowFromPlanCalls, 1);
+      expect(
+        find.textContaining('Ban se nhan thong bao trong app khi xong.'),
+        findsOneWidget,
+      );
     },
   );
+
+  testWidgets('edit screen create action queues backend job', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+    final plan = await aiRemote.getDraft('draft-1');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIScope(
+          repository: AIRepository(aiRemote),
+          child: AuthScope(
+            controller: authController,
+            child: EditPlanScreen(plan: plan),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final createFromDraftButton = find.widgetWithText(
+      FilledButton,
+      'Tạo show từ bản draft này',
+    );
+    await tester.ensureVisible(createFromDraftButton);
+    tester.widget<FilledButton>(createFromDraftButton).onPressed!.call();
+    await tester.pumpAndSettle();
+
+    expect(aiRemote.createShowFromPlanCalls, 1);
+    expect(
+      find.textContaining('App sẽ gửi thông báo khi xong.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('edit action still opens edit production plan screen', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+
+    await tester.pumpWidget(_buildScreen(authController, aiRemote));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text(_createScreenPrompts.first));
+    await tester.tap(find.text(_createScreenPrompts.first));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Edit Plan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chỉnh sửa plan'), findsOneWidget);
+    expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
+  });
 }
 
 const _createScreenPrompts = <String>[
@@ -164,9 +253,19 @@ Widget _buildScreen(
   _FakeAIRemoteDataSource aiRemote,
 ) {
   return MaterialApp(
-    home: AIScope(
-      repository: AIRepository(aiRemote),
-      child: AuthScope(controller: authController, child: const CreateScreen()),
+    home: ContentScope(
+      repository: ContentRepository(
+        _FakeContentRemoteDataSource(
+          ApiClient(baseUrl: 'http://localhost:8080'),
+        ),
+      ),
+      child: AIScope(
+        repository: AIRepository(aiRemote),
+        child: AuthScope(
+          controller: authController,
+          child: const CreateScreen(),
+        ),
+      ),
     ),
   );
 }
@@ -191,6 +290,7 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
 
   int createThreadCalls = 0;
   int addThreadMessageCalls = 0;
+  int createShowFromPlanCalls = 0;
   bool holdNextAddThread = false;
 
   AIChatThread? _currentThread;
@@ -281,7 +381,9 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
   }
 
   @override
-  Stream<AIChatStreamEvent> streamCreateThread({required String prompt}) async* {
+  Stream<AIChatStreamEvent> streamCreateThread({
+    required String prompt,
+  }) async* {
     createThreadCalls += 1;
     final thread = _buildThread(
       threadId: 'thread-$createThreadCalls',
@@ -345,6 +447,19 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
       return _buildMidnightPlan();
     }
     return _buildPlan('history-1', DateTime(2026, 3, 17, 18));
+  }
+
+  @override
+  Future<AIGenerationJob> createShowFromPlan(String planId) async {
+    createShowFromPlanCalls += 1;
+    return AIGenerationJob(
+      id: 'job-$createShowFromPlanCalls',
+      planId: planId,
+      jobType: 'show_creation',
+      status: 'queued',
+      provider: 'google-genai',
+      createdAt: DateTime(2026, 3, 30, 6),
+    );
   }
 
   void completePendingAddThread() {
@@ -445,11 +560,11 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
         title: 'AI Builder Lab',
         description: 'Plan generated for testing.',
         primaryCategory: 'Cong nghe',
-        hosts: [AIHostDraft(displayName: 'Nova', role: 'host')],
+        hosts: [AIHostDraft(displayName: 'Nova', role: 'narrator')],
         categories: ['Cong nghe'],
         tags: ['ai'],
         languageCode: 'vi',
-        contentType: 'podcast',
+        contentType: 'storytelling',
       ),
       episodes: const [
         AIEpisodeDraft(
@@ -509,6 +624,56 @@ class _FakeGoogleAuthDataSource implements GoogleAuthDataSource {
 
   @override
   Future<void> signOut() async {}
+}
+
+class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
+  _FakeContentRemoteDataSource(super.apiClient);
+
+  @override
+  Future<ContentHomeFeed> getHomeFeed() async {
+    return ContentHomeFeed(
+      categories: const ['Cong nghe', 'Truyen ke'],
+      shows: const [],
+    );
+  }
+
+  @override
+  Future<ContentShowDetail> createShow(ContentCreateShowInput input) async {
+    return ContentShowDetail(
+      id: 'created-show-1',
+      slug: 'created-show-1',
+      title: input.title,
+      description: input.description ?? '',
+      coverImageUrl: input.coverImageUrl ?? '',
+      categories: [input.primaryCategory],
+      tags: const [],
+      hosts: input.hosts
+          .map(
+            (host) => ContentHost(
+              id: 'host-${host.displayName}',
+              displayName: host.displayName,
+              avatarUrl: '',
+              role: host.role ?? 'host',
+              voiceProfileId: host.voiceProfileId,
+              bio: host.bio,
+            ),
+          )
+          .toList(),
+      owner: const ContentOwnerSummary(
+        id: 'user-1',
+        displayName: 'Creator',
+        avatarUrl: '',
+      ),
+      subscriberCount: 0,
+      totalEpisodeCount: 0,
+      totalListenCount: 0,
+      languageCode: 'vi',
+      contentType: input.contentType ?? 'podcast',
+      visibility: 'private',
+      monetizationType: 'free',
+      publishedAt: DateTime(2026, 3, 30),
+    );
+  }
 }
 
 class _FakeAuthRemoteDataSource extends AuthRemoteDataSource {

@@ -25,6 +25,7 @@ type fakeNotificationStore struct {
 	settings      domain.NotificationSettings
 	unreadCount   int
 	seededForUser string
+	created       []domain.CreateNotificationInput
 }
 
 func (f *fakeSender) SendVerification(_ context.Context, message email.VerificationMessage) error {
@@ -63,6 +64,22 @@ func (f *fakeNotificationStore) GetNotificationSettings(context.Context, string)
 func (f *fakeNotificationStore) UpsertNotificationSettings(_ context.Context, settings domain.NotificationSettings) (domain.NotificationSettings, error) {
 	f.settings = settings
 	return settings, nil
+}
+
+func (f *fakeNotificationStore) CreateNotification(_ context.Context, input domain.CreateNotificationInput) (domain.Notification, error) {
+	f.created = append(f.created, input)
+	return domain.Notification{
+		ID:             "notif-1",
+		UserID:         input.UserID,
+		Type:           input.Type,
+		TargetType:     input.TargetType,
+		TargetID:       input.TargetID,
+		Title:          input.Title,
+		Body:           input.Body,
+		ActorSnapshot:  input.ActorSnapshot,
+		TargetSnapshot: input.TargetSnapshot,
+		CreatedAt:      time.Date(2026, time.March, 30, 7, 0, 0, 0, time.UTC),
+	}, nil
 }
 
 func (f *fakeNotificationStore) SeedDemoNotifications(_ context.Context, userID string) (int, error) {
@@ -126,6 +143,40 @@ func TestHandleVerificationEmailQueuesMessage(t *testing.T) {
 
 	if response["status"] != "queued" {
 		t.Fatalf("unexpected response body: %+v", response)
+	}
+}
+
+func TestHandleCreateInboxNotificationQueuesMessage(t *testing.T) {
+	store := &fakeNotificationStore{}
+	server := New(config.Config{
+		Port:           "8087",
+		InternalAPIKey: "change-me",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), &fakeSender{}, store)
+
+	request := httptest.NewRequest(http.MethodPost, "/internal/notifications/inbox", strings.NewReader(`{
+		"user_id":"creator-1",
+		"type":"milestone",
+		"target_type":"show",
+		"target_id":"show-1",
+		"title":"Show da san sang",
+		"body":"AI Builder Lab da duoc tao xong.",
+		"actor_snapshot":{"display_name":"Pody AI","avatar_url":"https://example.com/ai.png"},
+		"target_snapshot":{"title":"AI Builder Lab"}
+	}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Internal-Api-Key", "change-me")
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d with body %q", recorder.Code, recorder.Body.String())
+	}
+	if len(store.created) != 1 {
+		t.Fatalf("expected one created notification, got %d", len(store.created))
+	}
+	if store.created[0].TargetID != "show-1" {
+		t.Fatalf("unexpected target id %q", store.created[0].TargetID)
 	}
 }
 

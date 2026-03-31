@@ -70,6 +70,7 @@ class AgentPlanState:
     edit_focus: str | None = None
     has_searched: bool = False
     requires_plan: bool = False
+    requested_host_count: int | None = None
     content: str | None = None
     output: PlannerOutput | None = None
     validation: PlanValidation | None = None
@@ -365,6 +366,7 @@ class StubPlanner:
         _ = current_plan_summary
         prompt_lower = prompt.lower()
         selected_voice = voice_profiles[0] if voice_profiles else None
+        requested_host_count = _infer_requested_host_count(prompt, voice_profiles)
 
         if "sleep" in prompt_lower or "calm" in prompt_lower or "reset" in prompt_lower:
             title = "Midnight Reset"
@@ -431,6 +433,8 @@ class StubPlanner:
                         persona_summary="Phong cach bo tro, dat cau hoi va giu nhip doi thoai.",
                     ),
                 ]
+                if requested_host_count == 1:
+                    hosts = hosts[:1]
 
         content_type = (
             "storytelling"
@@ -588,10 +592,7 @@ class GoogleGenAIPlanner:
                 )
 
             final_output = state.output.model_copy(deep=True)
-            if text:
-                final_output.assistant_reply = text
-            elif not final_output.assistant_reply.strip():
-                final_output.assistant_reply = _default_assistant_reply(final_output)
+            final_output.assistant_reply = _finalize_plan_assistant_reply(final_output)
             if not final_output.thread_title.strip():
                 final_output.thread_title = final_output.series_title
             return final_output
@@ -600,8 +601,7 @@ class GoogleGenAIPlanner:
             raise PlannerError("Agent reached max iterations without a valid plan")
 
         final_output = state.output.model_copy(deep=True)
-        if not final_output.assistant_reply.strip():
-            final_output.assistant_reply = _default_assistant_reply(final_output)
+        final_output.assistant_reply = _finalize_plan_assistant_reply(final_output)
         if not final_output.thread_title.strip():
             final_output.thread_title = final_output.series_title
         return final_output
@@ -685,10 +685,12 @@ class GoogleGenAICreateAgent:
             conversation=conversation,
             current_plan=current_plan,
         )
+        requested_host_count = _infer_requested_host_count(prompt, voice_profiles)
         state = _seed_agent_state(
             current_plan=current_plan,
             voice_profiles=voice_profiles,
             requested_episode_count=requested_episode_count,
+            requested_host_count=requested_host_count,
             requires_plan=requires_plan,
         )
         contents = [
@@ -765,9 +767,7 @@ class GoogleGenAICreateAgent:
                     final_reply = state.finalized_reply.strip()
                     if state.output is not None:
                         final_output = state.output.model_copy(deep=True)
-                        final_output.assistant_reply = (
-                            final_reply or final_output.assistant_reply or _default_assistant_reply(final_output)
-                        )
+                        final_output.assistant_reply = _finalize_plan_assistant_reply(final_output)
                         if not final_output.thread_title.strip():
                             final_output.thread_title = final_output.series_title
                         return ChatTurnResult(
@@ -784,10 +784,7 @@ class GoogleGenAICreateAgent:
 
             if state.output is not None:
                 final_output = state.output.model_copy(deep=True)
-                if text:
-                    final_output.assistant_reply = text
-                elif not final_output.assistant_reply.strip():
-                    final_output.assistant_reply = _default_assistant_reply(final_output)
+                final_output.assistant_reply = _finalize_plan_assistant_reply(final_output)
                 if not final_output.thread_title.strip():
                     final_output.thread_title = final_output.series_title
                 return ChatTurnResult(
@@ -823,8 +820,7 @@ class GoogleGenAICreateAgent:
 
         if state.output is not None:
             final_output = state.output.model_copy(deep=True)
-            if not final_output.assistant_reply.strip():
-                final_output.assistant_reply = _default_assistant_reply(final_output)
+            final_output.assistant_reply = _finalize_plan_assistant_reply(final_output)
             if not final_output.thread_title.strip():
                 final_output.thread_title = final_output.series_title
             return ChatTurnResult(
@@ -993,20 +989,26 @@ def _seed_agent_state(
     current_plan: ProductionPlan | None,
     voice_profiles: list[VoiceProfile],
     requested_episode_count: int | None,
+    requested_host_count: int | None = None,
     requires_plan: bool = False,
 ) -> AgentPlanState:
     if current_plan is None:
-        return AgentPlanState(requires_plan=requires_plan)
+        return AgentPlanState(
+            requires_plan=requires_plan,
+            requested_host_count=requested_host_count,
+        )
 
     output = _planner_output_from_plan(current_plan)
     validation = _validate_planner_content(
         json.dumps(output.model_dump(mode="json", exclude_none=True), ensure_ascii=False),
         voice_profiles=voice_profiles,
         requested_episode_count=requested_episode_count,
+        requested_host_count=requested_host_count,
     )
     return AgentPlanState(
         mode="default",
         requires_plan=requires_plan,
+        requested_host_count=requested_host_count,
         content=validation.normalized_json,
         output=validation.output or output,
         validation=validation,
@@ -1315,6 +1317,7 @@ def _execute_plan_tool(
             content,
             voice_profiles=voice_profiles,
             requested_episode_count=requested_episode_count,
+            requested_host_count=state.requested_host_count,
         )
         state.validation = validation
         state.content = validation.normalized_json if validation.valid else content
@@ -1377,6 +1380,7 @@ def _execute_plan_tool(
             content,
             voice_profiles=voice_profiles,
             requested_episode_count=requested_episode_count,
+            requested_host_count=state.requested_host_count,
         )
         state.validation = validation
         state.content = validation.normalized_json if validation.valid else content
@@ -1502,6 +1506,7 @@ def _validate_planner_content(
     *,
     voice_profiles: list[VoiceProfile],
     requested_episode_count: int | None,
+    requested_host_count: int | None = None,
 ) -> PlanValidation:
     errors: list[str] = []
     warnings: list[str] = []
@@ -1534,9 +1539,7 @@ def _validate_planner_content(
         warnings.append('Missing "thread_title" -> defaulted from "series_title"')
         output.thread_title = output.series_title
 
-    if not output.assistant_reply.strip():
-        warnings.append('Missing "assistant_reply" -> auto generated')
-        output.assistant_reply = _default_assistant_reply(output)
+    output.assistant_reply = _finalize_plan_assistant_reply(output)
 
     if not output.series_title.strip():
         errors.append('Missing or empty "series_title"')
@@ -1550,6 +1553,10 @@ def _validate_planner_content(
         errors.append('Storytelling shows must have exactly 1 host')
     if output.content_type == "podcast" and len(output.hosts) > 3:
         errors.append('Podcast shows support at most 3 hosts in v1')
+    if requested_host_count is not None and output.content_type == "podcast" and len(output.hosts) != requested_host_count:
+        errors.append(
+            f'Expected exactly {requested_host_count} hosts, got {len(output.hosts)}'
+        )
 
     if requested_episode_count is not None and len(output.episodes) != requested_episode_count:
         errors.append(
@@ -1614,6 +1621,47 @@ def _default_assistant_reply(output: PlannerOutput) -> str:
         f"Mình đã dựng xong concept cho show \"{output.series_title}\" với "
         f"{len(output.hosts)} host ở cấp show và {len(output.episodes)} tập mở đầu để bạn tiếp tục refine."
     )
+
+
+def _finalize_plan_assistant_reply(output: PlannerOutput) -> str:
+    host_names = [host.display_name.strip() for host in output.hosts if host.display_name.strip()]
+    host_block = ", ".join(host_names) if host_names else "chua co host"
+    return (
+        f"Mình đã tạo xong production plan cho show \"{output.series_title}\" với "
+        f"{len(output.hosts)} host ở cấp show ({host_block}) và "
+        f"{len(output.episodes)} tập mở đầu."
+    )
+
+
+def _infer_requested_host_count(prompt: str, voice_profiles: list[VoiceProfile]) -> int | None:
+    normalized_prompt = prompt.lower()
+    explicit_patterns = {
+        "1": 1,
+        "mot": 1,
+        "một": 1,
+        "single": 1,
+        "2": 2,
+        "hai": 2,
+        "double": 2,
+        "3": 3,
+        "ba": 3,
+    }
+    for token, count in explicit_patterns.items():
+        if re.search(rf"\b{re.escape(token)}\s+(host|hosts|giong|giọng)\b", normalized_prompt):
+            return count
+
+    mentioned_voice_names: list[str] = []
+    for voice in voice_profiles:
+        voice_name = voice.name.strip().lower()
+        if not voice_name:
+            continue
+        if re.search(rf"\b{re.escape(voice_name)}\b", normalized_prompt):
+            mentioned_voice_names.append(voice_name)
+
+    distinct_names = list(dict.fromkeys(mentioned_voice_names))
+    if len(distinct_names) >= 1:
+        return min(len(distinct_names), 3)
+    return None
 
 
 def _avatar_url(voice: VoiceProfile) -> str | None:

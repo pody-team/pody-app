@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -30,6 +31,24 @@ class RepositoryError(Exception):
 
 class NotFoundError(RepositoryError):
     pass
+
+
+@dataclass(frozen=True)
+class ShowCreationJobContext:
+    job: GenerationJob
+    plan: ProductionPlan
+    owner_user_id: UUID
+    owner_email: str | None
+    owner_name: str | None
+
+
+@dataclass(frozen=True)
+class TranscriptJobContext:
+    job: GenerationJob
+    plan_id: UUID
+    content_episode_id: str
+    episode_number: int
+    language_code: str
 
 
 class AIRepository:
@@ -277,6 +296,384 @@ class AIRepository:
             ).fetchone()
 
             return plan, GenerationJob.model_validate(job_row)
+
+    def queue_show_creation(
+        self,
+        auth: AuthContext,
+        plan_id: UUID,
+        provider: str,
+    ) -> GenerationJob:
+        with self._connection() as conn, conn.transaction():
+            plan_row = conn.execute(
+                """
+                SELECT id
+                FROM production_plans
+                WHERE id = %s AND owner_user_id = %s
+                """,
+                (plan_id, auth.user_id),
+            ).fetchone()
+            if plan_row is None:
+                raise NotFoundError("draft not found")
+
+            existing_job = conn.execute(
+                """
+                SELECT id, plan_id, episode_draft_id, job_type, status, provider,
+                       input_payload, output_payload, error_message,
+                       started_at, finished_at, created_at
+                FROM generation_jobs
+                WHERE plan_id = %s
+                  AND job_type = 'show_creation'
+                  AND status IN ('queued', 'running')
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (plan_id,),
+            ).fetchone()
+            if existing_job is not None:
+                return GenerationJob.model_validate(existing_job)
+
+            conn.execute(
+                """
+                UPDATE production_plans
+                SET status = 'producing', updated_at = now()
+                WHERE id = %s
+                """,
+                (plan_id,),
+            )
+
+            job_row = conn.execute(
+                """
+                INSERT INTO generation_jobs (
+                  plan_id,
+                  job_type,
+                  status,
+                  provider,
+                  input_payload,
+                  output_payload
+                )
+                VALUES (%s, 'show_creation', 'queued', %s, %s, '{}'::jsonb)
+                RETURNING id, plan_id, episode_draft_id, job_type, status, provider,
+                          input_payload, output_payload, error_message,
+                          started_at, finished_at, created_at
+                """,
+                (
+                    plan_id,
+                    provider,
+                    Jsonb(
+                        {
+                            "owner_email": auth.email,
+                            "owner_name": auth.name,
+                        }
+                    ),
+                ),
+            ).fetchone()
+            return GenerationJob.model_validate(job_row)
+
+    def list_pending_show_creation_job_ids(self, limit: int = 100) -> list[UUID]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id
+                FROM generation_jobs
+                WHERE job_type = 'show_creation'
+                  AND status = 'queued'
+                ORDER BY created_at ASC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [row["id"] for row in rows]
+
+    def queue_transcript_generation(
+        self,
+        *,
+        plan_id: UUID,
+        episode_number: int,
+        content_episode_id: str,
+        language_code: str,
+        provider: str,
+    ) -> GenerationJob:
+        with self._connection() as conn, conn.transaction():
+            existing_job = conn.execute(
+                """
+                SELECT id, plan_id, episode_draft_id, job_type, status, provider,
+                       input_payload, output_payload, error_message,
+                       started_at, finished_at, created_at
+                FROM generation_jobs
+                WHERE plan_id = %s
+                  AND job_type = 'transcript_generation'
+                  AND status IN ('queued', 'running')
+                  AND input_payload->>'content_episode_id' = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (plan_id, content_episode_id),
+            ).fetchone()
+            if existing_job is not None:
+                return GenerationJob.model_validate(existing_job)
+
+            episode_draft_row = conn.execute(
+                """
+                SELECT id
+                FROM production_plan_episode_drafts
+                WHERE plan_id = %s
+                  AND episode_number = %s
+                LIMIT 1
+                """,
+                (plan_id, episode_number),
+            ).fetchone()
+            episode_draft_id = episode_draft_row["id"] if episode_draft_row is not None else None
+
+            job_row = conn.execute(
+                """
+                INSERT INTO generation_jobs (
+                  plan_id,
+                  episode_draft_id,
+                  job_type,
+                  status,
+                  provider,
+                  input_payload,
+                  output_payload
+                )
+                VALUES (
+                  %s,
+                  %s,
+                  'transcript_generation',
+                  'queued',
+                  %s,
+                  %s,
+                  '{}'::jsonb
+                )
+                RETURNING id, plan_id, episode_draft_id, job_type, status, provider,
+                          input_payload, output_payload, error_message,
+                          started_at, finished_at, created_at
+                """,
+                (
+                    plan_id,
+                    episode_draft_id,
+                    provider,
+                    Jsonb(
+                        {
+                            "content_episode_id": content_episode_id,
+                            "episode_number": episode_number,
+                            "language_code": language_code,
+                        }
+                    ),
+                ),
+            ).fetchone()
+            return GenerationJob.model_validate(job_row)
+
+    def list_pending_transcript_job_ids(self, limit: int = 100) -> list[UUID]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id
+                FROM generation_jobs
+                WHERE job_type = 'transcript_generation'
+                  AND status = 'queued'
+                ORDER BY created_at ASC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        return [row["id"] for row in rows]
+
+    def start_show_creation_job(self, job_id: UUID) -> ShowCreationJobContext | None:
+        with self._connection() as conn, conn.transaction():
+            job_row = conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status = 'running', started_at = now(), error_message = NULL
+                WHERE id = %s
+                  AND job_type = 'show_creation'
+                  AND status = 'queued'
+                RETURNING id, plan_id, episode_draft_id, job_type, status, provider,
+                          input_payload, output_payload, error_message,
+                          started_at, finished_at, created_at
+                """,
+                (job_id,),
+            ).fetchone()
+            if job_row is None:
+                return None
+
+            input_payload = job_row["input_payload"] or {}
+            plan = self._get_plan(conn, job_row["plan_id"])
+
+            conn.execute(
+                """
+                UPDATE production_plans
+                SET status = 'producing', updated_at = now()
+                WHERE id = %s
+                """,
+                (plan.id,),
+            )
+
+            return ShowCreationJobContext(
+                job=GenerationJob.model_validate(job_row),
+                plan=plan,
+                owner_user_id=plan_row_owner_user_id(conn, plan.id),
+                owner_email=_nullable_string(input_payload.get("owner_email")),
+                owner_name=_nullable_string(input_payload.get("owner_name")),
+            )
+
+    def start_transcript_job(self, job_id: UUID) -> TranscriptJobContext | None:
+        with self._connection() as conn, conn.transaction():
+            job_row = conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status = 'running', started_at = now(), error_message = NULL
+                WHERE id = %s
+                  AND job_type = 'transcript_generation'
+                  AND status = 'queued'
+                RETURNING id, plan_id, episode_draft_id, job_type, status, provider,
+                          input_payload, output_payload, error_message,
+                          started_at, finished_at, created_at
+                """,
+                (job_id,),
+            ).fetchone()
+            if job_row is None:
+                return None
+            input_payload = job_row["input_payload"] or {}
+            content_episode_id = _string_or_default(input_payload.get("content_episode_id"), "")
+            if not content_episode_id:
+                raise RepositoryError("transcript job is missing content_episode_id")
+            episode_number = int(input_payload.get("episode_number") or 0)
+            language_code = _string_or_default(input_payload.get("language_code"), "vi")
+            return TranscriptJobContext(
+                job=GenerationJob.model_validate(job_row),
+                plan_id=job_row["plan_id"],
+                content_episode_id=content_episode_id,
+                episode_number=episode_number,
+                language_code=language_code,
+            )
+
+    def complete_show_creation_job(
+        self,
+        job_id: UUID,
+        show_id: str,
+        episode_count: int,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                SELECT plan_id
+                FROM generation_jobs
+                WHERE id = %s
+                  AND job_type = 'show_creation'
+                """,
+                (job_id,),
+            ).fetchone()
+            if row is None:
+                raise NotFoundError("job not found")
+
+            conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status = 'completed',
+                    output_payload = %s,
+                    finished_at = now(),
+                    error_message = NULL
+                WHERE id = %s
+                """,
+                (
+                    Jsonb(
+                        {
+                            "show_id": show_id,
+                            "episode_count": episode_count,
+                        }
+                    ),
+                    job_id,
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE production_plans
+                SET status = 'completed',
+                    target_show_id = %s::uuid,
+                    completed_at = COALESCE(completed_at, now()),
+                    updated_at = now()
+                WHERE id = %s
+                """,
+                (show_id, row["plan_id"]),
+            )
+
+    def fail_show_creation_job(self, job_id: UUID, error_message: str) -> None:
+        with self._connection() as conn, conn.transaction():
+            row = conn.execute(
+                """
+                SELECT plan_id
+                FROM generation_jobs
+                WHERE id = %s
+                  AND job_type = 'show_creation'
+                """,
+                (job_id,),
+            ).fetchone()
+            if row is None:
+                raise NotFoundError("job not found")
+
+            conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status = 'failed',
+                    error_message = %s,
+                    finished_at = now()
+                WHERE id = %s
+                """,
+                (error_message, job_id),
+            )
+            conn.execute(
+                """
+                UPDATE production_plans
+                SET status = 'failed', updated_at = now()
+                WHERE id = %s
+                """,
+                (row["plan_id"],),
+            )
+
+    def complete_transcript_job(
+        self,
+        job_id: UUID,
+        *,
+        content_episode_id: str,
+        segment_count: int,
+        alignment_method: str,
+    ) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status = 'completed',
+                    output_payload = %s,
+                    finished_at = now(),
+                    error_message = NULL
+                WHERE id = %s
+                  AND job_type = 'transcript_generation'
+                """,
+                (
+                    Jsonb(
+                        {
+                            "content_episode_id": content_episode_id,
+                            "segment_count": segment_count,
+                            "alignment_method": alignment_method,
+                        }
+                    ),
+                    job_id,
+                ),
+            )
+
+    def fail_transcript_job(self, job_id: UUID, error_message: str) -> None:
+        with self._connection() as conn, conn.transaction():
+            conn.execute(
+                """
+                UPDATE generation_jobs
+                SET status = 'failed',
+                    error_message = %s,
+                    finished_at = now()
+                WHERE id = %s
+                  AND job_type = 'transcript_generation'
+                """,
+                (error_message, job_id),
+            )
 
     def get_job(self, owner_user_id: UUID, job_id: UUID) -> GenerationJob:
         with self._connection() as conn:
@@ -593,6 +990,24 @@ def _string_or_none(value: Any) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
+
+
+def _nullable_string(value: Any) -> str | None:
+    return _string_or_none(value)
+
+
+def plan_row_owner_user_id(conn: Any, plan_id: UUID) -> UUID:
+    row = conn.execute(
+        """
+        SELECT owner_user_id
+        FROM production_plans
+        WHERE id = %s
+        """,
+        (plan_id,),
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("plan not found")
+    return row["owner_user_id"]
 
 
 def _strings(value: Any) -> list[str]:

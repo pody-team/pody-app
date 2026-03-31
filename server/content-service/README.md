@@ -14,6 +14,10 @@
 - `GET /api/v1/public/content/episodes/{episodeID}`
 - `POST /api/v1/content/shows`
 - `GET /api/v1/content/me/shows`
+- `GET /api/v1/content/me/bookmarks`
+- `GET /api/v1/content/me/bookmarks/{episodeID}`
+- `PUT /api/v1/content/me/bookmarks/{episodeID}`
+- `DELETE /api/v1/content/me/bookmarks/{episodeID}`
 
 ## API Docs
 
@@ -26,3 +30,4 @@
 - Demo content is seeded through the migrations container from [content_service_demo_seed.sql](/Users/promex04/Documents/Pody/Pody/server/sql/services/content_service_demo_seed.sql).
 - The relational schema lives in [content_service.sql](/Users/promex04/Documents/Pody/Pody/server/sql/services/content_service.sql).
 - `POST /api/v1/content/shows` currently creates a show with a single AI host at show level and defaults the show to `published/public` so the existing listener + creator screens can open it immediately. Draft/publish workflow can be split out in the next step.
+- Episode bookmarks are stored in `episode_bookmarks` and exposed through protected `/api/v1/content/me/bookmarks` routes.

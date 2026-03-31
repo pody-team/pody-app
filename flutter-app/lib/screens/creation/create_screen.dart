@@ -65,6 +65,7 @@ class _CreateScreenState extends State<CreateScreen> {
   String _streamingAssistantText = '';
   AIProductionPlan? _streamingPlanPreview;
   int _statusPulseTick = 0;
+  final Set<String> _creatingPlanIds = <String>{};
   _CreateSidebarSection _sidebarSection = _CreateSidebarSection.chats;
   Future<List<AIChatThreadSummary>>? _threadHistoryFuture;
   Future<List<AIProductionPlanSummary>>? _draftListFuture;
@@ -588,17 +589,46 @@ class _CreateScreenState extends State<CreateScreen> {
   }
 
   Future<void> _openPlanDetail(AIProductionPlan plan) async {
-    final result = await Navigator.of(context).push<dynamic>(
+    await Navigator.of(context).push<dynamic>(
       MaterialPageRoute(builder: (_) => EditPlanScreen(plan: plan)),
     );
+  }
 
-    if (!mounted || result == null) {
+  Future<void> _createShowFromPlan(AIProductionPlan plan) async {
+    if (_creatingPlanIds.contains(plan.id)) {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Da tao show "${result.title}".')));
+    setState(() {
+      _creatingPlanIds.add(plan.id);
+    });
+
+    try {
+      final job = await AIScope.of(context).createShowFromPlan(plan.id);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Dang tao "${plan.seriesTitle}" bang worker (${job.status}). Ban se nhan thong bao trong app khi xong.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_humanizeError(error))));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _creatingPlanIds.remove(plan.id);
+        });
+      }
+    }
   }
 
   void _showChatsSection() {
@@ -1351,6 +1381,7 @@ class _CreateScreenState extends State<CreateScreen> {
     final remaining = plan.episodes.length - maxVisible;
     final tags = plan.tags.isNotEmpty ? plan.tags : plan.showDraft.tags;
     final hostLabel = plan.showDraft.hostNames;
+    final isCreating = _creatingPlanIds.contains(plan.id);
     final summaryLabel =
         '${plan.showDraft.primaryCategory} • $hostLabel • ${plan.episodes.length} episodes';
 
@@ -1400,14 +1431,30 @@ class _CreateScreenState extends State<CreateScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.edit_note,
-                    color: _createTextSecondary,
-                    size: 24,
-                  ),
-                  onPressed: () => _openPlanDetail(plan),
-                  tooltip: 'Edit Plan',
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        isCreating
+                            ? Icons.hourglass_top_rounded
+                            : Icons.auto_awesome_rounded,
+                        color: _createTextSecondary,
+                        size: 24,
+                      ),
+                      onPressed: isCreating ? null : () => _createShowFromPlan(plan),
+                      tooltip: 'Tạo show',
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.edit_note,
+                        color: _createTextSecondary,
+                        size: 24,
+                      ),
+                      onPressed: () => _openPlanDetail(plan),
+                      tooltip: 'Edit Plan',
+                    ),
+                  ],
                 ),
               ],
             ),

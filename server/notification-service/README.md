@@ -15,6 +15,7 @@ Initial notification service focused on delivery concerns for internal system em
 - `GET /api/v1/notifications/settings`
 - `PUT /api/v1/notifications/settings`
 - `POST /internal/notifications/email/verification`
+- `POST /internal/notifications/inbox`
 - `POST /internal/notifications/dev/seed-inbox`
 
 ## Run locally
@@ -68,6 +69,7 @@ Then open the app and refresh the `Notifications` tab.
 ## Notes
 
 - `INTERNAL_API_KEY` is required for internal callers like `identity-service`.
+- `POST /internal/notifications/inbox` lets trusted internal services insert one app notification directly.
 - Verification emails are primarily consumed from Kafka via `VERIFICATION_EVENTS_TOPIC`.
 - Password reset emails are consumed from Kafka via `PASSWORD_RESET_EVENTS_TOPIC`.
 - Failed deliveries are re-published to `VERIFICATION_RETRY_TOPIC` and poison/terminal failures go to `VERIFICATION_DLQ_TOPIC`.

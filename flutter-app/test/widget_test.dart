@@ -74,7 +74,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
   @override
   Future<ContentHomeFeed> getHomeFeed() async {
     return ContentHomeFeed(
-      categories: const ['Tat ca', 'Cong nghe'],
+      categories: const ['Tất cả', 'Công nghệ'],
       shows: [
         ContentHomeShowCard(
           show: ContentShowSummary(
@@ -82,7 +82,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
             slug: 'show-1',
             title: 'Future Minds',
             coverImageUrl: 'https://example.com/show-1.jpg',
-            primaryCategory: 'Cong nghe',
+            primaryCategory: 'Công nghệ',
             hosts: const [
               ContentHost(
                 id: 'ai-1',
@@ -100,7 +100,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
             ContentPreviewEpisode(
               id: 'episode-1',
               showId: 'show-1',
-              title: 'MVC thoi hien dai',
+              title: 'MVC thời hiện đại',
               durationSeconds: 1800,
               publishedAt: DateTime(2026, 3, 17),
             ),

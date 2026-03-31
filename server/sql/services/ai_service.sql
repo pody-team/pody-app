@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS generation_jobs (
   plan_id uuid NOT NULL REFERENCES production_plans(id) ON DELETE CASCADE,
   episode_draft_id uuid REFERENCES production_plan_episode_drafts(id) ON DELETE SET NULL,
   job_type text NOT NULL
-    CHECK (job_type IN ('plan_generation', 'script_generation', 'audio_generation', 'image_generation', 'publish_episode')),
+    CHECK (job_type IN ('plan_generation', 'script_generation', 'audio_generation', 'image_generation', 'publish_episode', 'show_creation', 'transcript_generation')),
   status text NOT NULL DEFAULT 'queued'
     CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
   provider varchar(80),
@@ -148,6 +148,13 @@ CREATE TABLE IF NOT EXISTS generation_jobs (
   finished_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE generation_jobs
+  DROP CONSTRAINT IF EXISTS generation_jobs_job_type_check;
+
+ALTER TABLE generation_jobs
+  ADD CONSTRAINT generation_jobs_job_type_check
+  CHECK (job_type IN ('plan_generation', 'script_generation', 'audio_generation', 'image_generation', 'publish_episode', 'show_creation', 'transcript_generation'));
 
 CREATE TABLE IF NOT EXISTS outbox_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

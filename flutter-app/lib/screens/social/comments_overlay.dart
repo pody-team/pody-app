@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
+
+const Color _commentsSurface = Color(0xFFFFFEFC);
+const Color _commentsSurfaceStrong = Color(0xFFF2E6D9);
+const Color _commentsPrimary = Color(0xFFBF5700);
+const Color _commentsNeutral = Color(0xFF3E2723);
+const Color _commentsMuted = Color(0xFF7E665F);
 
 void showCommentsOverlay(BuildContext context) {
   showModalBottomSheet(
@@ -25,72 +32,75 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
   Widget build(BuildContext context) {
     final comments = MockData.comments;
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
+      initialChildSize: 0.74,
       minChildSize: 0.5,
-      maxChildSize: 0.9,
+      maxChildSize: 0.92,
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: Color(0xFF1F1F1F),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(24),
-              topRight: Radius.circular(24),
-            ),
+            color: _commentsSurface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
           ),
           child: Column(
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal: 18,
+                  vertical: 14,
                 ),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.white12)),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: _commentsNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const SizedBox(width: 32),
-                    Text(
-                      '${comments.length} comments',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _commentsMuted.withValues(alpha: 0.26),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
+                    const Spacer(),
+                    Text(
+                      '${comments.length} bình luận',
+                      style: GoogleFonts.workSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _commentsNeutral,
+                      ),
+                    ),
+                    const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: const Icon(Icons.close, color: _commentsNeutral),
                       iconSize: 20,
                       onPressed: () => Navigator.pop(context),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
               ),
-
-              // Comments List
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
                   itemCount: comments.length,
                   itemBuilder: (context, index) {
                     return _buildCommentItem(comments[index]);
                   },
                 ),
               ),
-
-              // Bottom Input Bar
               Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1F1F1F),
-                  border: Border(top: BorderSide(color: Colors.white12)),
+                decoration: BoxDecoration(
+                  color: _commentsSurface,
+                  border: Border(
+                    top: BorderSide(
+                      color: _commentsNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
                 ),
                 padding: EdgeInsets.only(
                   left: 16,
@@ -101,7 +111,7 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 16,
+                      radius: 17,
                       backgroundImage: NetworkImage(
                         MockData.currentUser.avatarUrl,
                       ),
@@ -114,21 +124,21 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF262626),
-                          borderRadius: BorderRadius.circular(20),
+                          color: _commentsSurfaceStrong,
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: TextField(
-                                style: TextStyle(
-                                  color: Colors.white,
+                                style: GoogleFonts.workSans(
+                                  color: _commentsNeutral,
                                   fontSize: 14,
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: 'Add comment...',
-                                  hintStyle: TextStyle(
-                                    color: Colors.white54,
+                                  hintText: 'Thêm bình luận...',
+                                  hintStyle: GoogleFonts.workSans(
+                                    color: _commentsMuted,
                                     fontSize: 14,
                                   ),
                                   border: InputBorder.none,
@@ -139,23 +149,18 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
                             IconButton(
                               icon: const Icon(
                                 Icons.alternate_email,
-                                color: Colors.white54,
+                                color: _commentsMuted,
                               ),
                               iconSize: 20,
                               onPressed: () {},
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
                             ),
-                            const SizedBox(width: 8),
                             IconButton(
                               icon: const Icon(
                                 Icons.sentiment_satisfied,
-                                color: Colors.white54,
+                                color: _commentsMuted,
                               ),
                               iconSize: 20,
                               onPressed: () {},
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
                             ),
                           ],
                         ),
@@ -176,50 +181,59 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
 
     return Padding(
       padding: EdgeInsets.only(
-        bottom: isReply ? 12 : 16,
-        top: isReply ? 12 : 0,
+        bottom: isReply ? 10 : 14,
+        top: isReply ? 10 : 0,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
           Container(
-            width: isReply ? 24 : 32,
-            height: isReply ? 24 : 32,
+            width: isReply ? 28 : 36,
+            height: isReply ? 28 : 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: comment.isStoryAvatar
-                  ? Border.all(color: Colors.cyanAccent, width: 2)
-                  : Border.all(color: Colors.white24, width: 1),
+                  ? Border.all(color: _commentsPrimary, width: 2)
+                  : Border.all(color: _commentsNeutral.withValues(alpha: 0.08)),
             ),
             padding: EdgeInsets.all(comment.isStoryAvatar ? 2 : 0),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               child: Image.network(comment.avatarUrl, fit: BoxFit.cover),
             ),
           ),
           const SizedBox(width: 12),
-
-          // Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  comment.author,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white54,
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: _commentsSurfaceStrong,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  comment.text,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white,
-                    height: 1.3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        comment.author,
+                        style: GoogleFonts.workSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _commentsNeutral,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        comment.text,
+                        style: GoogleFonts.workSans(
+                          fontSize: 14,
+                          color: _commentsNeutral,
+                          height: 1.45,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -227,55 +241,46 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
                   children: [
                     Text(
                       comment.time,
-                      style: const TextStyle(
+                      style: GoogleFonts.workSans(
                         fontSize: 12,
-                        color: Colors.white54,
+                        color: _commentsMuted,
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Text(
-                      'Reply',
-                      style: TextStyle(
+                    Text(
+                      'Trả lời',
+                      style: GoogleFonts.workSans(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white54,
+                        fontWeight: FontWeight.w700,
+                        color: _commentsMuted,
                       ),
                     ),
                   ],
                 ),
-
-                // Replies section
                 if (hasReplies)
                   Column(
                     children: comment.replies.map((reply) {
                       return _buildCommentItem(reply, isReply: true);
                     }).toList(),
                   ),
-
-                // View More Replies
                 if (comment.viewMoreRepliesCount > 0)
                   Padding(
-                    padding: const EdgeInsets.only(top: 12.0),
+                    padding: const EdgeInsets.only(top: 12),
                     child: Row(
                       children: [
                         Container(
                           width: 24,
                           height: 1,
-                          color: Colors.white24,
+                          color: _commentsMuted.withValues(alpha: 0.3),
                           margin: const EdgeInsets.only(right: 8),
                         ),
                         Text(
-                          'View ${comment.viewMoreRepliesCount} replies',
-                          style: const TextStyle(
+                          'Xem ${comment.viewMoreRepliesCount} phản hồi',
+                          style: GoogleFonts.workSans(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white54,
+                            fontWeight: FontWeight.w700,
+                            color: _commentsMuted,
                           ),
-                        ),
-                        const Icon(
-                          Icons.expand_more,
-                          color: Colors.white54,
-                          size: 16,
                         ),
                       ],
                     ),
@@ -283,22 +288,24 @@ class _CommentsOverlayState extends State<CommentsOverlay> {
               ],
             ),
           ),
-
-          // Like Button
+          const SizedBox(width: 8),
           Column(
             children: [
               Icon(
                 comment.likes > 0 ? Icons.favorite : Icons.favorite_border,
                 color: comment.likes > 0
-                    ? const Color(0xFFEF4444)
-                    : Colors.white54,
+                    ? const Color(0xFFC16452)
+                    : _commentsMuted,
                 size: 16,
               ),
               const SizedBox(height: 4),
               if (comment.likes > 0)
                 Text(
                   '${comment.likes}',
-                  style: const TextStyle(fontSize: 12, color: Colors.white54),
+                  style: GoogleFonts.workSans(
+                    fontSize: 12,
+                    color: _commentsMuted,
+                  ),
                 ),
             ],
           ),

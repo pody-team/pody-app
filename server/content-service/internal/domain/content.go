@@ -100,17 +100,54 @@ type EpisodeSummary struct {
 	EpisodeNumber   int       `json:"episode_number"`
 }
 
+type TranscriptWord struct {
+	StartSeconds float64 `json:"start_seconds"`
+	EndSeconds   float64 `json:"end_seconds"`
+	Text         string  `json:"text"`
+}
+
+type TranscriptSegment struct {
+	Speaker      string           `json:"speaker"`
+	StartSeconds float64          `json:"start_seconds"`
+	EndSeconds   float64          `json:"end_seconds"`
+	Text         string           `json:"text"`
+	Words        []TranscriptWord `json:"words,omitempty"`
+}
+
+type EpisodeTranscript struct {
+	Status          string              `json:"status"`
+	Language        string              `json:"language"`
+	AlignmentMethod string              `json:"alignment_method,omitempty"`
+	AssetURL        string              `json:"asset_url,omitempty"`
+	Text            string              `json:"text,omitempty"`
+	DurationSeconds float64             `json:"duration_seconds"`
+	Segments        []TranscriptSegment `json:"segments"`
+	Error           string              `json:"error,omitempty"`
+}
+
+type EpisodeBookmarkStatus struct {
+	EpisodeID    string `json:"episode_id"`
+	IsBookmarked bool   `json:"is_bookmarked"`
+}
+
+type BookmarkedEpisode struct {
+	Episode      EpisodeSummary `json:"episode"`
+	Show         ShowSummary    `json:"show"`
+	BookmarkedAt time.Time      `json:"bookmarked_at"`
+}
+
 type EpisodeDetail struct {
-	ID              string    `json:"id"`
-	ShowID          string    `json:"show_id"`
-	Title           string    `json:"title"`
-	Description     string    `json:"description"`
-	AudioURL        string    `json:"audio_url"`
-	CoverImageURL   string    `json:"cover_image_url"`
-	DurationSeconds int       `json:"duration_seconds"`
-	PublishedAt     time.Time `json:"published_at"`
-	EpisodeNumber   int       `json:"episode_number"`
-	Tags            []string  `json:"tags"`
-	LikeCount       int       `json:"like_count"`
-	CommentCount    int       `json:"comment_count"`
+	ID              string             `json:"id"`
+	ShowID          string             `json:"show_id"`
+	Title           string             `json:"title"`
+	Description     string             `json:"description"`
+	AudioURL        string             `json:"audio_url"`
+	CoverImageURL   string             `json:"cover_image_url"`
+	DurationSeconds int                `json:"duration_seconds"`
+	PublishedAt     time.Time          `json:"published_at"`
+	EpisodeNumber   int                `json:"episode_number"`
+	Tags            []string           `json:"tags"`
+	LikeCount       int                `json:"like_count"`
+	CommentCount    int                `json:"comment_count"`
+	Transcript      *EpisodeTranscript `json:"transcript,omitempty"`
 }

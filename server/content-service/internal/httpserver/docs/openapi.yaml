@@ -131,6 +131,88 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
         '500':
           $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/me/bookmarks/{episodeID}:
+    get:
+      tags: [Creator]
+      operationId: getEpisodeBookmarkStatus
+      summary: Get bookmark status for an episode for the current creator
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/EpisodeID'
+      responses:
+        '200':
+          description: Bookmark status payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeBookmarkStatus'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      tags: [Creator]
+      operationId: saveEpisodeBookmark
+      summary: Save an episode bookmark for the current creator
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/EpisodeID'
+      responses:
+        '200':
+          description: Bookmark status payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeBookmarkStatus'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      tags: [Creator]
+      operationId: deleteEpisodeBookmark
+      summary: Remove an episode bookmark for the current creator
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/EpisodeID'
+      responses:
+        '200':
+          description: Bookmark status payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeBookmarkStatus'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/me/bookmarks:
+    get:
+      tags: [Creator]
+      operationId: listEpisodeBookmarks
+      summary: List saved episode bookmarks for the current creator
+      security:
+        - authUserId: []
+      responses:
+        '200':
+          description: Saved bookmark list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeBookmarksEnvelope'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
   /api/v1/content/shows:
     post:
       tags: [Creator]
@@ -419,8 +501,79 @@ components:
           type: integer
         comment_count:
           type: integer
+        transcript:
+          $ref: '#/components/schemas/EpisodeTranscript'
       required:
         [id, show_id, title, description, audio_url, cover_image_url, duration_seconds, published_at, episode_number, tags, like_count, comment_count]
+    EpisodeBookmarkStatus:
+      type: object
+      properties:
+        episode_id:
+          type: string
+        is_bookmarked:
+          type: boolean
+      required: [episode_id, is_bookmarked]
+    BookmarkedEpisode:
+      type: object
+      properties:
+        episode:
+          $ref: '#/components/schemas/EpisodeSummary'
+        show:
+          $ref: '#/components/schemas/ShowSummary'
+        bookmarked_at:
+          type: string
+          format: date-time
+      required: [episode, show, bookmarked_at]
+    TranscriptWord:
+      type: object
+      properties:
+        start_seconds:
+          type: number
+        end_seconds:
+          type: number
+        text:
+          type: string
+      required: [start_seconds, end_seconds, text]
+    TranscriptSegment:
+      type: object
+      properties:
+        speaker:
+          type: string
+        start_seconds:
+          type: number
+        end_seconds:
+          type: number
+        text:
+          type: string
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptWord'
+      required: [speaker, start_seconds, end_seconds, text]
+    EpisodeTranscript:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        language:
+          type: string
+        alignment_method:
+          type: string
+        asset_url:
+          type: string
+          format: uri
+        text:
+          type: string
+        duration_seconds:
+          type: number
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranscriptSegment'
+        error:
+          type: string
+      required: [status, language, duration_seconds, segments]
     CreateShowHostRequest:
       type: object
       properties:
@@ -488,3 +641,11 @@ components:
           items:
             $ref: '#/components/schemas/ShowSummary'
       required: [shows]
+    EpisodeBookmarksEnvelope:
+      type: object
+      properties:
+        bookmarks:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookmarkedEpisode'
+      required: [bookmarks]

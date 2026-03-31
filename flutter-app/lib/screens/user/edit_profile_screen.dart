@@ -1,373 +1,446 @@
 import 'package:flutter/material.dart';
-import 'package:pody/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:pody/features/auth/domain/auth_user.dart';
+
+const Color _editCanvas = Color(0xFFFFFBF6);
+const Color _editSurface = Color(0xFFFFFEFC);
+const Color _editSurfaceStrong = Color(0xFFF2E6D9);
+const Color _editPrimary = Color(0xFFBF5700);
+const Color _editSecondary = Color(0xFFE1AD01);
+const Color _editTertiary = Color(0xFF566931);
+const Color _editNeutral = Color(0xFF3E2723);
+const Color _editMuted = Color(0xFF7E665F);
 
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  const EditProfileScreen({required this.user, super.key});
+
+  final AuthUser user;
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _displayNameController = TextEditingController(text: 'Minh Nguyen');
-  final _usernameController = TextEditingController(text: 'minhdev');
-  final _bioController = TextEditingController(
-    text:
-        'Tech enthusiast, coffee lover, and weekend podcaster. Exploring the future of audio.',
-  );
-  final _durationController = TextEditingController(text: '15 min');
-  final _toneController = TextEditingController(text: 'Professional');
-  final _audienceController = TextEditingController(text: 'Investors');
+  late final TextEditingController _displayNameController;
+  late final TextEditingController _usernameController;
+  late final TextEditingController _bioController;
 
-  final List<String> _allInterests = [
-    'True Crime',
-    'Tech',
-    'Comedy',
-    'History',
-    'Business',
-    'Science',
-  ];
-  final Set<String> _selectedInterests = {'True Crime', 'Tech', 'Business'};
+  @override
+  void initState() {
+    super.initState();
+    _displayNameController = TextEditingController(
+      text: widget.user.displayName,
+    );
+    _usernameController = TextEditingController(
+      text: widget.user.username ?? '',
+    );
+    _bioController = TextEditingController(text: widget.user.bio);
+  }
 
   @override
   void dispose() {
     _displayNameController.dispose();
     _usernameController.dispose();
     _bioController.dispose();
-    _durationController.dispose();
-    _toneController.dispose();
-    _audienceController.dispose();
     super.dispose();
+  }
+
+  void _showUnavailableMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('API cập nhật hồ sơ chưa sẵn sàng.'),
+        backgroundColor: _editNeutral,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final avatarUrl = widget.user.avatarUrl?.trim() ?? '';
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
+      backgroundColor: _editCanvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0E13),
+        backgroundColor: _editCanvas,
+        surfaceTintColor: _editCanvas,
         elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white54,
-                ),
-              ),
-            ),
-            const Text(
-              'Edit Profile',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Profile saved'),
-                    backgroundColor: kBgCard,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              },
-              child: const Text(
-                'Save',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
+        leading: IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: _editNeutral),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: Colors.white.withValues(alpha: 0.06),
+        title: Text(
+          'Chỉnh sửa hồ sơ',
+          style: GoogleFonts.newsreader(
+            color: _editNeutral,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _showUnavailableMessage,
+            child: Text(
+              'Lưu',
+              style: GoogleFonts.workSans(
+                color: _editPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 60),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 44),
         children: [
-          // Avatar Section
-          Center(
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: _editSurface,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: _editNeutral.withValues(alpha: 0.08)),
+            ),
             child: Column(
               children: [
-                Stack(
-                  children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          width: 3,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(60),
-                        child: Image.network(
-                          'https://lh3.googleusercontent.com/aida-public/AB6AXuAWGX1z6hXmkcfBIlhDnk0zE9cv8lX5A5B_hsXdZwH57h3bdtokrT2CGW01UyaWneHx-8azq8ciqAjJQe3nJ7y5tREangqFs1BmRkWxfA98Mt0qCf5PuiB9U1DGLRFd9qOwV25TMb1uyyjoWi6gXf10TJRWnKursAmQTO0bgJ8Vqu9aPD_3OlBzSyKZSuntBKn6nEek-FUektilhtlyXBb3aUAj9Y3Zt1y_xgR7IvsTaWFf4UILkhoKo_6OpaEJJYqFpgedWemeUfoo',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+                Container(
+                  width: 108,
+                  height: 108,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _editSecondary.withValues(alpha: 0.42),
+                      width: 3,
                     ),
-                    // Camera overlay
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black.withValues(alpha: 0.3),
-                        ),
-                        child: const Icon(
-                          Icons.photo_camera,
-                          color: Colors.white70,
-                          size: 32,
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _editPrimary.withValues(alpha: 0.10),
+                        blurRadius: 22,
+                        offset: const Offset(0, 14),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(54),
+                    child: avatarUrl.isEmpty
+                        ? Container(
+                            color: _editSurfaceStrong,
+                            alignment: Alignment.center,
+                            child: Text(
+                              _initialsFor(widget.user.displayName),
+                              style: GoogleFonts.workSans(
+                                color: _editNeutral,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        : Image.network(avatarUrl, fit: BoxFit.cover),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () {},
-                  child: const Text(
-                    'Change Photo',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                const SizedBox(height: 14),
+                Text(
+                  'Ảnh đại diện hiện được lấy từ tài khoản đã xác thực.',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.workSans(
+                    fontSize: 12,
+                    color: _editMuted,
+                    height: 1.45,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 36),
-
-          // Display Name
-          _buildFieldLabel('DISPLAY NAME'),
-          const SizedBox(height: 6),
-          _buildTextField(_displayNameController),
-          const SizedBox(height: 24),
-
-          // Username
-          _buildFieldLabel('USERNAME'),
-          const SizedBox(height: 6),
-          _buildTextField(_usernameController, prefix: '@'),
-          const SizedBox(height: 24),
-
-          // Bio
-          _buildFieldLabel('BIO'),
-          const SizedBox(height: 6),
+          const SizedBox(height: 18),
+          _SectionCard(
+            title: 'Thông tin công khai',
+            subtitle: 'Những gì người khác sẽ nhìn thấy trên hồ sơ của bạn.',
+            children: [
+              _FormField(
+                controller: _displayNameController,
+                label: 'Tên hiển thị',
+              ),
+              const SizedBox(height: 14),
+              _FormField(
+                controller: _usernameController,
+                label: 'Tên người dùng',
+                prefix: '@',
+              ),
+              const SizedBox(height: 14),
+              _FormField(
+                controller: _bioController,
+                label: 'Tiểu sử',
+                maxLines: 4,
+                maxLength: 150,
+                onChanged: (_) => setState(() {}),
+                footer:
+                    '${_bioController.text.trim().characters.length.clamp(0, 150)}/150',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _SectionCard(
+            title: 'Tài khoản',
+            subtitle: 'Thông tin đang đồng bộ từ phiên đăng nhập hiện tại.',
+            children: [
+              _ProfileInfoTile(
+                icon: Icons.email_outlined,
+                title: widget.user.email,
+                subtitle: 'Email đăng nhập',
+              ),
+              const SizedBox(height: 10),
+              _ProfileInfoTile(
+                icon: Icons.badge_outlined,
+                title: widget.user.accountType,
+                subtitle: 'Loại tài khoản',
+              ),
+              const SizedBox(height: 10),
+              _ProfileInfoTile(
+                icon: Icons.schedule_outlined,
+                title: widget.user.timezone,
+                subtitle: 'Múi giờ',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
           Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: kBgCard,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              color: _editTertiary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: _editTertiary.withValues(alpha: 0.16)),
             ),
-            child: TextField(
-              controller: _bioController,
-              maxLines: 4,
-              maxLength: 150,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-                height: 1.4,
-              ),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.all(16),
-                counterStyle: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white24,
-                ),
-                counterText: '${_bioController.text.length}/150',
-              ),
-              onChanged: (_) => setState(() {}),
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // Podcast Interests
-          _buildFieldLabel('PODCAST INTERESTS'),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _allInterests.map((interest) {
-              final isSelected = _selectedInterests.contains(interest);
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    if (isSelected) {
-                      _selectedInterests.remove(interest);
-                    } else {
-                      _selectedInterests.add(interest);
-                    }
-                  });
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white.withValues(alpha: 0.12)
-                        : kBgCard,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.white.withValues(alpha: 0.3)
-                          : Colors.white.withValues(alpha: 0.06),
-                    ),
-                  ),
-                  child: Text(
-                    interest,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : Colors.white54,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 6),
-          const Padding(
-            padding: EdgeInsets.only(left: 2),
             child: Text(
-              'Select topics to personalize your feed.',
-              style: TextStyle(fontSize: 12, color: Colors.white24),
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Divider
-          Container(height: 1, color: Colors.white.withValues(alpha: 0.06)),
-          const SizedBox(height: 24),
-
-          // Default Podcast Preferences
-          _buildFieldLabel('DEFAULT PODCAST PREFERENCES'),
-          const SizedBox(height: 20),
-
-          // Duration
-          _buildSmallLabel('DEFAULT DURATION'),
-          const SizedBox(height: 6),
-          _buildTextField(_durationController, suffixIcon: Icons.schedule),
-          const SizedBox(height: 20),
-
-          // Tone
-          _buildSmallLabel('DEFAULT TONE'),
-          const SizedBox(height: 6),
-          _buildTextField(_toneController, suffixIcon: Icons.graphic_eq),
-          const SizedBox(height: 20),
-
-          // Target Audience
-          _buildSmallLabel('TARGET AUDIENCE'),
-          const SizedBox(height: 6),
-          _buildTextField(_audienceController, suffixIcon: Icons.group),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.only(left: 2),
-            child: Text(
-              'These settings will be used as defaults for new episodes.',
-              style: TextStyle(fontSize: 12, color: Colors.white24),
+              'Màn này đã dùng dữ liệu thật từ session hiện tại. Chức năng cập nhật hồ sơ sẽ bật tiếp khi identity-service có write API.',
+              style: GoogleFonts.workSans(
+                fontSize: 12,
+                color: _editNeutral.withValues(alpha: 0.82),
+                height: 1.5,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildFieldLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: Colors.white38,
-          letterSpacing: 1.5,
-        ),
-      ),
-    );
-  }
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.children,
+  });
 
-  Widget _buildSmallLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: Colors.white24,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
+  final String title;
+  final String subtitle;
+  final List<Widget> children;
 
-  Widget _buildTextField(
-    TextEditingController controller, {
-    String? prefix,
-    IconData? suffixIcon,
-  }) {
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: kBgCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: _editSurface,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _editNeutral.withValues(alpha: 0.08)),
       ),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-        ),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.newsreader(
+              color: _editNeutral,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          prefixText: prefix,
-          prefixStyle: const TextStyle(
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: GoogleFonts.workSans(
+              color: _editMuted,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 18),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _FormField extends StatelessWidget {
+  const _FormField({
+    required this.controller,
+    required this.label,
+    this.prefix,
+    this.maxLines = 1,
+    this.maxLength,
+    this.footer,
+    this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String? prefix;
+  final int maxLines;
+  final int? maxLength;
+  final String? footer;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.workSans(
+            color: _editNeutral,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          maxLength: maxLength,
+          onChanged: onChanged,
+          style: GoogleFonts.workSans(
+            color: _editNeutral,
             fontSize: 15,
             fontWeight: FontWeight.w500,
-            color: Colors.white38,
+            height: 1.4,
           ),
-          suffixIcon: suffixIcon != null
-              ? Icon(suffixIcon, color: Colors.white24, size: 20)
-              : null,
+          decoration: InputDecoration(
+            prefixText: prefix,
+            prefixStyle: GoogleFonts.workSans(
+              color: _editMuted,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+            counterText: '',
+            hintStyle: GoogleFonts.workSans(
+              color: _editMuted.withValues(alpha: 0.72),
+            ),
+            filled: true,
+            fillColor: _editSurfaceStrong,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide(
+                color: _editNeutral.withValues(alpha: 0.08),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide(
+                color: _editNeutral.withValues(alpha: 0.08),
+              ),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(18)),
+              borderSide: BorderSide(color: _editPrimary, width: 1.4),
+            ),
+          ),
         ),
+        if ((footer ?? '').isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                footer!,
+                style: GoogleFonts.workSans(
+                  color: _editMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ProfileInfoTile extends StatelessWidget {
+  const _ProfileInfoTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _editSurfaceStrong,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: _editSurface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _editPrimary, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.workSans(
+                    color: _editNeutral,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.workSans(color: _editMuted, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+String _initialsFor(String value) {
+  final parts = value
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((part) => part.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) {
+    return 'P';
+  }
+  if (parts.length == 1) {
+    return parts.first.substring(0, 1).toUpperCase();
+  }
+  return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+      .toUpperCase();
 }

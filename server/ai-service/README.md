@@ -17,6 +17,7 @@
 - `POST /api/v1/ai/chat-create/threads/{thread_id}/messages/stream`
 - `GET /api/v1/ai/production-plans`
 - `GET /api/v1/ai/production-plans/{plan_id}`
+- `POST /api/v1/ai/production-plans/{plan_id}/create-show`
 - `POST /api/v1/ai/episode-plans/generate`
 - `GET /api/v1/ai/jobs/{job_id}`
 
@@ -34,3 +35,11 @@
 - Set `GOOGLE_API_KEY` or `GEMINI_API_KEY` to use Google GenAI live.
 - If you are routing through a local Gemini proxy, set `GOOGLE_GENAI_BASE_URL` such as `http://host.docker.internal:3030`. In that mode the service will still use the Google SDK, but send traffic to your proxy instead of Google directly.
 - If neither a Google key nor a proxy base URL is configured, the service falls back to a deterministic local planner so the stack still runs in dev.
+- `POST /api/v1/ai/production-plans/{plan_id}/create-show` returns `202 Accepted` and queues a background `show_creation` job.
+- The show creation worker needs `CONTENT_DATABASE_URL` so it can write shows and episodes into the content database.
+- Live speech synthesis uses Vertex AI via `gemini-2.5-flash-tts`; configure `GOOGLE_CLOUD_PROJECT` and optionally `GOOGLE_CLOUD_LOCATION` / `GOOGLE_TTS_MODEL`.
+- Episode audio is uploaded to Google Cloud Storage; configure `GOOGLE_CLOUD_STORAGE_BUCKET` and optionally `GOOGLE_CLOUD_STORAGE_PUBLIC_BASE_URL`.
+- Transcript alignment uses Meta MMS forced alignment via `torchaudio.pipelines.MMS_FA`; the Docker image installs CPU-only `torch` + `torchaudio`.
+- Set `TRANSCRIPT_ALIGNMENT_MODE=mms` to require MMS alignment, or `auto` only if you explicitly want proportional fallback in dev.
+- For local Docker, mount an ADC file and set `GOOGLE_APPLICATION_CREDENTIALS` so the container can reuse your host `gcloud auth application-default login` credentials.
+- When a queued show finishes, `ai-service` can call `notification-service` via `NOTIFICATION_SERVICE_URL` + `NOTIFICATION_INTERNAL_API_KEY` to insert an in-app notification for the creator.

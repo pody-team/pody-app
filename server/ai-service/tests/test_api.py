@@ -143,6 +143,20 @@ class FakeAIService:
             finished_at=now,
         )
 
+    def create_show_from_plan(self, auth, plan_id):
+        _ = auth
+        now = datetime.now(timezone.utc)
+        return GenerationJob(
+            id=uuid4(),
+            plan_id=plan_id,
+            job_type="show_creation",
+            status="queued",
+            provider="google-genai",
+            input_payload={},
+            output_payload={},
+            created_at=now,
+        )
+
     def _thread(self, *, prompt: str) -> ChatThreadView:
         now = datetime.now(timezone.utc)
         show_draft = ShowDraft(
@@ -269,6 +283,22 @@ def test_list_threads_returns_history() -> None:
     payload = response.json()
     assert payload["threads"][0]["title"] == "Founder OS"
     assert payload["threads"][0]["has_current_plan"] is True
+
+
+def test_create_show_from_plan_returns_queued_job() -> None:
+    client = create_client()
+    plan_id = str(uuid4())
+
+    response = client.post(
+        f"/api/v1/ai/production-plans/{plan_id}/create-show",
+        headers={"X-Auth-User-ID": str(uuid4())},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["job"]["plan_id"] == plan_id
+    assert payload["job"]["job_type"] == "show_creation"
+    assert payload["job"]["status"] == "queued"
 
 
 def test_list_drafts_returns_draft_history() -> None:

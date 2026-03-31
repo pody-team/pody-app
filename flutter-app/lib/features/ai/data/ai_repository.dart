@@ -32,6 +32,10 @@ class AIRepository {
     return _remoteDataSource.getDraft(draftId);
   }
 
+  Future<AIGenerationJob> createShowFromPlan(String planId) {
+    return _remoteDataSource.createShowFromPlan(planId);
+  }
+
   Future<AIChatThread> addThreadMessage({
     required String threadId,
     required String message,
