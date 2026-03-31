@@ -9,6 +9,7 @@ class ArticleApiService {
   final ApiClient _apiClient;
   static const _publicBasePath = '/api/v1/public/article';
   static const _protectedBasePath = '/api/v1/article';
+  final ValueNotifier<int> favoritePreferencesVersion = ValueNotifier<int>(0);
 
   ArticleApiService(this._apiClient);
 
@@ -38,6 +39,36 @@ class ArticleApiService {
             )
             .join('&');
         path = '$path?$queryString';
+      }
+      final protectedPath = path.replaceFirst(
+        _publicBasePath,
+        _protectedBasePath,
+      );
+
+      final shouldTryPersonalizedFeed =
+          (category == null || category.isEmpty) &&
+          (query == null || query.isEmpty);
+
+      if (shouldTryPersonalizedFeed) {
+        try {
+          final response = await _apiClient.get(
+            protectedPath,
+            requiresAuth: true,
+          );
+          final articleList = response['articles'];
+          if (articleList is! List) {
+            return const <NewsArticle>[];
+          }
+
+          return articleList
+              .whereType<Map<String, dynamic>>()
+              .map(NewsArticle.fromJson)
+              .toList();
+        } on ApiException catch (error) {
+          if (!error.isUnauthorized) {
+            rethrow;
+          }
+        }
       }
 
       final response = await _apiClient.get(path);
@@ -71,6 +102,55 @@ class ArticleApiService {
           .toList();
     } catch (e) {
       debugPrint('Error fetching categories: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<NewsCategory>> fetchFavoriteCategories() async {
+    try {
+      final response = await _apiClient.get(
+        '$_protectedBasePath/me/preferences/categories',
+        requiresAuth: true,
+      );
+      final categoryList = response['categories'];
+      if (categoryList is! List) {
+        return const <NewsCategory>[];
+      }
+
+      return categoryList
+          .whereType<Map<String, dynamic>>()
+          .map(NewsCategory.fromJson)
+          .where((category) => category.name.isNotEmpty)
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching favorite categories: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<NewsCategory>> saveFavoriteCategoryIds(
+    List<String> categoryIds,
+  ) async {
+    try {
+      final response = await _apiClient.put(
+        '$_protectedBasePath/me/preferences/categories',
+        body: {'category_ids': categoryIds},
+        requiresAuth: true,
+      );
+      final categoryList = response['categories'];
+      if (categoryList is! List) {
+        return const <NewsCategory>[];
+      }
+
+      final savedCategories = categoryList
+          .whereType<Map<String, dynamic>>()
+          .map(NewsCategory.fromJson)
+          .where((category) => category.name.isNotEmpty)
+          .toList();
+      favoritePreferencesVersion.value++;
+      return savedCategories;
+    } catch (e) {
+      debugPrint('Error saving favorite categories: $e');
       rethrow;
     }
   }

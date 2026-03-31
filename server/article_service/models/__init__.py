@@ -10,6 +10,7 @@ from .article_stat import ArticleStat
 from .base import Base
 from .category import Category
 from .category_article import CategoryArticle
+from .category_user import CategoryUser
 from .news_source import NewsSource
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "Article",
     "Category",
     "CategoryArticle",
+    "CategoryUser",
     "ArticleCategory",
     "ArticleStat",
     "ArticleInteraction",

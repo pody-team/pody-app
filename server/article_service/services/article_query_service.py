@@ -13,6 +13,8 @@ from schemas import CommentResponse, clean_text
 class ArticleQueryService:
     """Application service for article read use cases."""
 
+    favorite_category_limit = 5
+
     def __init__(
         self,
         write_repository: ArticleWriteRepository,
@@ -33,12 +35,13 @@ class ArticleQueryService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
         return article
 
-    async def list_articles(self, limit: int, offset: int, category=None, query=None) -> dict:
+    async def list_articles(self, limit: int, offset: int, category=None, query=None, current_user_id=None) -> dict:
         results = await self.query_repository.list_articles_with_extra(
             limit=limit,
             offset=offset,
             category=category,
             query=query,
+            current_user_id=current_user_id,
         )
         return {
             "count": len(results),
@@ -59,6 +62,66 @@ class ArticleQueryService:
                     "status": article.status,
                 }
                 for article, category_name, views in results
+            ],
+        }
+
+    async def list_favorite_categories(self, user_id: str) -> dict:
+        categories = await self.query_repository.list_favorite_categories(user_id)
+        return {
+            "count": len(categories),
+            "categories": [
+                {
+                    "id": category.id,
+                    "slug": category.slug,
+                    "name": clean_text(category.name),
+                    "description": clean_text(category.description),
+                }
+                for category in categories
+            ],
+        }
+
+    async def replace_favorite_categories(self, user_id: str, category_ids: list[str]) -> dict:
+        normalized_category_ids = [category_id.strip() for category_id in category_ids if category_id.strip()]
+        if not normalized_category_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one favorite category is required",
+            )
+
+        unique_category_ids = list(dict.fromkeys(normalized_category_ids))
+        if len(unique_category_ids) > self.favorite_category_limit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"You can choose up to {self.favorite_category_limit} favorite categories",
+            )
+
+        categories = await self.query_repository.list_active_categories_by_ids(unique_category_ids)
+        if len(categories) != len(unique_category_ids):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more categories do not exist or are inactive",
+            )
+
+        ordered_categories = sorted(
+            categories,
+            key=lambda category: unique_category_ids.index(category.id),
+        )
+        saved_categories = await self.query_repository.replace_favorite_categories(
+            user_id,
+            [category.id for category in ordered_categories],
+        )
+        saved_category_map = {category.id: category for category in saved_categories}
+
+        return {
+            "count": len(ordered_categories),
+            "categories": [
+                {
+                    "id": category.id,
+                    "slug": saved_category_map[category.id].slug,
+                    "name": clean_text(saved_category_map[category.id].name),
+                    "description": clean_text(saved_category_map[category.id].description),
+                }
+                for category in ordered_categories
             ],
         }
 

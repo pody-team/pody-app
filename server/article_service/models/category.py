@@ -22,3 +22,4 @@ class Category(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     article_links = relationship("CategoryArticle", back_populates="category", cascade="all, delete-orphan")
+    user_links = relationship("CategoryUser", back_populates="category", cascade="all, delete-orphan")

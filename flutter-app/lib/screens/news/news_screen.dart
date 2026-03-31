@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
+import 'package:pody/data/article_service.dart';
 import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
@@ -40,6 +41,7 @@ class _NewsScreenState extends State<NewsScreen> {
   String? _errorMessage;
   List<NewsCategory> _categories = const <NewsCategory>[];
   List<NewsArticle> _articles = const <NewsArticle>[];
+  ArticleApiService? _articleService;
 
   @override
   void initState() {
@@ -51,13 +53,42 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final service = ArticleScope.of(context);
+    if (!identical(_articleService, service)) {
+      _articleService?.favoritePreferencesVersion.removeListener(
+        _handleFavoritePreferencesChanged,
+      );
+      _articleService = service;
+      _articleService?.favoritePreferencesVersion.addListener(
+        _handleFavoritePreferencesChanged,
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _searchDebounce?.cancel();
+    _articleService?.favoritePreferencesVersion.removeListener(
+      _handleFavoritePreferencesChanged,
+    );
     _scrollController
       ..removeListener(_handleScroll)
       ..dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _handleFavoritePreferencesChanged() {
+    if (!mounted) {
+      return;
+    }
+    if ((_selectedCategorySlug?.isNotEmpty ?? false) ||
+        _searchQuery.isNotEmpty) {
+      return;
+    }
+    _fetchArticles(reset: true);
   }
 
   Future<void> _loadInitialData() async {

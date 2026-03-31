@@ -257,6 +257,17 @@ BEGIN
     END IF;
 END $$;
 
+CREATE TABLE IF NOT EXISTS category_users (
+    id BIGSERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_category_users_user_id ON category_users (user_id);
+CREATE INDEX IF NOT EXISTS ix_category_users_category_id ON category_users (category_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_category_users_user_category
+    ON category_users (user_id, category_id);
+
 CREATE TABLE IF NOT EXISTS inbox_processed_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id UUID NOT NULL UNIQUE,
