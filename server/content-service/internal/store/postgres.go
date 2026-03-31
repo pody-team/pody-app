@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 	"unicode"
@@ -257,15 +259,15 @@ func (s *PostgresStore) GetHomeFeed(ctx context.Context) (domain.HomeFeed, error
 func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domain.ShowDetail, error) {
 	showID = strings.TrimSpace(showID)
 	var (
-		show               domain.ShowDetail
-		ownerUserID        string
-		ownerDisplayName   string
-		ownerAvatarURL     string
-		coverImageURL      string
-		subscriberCount    int64
-		totalEpisodeCount  int64
-		totalListenCount   int64
-		publishedAt        time.Time
+		show              domain.ShowDetail
+		ownerUserID       string
+		ownerDisplayName  string
+		ownerAvatarURL    string
+		coverImageURL     string
+		subscriberCount   int64
+		totalEpisodeCount int64
+		totalListenCount  int64
+		publishedAt       time.Time
 	)
 
 	err := s.db.QueryRowContext(ctx, `
@@ -480,8 +482,183 @@ func (s *PostgresStore) GetEpisodeDetail(ctx context.Context, episodeID string) 
 	if err != nil {
 		return domain.EpisodeDetail{}, err
 	}
+	episode.Transcript, err = s.getEpisodeTranscript(ctx, episodeID)
+	if err != nil {
+		return domain.EpisodeDetail{}, err
+	}
 
 	return episode, nil
+}
+
+func (s *PostgresStore) GetEpisodeBookmarkStatus(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error) {
+	exists, err := s.episodeExists(ctx, episodeID)
+	if err != nil {
+		return domain.EpisodeBookmarkStatus{}, err
+	}
+	if !exists {
+		return domain.EpisodeBookmarkStatus{}, ErrNotFound
+	}
+
+	var bookmarked bool
+	err = s.db.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM episode_bookmarks
+			WHERE user_id = $1::uuid
+				AND episode_id = $2::uuid
+		)
+	`, strings.TrimSpace(userID), strings.TrimSpace(episodeID)).Scan(&bookmarked)
+	if err != nil {
+		return domain.EpisodeBookmarkStatus{}, err
+	}
+
+	return domain.EpisodeBookmarkStatus{
+		EpisodeID:    strings.TrimSpace(episodeID),
+		IsBookmarked: bookmarked,
+	}, nil
+}
+
+func (s *PostgresStore) ListEpisodeBookmarks(ctx context.Context, userID string) ([]domain.BookmarkedEpisode, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			eb.created_at,
+			e.id::text,
+			e.show_id::text,
+			e.title,
+			COALESCE(e.description, ''),
+			COALESCE(e.cover_image_url, ''),
+			e.duration_seconds,
+			COALESCE(e.published_at, e.created_at),
+			COALESCE(e.episode_number, 0),
+			s.id::text,
+			s.slug::text,
+			s.title,
+			COALESCE(s.cover_image_url, ''),
+			COALESCE(c.name, ''),
+			s.content_type,
+			s.subscriber_count,
+			s.episode_count,
+			COALESCE(s.published_at, s.created_at)
+		FROM episode_bookmarks eb
+		JOIN episodes e
+			ON e.id = eb.episode_id
+		JOIN shows s
+			ON s.id = e.show_id
+		LEFT JOIN show_categories sc
+			ON sc.show_id = s.id AND sc.is_primary = true
+		LEFT JOIN categories c
+			ON c.id = sc.category_id
+		WHERE eb.user_id = $1::uuid
+			AND e.publish_status = 'published'
+			AND e.visibility = 'public'
+			AND e.deleted_at IS NULL
+			AND s.publish_status = 'published'
+			AND s.visibility = 'public'
+			AND s.deleted_at IS NULL
+		ORDER BY eb.created_at DESC
+	`, strings.TrimSpace(userID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]domain.BookmarkedEpisode, 0)
+	for rows.Next() {
+		var (
+			item            domain.BookmarkedEpisode
+			durationSeconds int64
+			episodeNumber   int64
+			show            domain.ShowSummary
+			subscriberCount int64
+			totalEpisodes   int64
+		)
+		if err := rows.Scan(
+			&item.BookmarkedAt,
+			&item.Episode.ID,
+			&item.Episode.ShowID,
+			&item.Episode.Title,
+			&item.Episode.Description,
+			&item.Episode.CoverImageURL,
+			&durationSeconds,
+			&item.Episode.PublishedAt,
+			&episodeNumber,
+			&show.ID,
+			&show.Slug,
+			&show.Title,
+			&show.CoverImageURL,
+			&show.PrimaryCategory,
+			&show.ContentType,
+			&subscriberCount,
+			&totalEpisodes,
+			&show.PublishedAt,
+		); err != nil {
+			return nil, err
+		}
+		item.Episode.DurationSeconds = int(durationSeconds)
+		item.Episode.EpisodeNumber = int(episodeNumber)
+		show.SubscriberCount = int(subscriberCount)
+		show.TotalEpisodeCount = int(totalEpisodes)
+		show.Hosts, err = s.listShowHosts(ctx, show.ID)
+		if err != nil {
+			return nil, err
+		}
+		item.Show = show
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (s *PostgresStore) SaveEpisodeBookmark(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error) {
+	exists, err := s.episodeExists(ctx, episodeID)
+	if err != nil {
+		return domain.EpisodeBookmarkStatus{}, err
+	}
+	if !exists {
+		return domain.EpisodeBookmarkStatus{}, ErrNotFound
+	}
+
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO episode_bookmarks (user_id, episode_id)
+		VALUES ($1::uuid, $2::uuid)
+		ON CONFLICT (user_id, episode_id) DO NOTHING
+	`, strings.TrimSpace(userID), strings.TrimSpace(episodeID))
+	if err != nil {
+		return domain.EpisodeBookmarkStatus{}, err
+	}
+
+	return domain.EpisodeBookmarkStatus{
+		EpisodeID:    strings.TrimSpace(episodeID),
+		IsBookmarked: true,
+	}, nil
+}
+
+func (s *PostgresStore) DeleteEpisodeBookmark(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error) {
+	exists, err := s.episodeExists(ctx, episodeID)
+	if err != nil {
+		return domain.EpisodeBookmarkStatus{}, err
+	}
+	if !exists {
+		return domain.EpisodeBookmarkStatus{}, ErrNotFound
+	}
+
+	_, err = s.db.ExecContext(ctx, `
+		DELETE FROM episode_bookmarks
+		WHERE user_id = $1::uuid
+			AND episode_id = $2::uuid
+	`, strings.TrimSpace(userID), strings.TrimSpace(episodeID))
+	if err != nil {
+		return domain.EpisodeBookmarkStatus{}, err
+	}
+
+	return domain.EpisodeBookmarkStatus{
+		EpisodeID:    strings.TrimSpace(episodeID),
+		IsBookmarked: false,
+	}, nil
 }
 
 func (s *PostgresStore) ListCreatorShows(ctx context.Context, ownerUserID string) ([]domain.ShowSummary, error) {
@@ -528,6 +705,177 @@ func (s *PostgresStore) ListCreatorShows(ctx context.Context, ownerUserID string
 	}
 
 	return shows, nil
+}
+
+type transcriptAssetMetadata struct {
+	Status          string  `json:"status"`
+	Language        string  `json:"language"`
+	AlignmentMethod string  `json:"alignment_method"`
+	Text            string  `json:"text"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	Error           string  `json:"error"`
+}
+
+type transcriptAssetWordPayload struct {
+	Start float64 `json:"start"`
+	End   float64 `json:"end"`
+	Text  string  `json:"text"`
+}
+
+type transcriptAssetSegmentPayload struct {
+	Speaker string                       `json:"speaker"`
+	Start   float64                      `json:"start"`
+	End     float64                      `json:"end"`
+	Text    string                       `json:"text"`
+	Words   []transcriptAssetWordPayload `json:"words"`
+}
+
+type transcriptAssetPayload struct {
+	Segments []transcriptAssetSegmentPayload `json:"segments"`
+}
+
+func (s *PostgresStore) getEpisodeTranscript(ctx context.Context, episodeID string) (*domain.EpisodeTranscript, error) {
+	var (
+		rawMetadata sql.NullString
+		assetURL    sql.NullString
+	)
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			COALESCE(metadata::text, '{}'),
+			COALESCE(url, '')
+		FROM episode_assets
+		WHERE episode_id = $1::uuid
+			AND asset_type = 'transcript'
+			AND sort_order = 0
+		LIMIT 1
+	`, episodeID).Scan(&rawMetadata, &assetURL)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	metadata := transcriptAssetMetadata{}
+	if rawMetadata.Valid && strings.TrimSpace(rawMetadata.String) != "" {
+		if err := json.Unmarshal([]byte(rawMetadata.String), &metadata); err != nil {
+			return nil, err
+		}
+	}
+	transcript := &domain.EpisodeTranscript{
+		Status:          strings.TrimSpace(metadata.Status),
+		Language:        strings.TrimSpace(metadata.Language),
+		AlignmentMethod: strings.TrimSpace(metadata.AlignmentMethod),
+		AssetURL:        strings.TrimSpace(assetURL.String),
+		Text:            metadata.Text,
+		DurationSeconds: metadata.DurationSeconds,
+		Error:           strings.TrimSpace(metadata.Error),
+		Segments:        []domain.TranscriptSegment{},
+	}
+	if transcript.Status == "" {
+		transcript.Status = "pending"
+	}
+	if transcript.Language == "" {
+		transcript.Language = "vi"
+	}
+	if transcript.Status != "completed" {
+		return transcript, nil
+	}
+
+	if strings.TrimSpace(assetURL.String) != "" {
+		segments, err := fetchTranscriptSegmentsFromAsset(ctx, strings.TrimSpace(assetURL.String))
+		if err == nil && len(segments) > 0 {
+			transcript.Segments = segments
+			return transcript, nil
+		}
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			COALESCE(speaker_label, ''),
+			start_ms,
+			end_ms,
+			text_content
+		FROM episode_segments
+		WHERE episode_id = $1::uuid
+		ORDER BY segment_index ASC
+	`, episodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	segments := make([]domain.TranscriptSegment, 0)
+	for rows.Next() {
+		var (
+			speaker string
+			startMS int64
+			endMS   int64
+			text    string
+		)
+		if err := rows.Scan(&speaker, &startMS, &endMS, &text); err != nil {
+			return nil, err
+		}
+		segments = append(segments, domain.TranscriptSegment{
+			Speaker:      speaker,
+			StartSeconds: float64(startMS) / 1000.0,
+			EndSeconds:   float64(endMS) / 1000.0,
+			Text:         text,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	transcript.Segments = segments
+	return transcript, nil
+}
+
+func fetchTranscriptSegmentsFromAsset(ctx context.Context, assetURL string) ([]domain.TranscriptSegment, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, assetURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("transcript asset returned %d", response.StatusCode)
+	}
+
+	var payload transcriptAssetPayload
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+
+	segments := make([]domain.TranscriptSegment, 0, len(payload.Segments))
+	for _, segment := range payload.Segments {
+		words := make([]domain.TranscriptWord, 0, len(segment.Words))
+		for _, word := range segment.Words {
+			text := strings.TrimSpace(word.Text)
+			if text == "" {
+				continue
+			}
+			words = append(words, domain.TranscriptWord{
+				StartSeconds: word.Start,
+				EndSeconds:   word.End,
+				Text:         text,
+			})
+		}
+		segments = append(segments, domain.TranscriptSegment{
+			Speaker:      strings.TrimSpace(segment.Speaker),
+			StartSeconds: segment.Start,
+			EndSeconds:   segment.End,
+			Text:         strings.TrimSpace(segment.Text),
+			Words:        words,
+		})
+	}
+
+	return segments, nil
 }
 
 func (s *PostgresStore) listCategories(ctx context.Context) ([]string, error) {
@@ -665,6 +1013,25 @@ func (s *PostgresStore) showExists(ctx context.Context, showID string) (bool, er
 				AND deleted_at IS NULL
 		)
 	`, showID).Scan(&exists)
+	return exists, err
+}
+
+func (s *PostgresStore) episodeExists(ctx context.Context, episodeID string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM episodes e
+			JOIN shows s ON s.id = e.show_id
+			WHERE e.id = $1::uuid
+				AND e.publish_status = 'published'
+				AND e.visibility = 'public'
+				AND e.deleted_at IS NULL
+				AND s.publish_status = 'published'
+				AND s.visibility = 'public'
+				AND s.deleted_at IS NULL
+		)
+	`, episodeID).Scan(&exists)
 	return exists, err
 }
 

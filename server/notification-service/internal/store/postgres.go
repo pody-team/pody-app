@@ -39,6 +39,7 @@ type NotificationStore interface {
 	MarkAllNotificationsRead(ctx context.Context, userID string) (int64, error)
 	GetNotificationSettings(ctx context.Context, userID string) (domain.NotificationSettings, error)
 	UpsertNotificationSettings(ctx context.Context, settings domain.NotificationSettings) (domain.NotificationSettings, error)
+	CreateNotification(ctx context.Context, input domain.CreateNotificationInput) (domain.Notification, error)
 	SeedDemoNotifications(ctx context.Context, userID string) (int, error)
 }
 
@@ -268,6 +269,71 @@ func (s *PostgresStore) GetNotificationSettings(ctx context.Context, userID stri
 		return domain.NotificationSettings{}, ErrNotFound
 	}
 	return settings, err
+}
+
+func (s *PostgresStore) CreateNotification(ctx context.Context, input domain.CreateNotificationInput) (domain.Notification, error) {
+	notification := domain.Notification{
+		UserID:         strings.TrimSpace(input.UserID),
+		ActorUserID:    strings.TrimSpace(input.ActorUserID),
+		Type:           strings.TrimSpace(input.Type),
+		TargetType:     strings.TrimSpace(input.TargetType),
+		TargetID:       strings.TrimSpace(input.TargetID),
+		Title:          strings.TrimSpace(input.Title),
+		Body:           strings.TrimSpace(input.Body),
+		Preview:        strings.TrimSpace(input.Preview),
+		ActorSnapshot:  input.ActorSnapshot,
+		TargetSnapshot: input.TargetSnapshot,
+	}
+	if notification.UserID == "" || notification.Type == "" || notification.Title == "" || notification.Body == "" {
+		return domain.Notification{}, errors.New("user_id, type, title, and body are required")
+	}
+
+	actorSnapshotRaw, _ := json.Marshal(notification.ActorSnapshot)
+	targetSnapshotRaw, _ := json.Marshal(notification.TargetSnapshot)
+
+	var (
+		actorUserID sql.NullString
+		targetType  sql.NullString
+		targetID    sql.NullString
+		preview     sql.NullString
+	)
+	if notification.ActorUserID != "" {
+		actorUserID = sql.NullString{String: notification.ActorUserID, Valid: true}
+	}
+	if notification.TargetType != "" {
+		targetType = sql.NullString{String: notification.TargetType, Valid: true}
+	}
+	if notification.TargetID != "" {
+		targetID = sql.NullString{String: notification.TargetID, Valid: true}
+	}
+	if notification.Preview != "" {
+		preview = sql.NullString{String: notification.Preview, Valid: true}
+	}
+
+	err := s.db.QueryRowContext(ctx, `
+		INSERT INTO notifications (
+			user_id,
+			actor_user_id,
+			type,
+			target_type,
+			target_id,
+			title,
+			body,
+			preview,
+			actor_snapshot,
+			target_snapshot
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb)
+		RETURNING id, created_at
+	`, notification.UserID, actorUserID, notification.Type, targetType, targetID, notification.Title, notification.Body, preview, actorSnapshotRaw, targetSnapshotRaw).Scan(
+		&notification.ID,
+		&notification.CreatedAt,
+	)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+
+	return notification, nil
 }
 
 func (s *PostgresStore) UpsertNotificationSettings(ctx context.Context, settings domain.NotificationSettings) (domain.NotificationSettings, error) {

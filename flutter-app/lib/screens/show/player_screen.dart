@@ -1,15 +1,26 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:pody/data/mock_data.dart';
+import 'package:pody/core/network/api_exception.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
+import 'package:pody/features/content/presentation/content_scope.dart';
 import 'package:pody/models/models.dart';
+import 'package:pody/screens/show/player_favorites_store.dart';
+import 'package:pody/screens/show/player_queue_bottom_sheet.dart';
+import 'package:pody/screens/show/player_transcript_sync.dart';
+import 'package:pody/state/player_state.dart';
 import 'package:pody/utils/player_utils.dart';
 import 'package:pody/widgets/episode_companion_section.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PlayerScreen extends StatefulWidget {
   final Show? show;
   final Episode? episode;
   final VoidCallback? onOpenShow;
 
-  const PlayerScreen({super.key, this.show, this.episode, this.onOpenShow});
+  const PlayerScreen({super.key, this.show, this.episode, this.onOpenShow})
+    : assert(show != null),
+      assert(episode != null);
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -17,26 +28,18 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen>
     with TickerProviderStateMixin {
-  bool _isPlaying = true;
-  double _progress = 0.33;
-  double _playbackSpeed = 1.0;
+  final PlayerState _playerState = PlayerState.instance;
+  bool _didLoadFavorites = false;
   bool _isLiked = false;
   final ScrollController _scrollController = ScrollController();
   final ScrollController _transcriptScrollController = ScrollController();
   final List<GlobalKey> _bubbleKeys = [];
   double _dragStart = 0;
   int _lastActiveIndex = -1;
+  String? _favoriteEpisodeId;
 
-  Episode get episode => widget.episode ?? show.episodes.first;
-  Show get show => widget.show ?? MockData.shows.first;
-
-  String get _currentTime {
-    final total = episode.duration.inSeconds;
-    final current = (total * _progress).toInt();
-    return _formatTime(current);
-  }
-
-  String get _totalTime => _formatTime(episode.duration.inSeconds);
+  Episode get episode => widget.episode!;
+  Show get show => widget.show!;
 
   String _formatTime(int seconds) {
     final m = seconds ~/ 60;
@@ -44,20 +47,160 @@ class _PlayerScreenState extends State<PlayerScreen>
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
-  void _cycleSpeed() {
-    setState(() {
-      if (_playbackSpeed == 1.0) {
-        _playbackSpeed = 1.5;
-      } else if (_playbackSpeed == 1.5) {
-        _playbackSpeed = 2.0;
-      } else {
-        _playbackSpeed = 1.0;
+  @override
+  void initState() {
+    super.initState();
+    _playerState.addListener(_handlePlayerChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didLoadFavorites) {
+      _didLoadFavorites = true;
+      unawaited(_syncFavoriteState(widget.episode!.id));
+    }
+  }
+
+  @override
+  void dispose() {
+    _playerState.removeListener(_handlePlayerChanged);
+    _scrollController.dispose();
+    _transcriptScrollController.dispose();
+    super.dispose();
+  }
+
+  void _handlePlayerChanged() {
+    final activeEpisodeId = (_playerState.episode ?? episode).id;
+    if (_favoriteEpisodeId != activeEpisodeId) {
+      unawaited(_syncFavoriteState(activeEpisodeId));
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _syncFavoriteState(String episodeId) async {
+    _favoriteEpisodeId = episodeId;
+    final authController = AuthScope.of(context);
+    bool isLiked;
+    if (authController.isAuthenticated) {
+      try {
+        final repository = ContentScope.of(context);
+        final status = await repository.getEpisodeBookmarkStatus(episodeId);
+        isLiked = status.isBookmarked;
+        await PlayerFavoritesStore.instance.set(episodeId, isLiked);
+      } catch (_) {
+        isLiked = await PlayerFavoritesStore.instance.isFavorited(episodeId);
       }
+    } else {
+      isLiked = await PlayerFavoritesStore.instance.isFavorited(episodeId);
+    }
+    if (!mounted || _favoriteEpisodeId != episodeId) {
+      return;
+    }
+    setState(() => _isLiked = isLiked);
+  }
+
+  Future<void> _toggleFavorite(Episode activeEpisode) async {
+    final authController = AuthScope.of(context);
+    bool isLiked;
+    if (authController.isAuthenticated) {
+      try {
+        final repository = ContentScope.of(context);
+        final status = _isLiked
+            ? await repository.deleteEpisodeBookmark(activeEpisode.id)
+            : await repository.saveEpisodeBookmark(activeEpisode.id);
+        isLiked = status.isBookmarked;
+        await PlayerFavoritesStore.instance.set(activeEpisode.id, isLiked);
+      } on ApiException {
+        isLiked = await PlayerFavoritesStore.instance.toggle(activeEpisode.id);
+      } catch (_) {
+        isLiked = await PlayerFavoritesStore.instance.toggle(activeEpisode.id);
+      }
+    } else {
+      isLiked = await PlayerFavoritesStore.instance.toggle(activeEpisode.id);
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isLiked = isLiked;
+      _favoriteEpisodeId = activeEpisode.id;
     });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isLiked ? 'Đã lưu tập vào yêu thích.' : 'Đã bỏ khỏi yêu thích.',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _shareEpisode(Show activeShow, Episode activeEpisode) async {
+    final buffer = StringBuffer()
+      ..writeln('🎧 ${activeEpisode.title}')
+      ..writeln('🎙️ ${activeShow.title}')
+      ..writeln();
+
+    final description = activeEpisode.description.trim();
+    if (description.isNotEmpty) {
+      final compactDescription = description.replaceAll(RegExp(r'\s+'), ' ');
+      if (compactDescription.length > 180) {
+        buffer.writeln('${compactDescription.substring(0, 180)}...');
+      } else {
+        buffer.writeln(compactDescription);
+      }
+      buffer.writeln();
+    }
+
+    buffer.writeln('Nghe trên Pody.');
+    await SharePlus.instance.share(
+      ShareParams(text: buffer.toString(), subject: activeEpisode.title),
+    );
+  }
+
+  Future<void> _showQueue() async {
+    final queue = _playerState.queue;
+    final currentIndex = _playerState.currentQueueIndex;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.7,
+          child: PlayerQueueBottomSheet(
+            episodes: queue,
+            currentIndex: currentIndex,
+            onSelectEpisode: (index) async {
+              await _playerState.playQueueEpisodeAt(index);
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final activeEpisode = _playerState.episode ?? episode;
+    final activeShow = _playerState.show ?? show;
+    final position = _playerState.position;
+    final duration = _playerState.duration.inSeconds > 0
+        ? _playerState.duration
+        : activeEpisode.duration;
+    final progress = _playerState.progress;
+    final isPlaying = _playerState.isPlaying;
+    final playbackSpeed = _playerState.playbackSpeed;
+    final hasAudio = activeEpisode.audioUrl?.trim().isNotEmpty ?? false;
+    final currentTime = _formatTime(position.inSeconds);
+    final totalTime = _formatTime(duration.inSeconds);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableHeight = constraints.maxHeight;
@@ -108,7 +251,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  show.title,
+                                  activeShow.title,
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
@@ -129,12 +272,12 @@ class _PlayerScreenState extends State<PlayerScreen>
                               horizontal: 20,
                               vertical: 4,
                             ),
-                            child: episode.bubbles.isNotEmpty
+                            child: activeEpisode.bubbles.isNotEmpty
                                 ? _buildTranscript()
                                 : SingleChildScrollView(
                                     physics: const ClampingScrollPhysics(),
                                     child: Text(
-                                      episode.description,
+                                      activeEpisode.description,
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: Colors.white.withValues(
@@ -152,7 +295,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                             children: [
                               Expanded(
                                 child: _MarqueeText(
-                                  text: episode.title,
+                                  text: activeEpisode.title,
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -188,9 +331,12 @@ class _PlayerScreenState extends State<PlayerScreen>
                                   ),
                                 ),
                                 child: Slider(
-                                  value: _progress,
-                                  onChanged: (v) =>
-                                      setState(() => _progress = v),
+                                  value: progress,
+                                  onChanged: hasAudio
+                                      ? (v) {
+                                          _playerState.seekToFraction(v);
+                                        }
+                                      : null,
                                 ),
                               ),
                               Padding(
@@ -202,7 +348,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      _currentTime,
+                                      currentTime,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.white.withValues(
@@ -211,7 +357,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                       ),
                                     ),
                                     Text(
-                                      _totalTime,
+                                      totalTime,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.white.withValues(
@@ -228,15 +374,126 @@ class _PlayerScreenState extends State<PlayerScreen>
                         const SizedBox(height: 4),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 28),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          child: Column(
                             children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  GestureDetector(
+                                    onTap: hasAudio && _playerState.hasPrevious
+                                        ? () {
+                                            _playerState.skipToPrevious();
+                                          }
+                                        : null,
+                                    child: SizedBox(
+                                      width: 40,
+                                      child: Icon(
+                                        Icons.skip_previous_rounded,
+                                        color: Colors.white.withValues(
+                                          alpha: _playerState.hasPrevious
+                                              ? 0.9
+                                              : 0.28,
+                                        ),
+                                        size: 34,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 18),
+                                  GestureDetector(
+                                    onTap: hasAudio
+                                        ? () {
+                                            _playerState.seekRelative(
+                                              const Duration(seconds: -15),
+                                            );
+                                          }
+                                        : null,
+                                    child: SizedBox(
+                                      width: 40,
+                                      child: Icon(
+                                        Icons.replay_10,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        size: 36,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  GestureDetector(
+                                    onTap: hasAudio
+                                        ? () {
+                                            _playerState.togglePlayPause();
+                                          }
+                                        : null,
+                                    child: Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isPlaying
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                        color: Colors.black,
+                                        size: 38,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 20),
+                                  GestureDetector(
+                                    onTap: hasAudio
+                                        ? () {
+                                            _playerState.seekRelative(
+                                              const Duration(seconds: 15),
+                                            );
+                                          }
+                                        : null,
+                                    child: SizedBox(
+                                      width: 40,
+                                      child: Icon(
+                                        Icons.forward_10,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
+                                        size: 36,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 18),
+                                  GestureDetector(
+                                    onTap: hasAudio && _playerState.hasNext
+                                        ? () {
+                                            _playerState.skipToNext();
+                                          }
+                                        : null,
+                                    child: SizedBox(
+                                      width: 40,
+                                      child: Icon(
+                                        Icons.skip_next_rounded,
+                                        color: Colors.white.withValues(
+                                          alpha: _playerState.hasNext
+                                              ? 0.9
+                                              : 0.28,
+                                        ),
+                                        size: 34,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
                               GestureDetector(
-                                onTap: _cycleSpeed,
+                                onTap: hasAudio
+                                    ? () {
+                                        _playerState.cyclePlaybackSpeed();
+                                      }
+                                    : null,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                                    horizontal: 12,
+                                    vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
                                     border: Border.all(
@@ -244,10 +501,10 @@ class _PlayerScreenState extends State<PlayerScreen>
                                         alpha: 0.4,
                                       ),
                                     ),
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Text(
-                                    '${_playbackSpeed}x',
+                                    '${playbackSpeed}x',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -257,60 +514,6 @@ class _PlayerScreenState extends State<PlayerScreen>
                                     ),
                                   ),
                                 ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _progress =
-                                        (_progress -
-                                                15 / episode.duration.inSeconds)
-                                            .clamp(0.0, 1.0);
-                                  });
-                                },
-                                child: Icon(
-                                  Icons.replay_10,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  size: 36,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () =>
-                                    setState(() => _isPlaying = !_isPlaying),
-                                child: Container(
-                                  width: 64,
-                                  height: 64,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: Colors.black,
-                                    size: 38,
-                                  ),
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _progress =
-                                        (_progress +
-                                                15 / episode.duration.inSeconds)
-                                            .clamp(0.0, 1.0);
-                                  });
-                                },
-                                child: Icon(
-                                  Icons.forward_10,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  size: 36,
-                                ),
-                              ),
-                              Icon(
-                                Icons.timer_outlined,
-                                color: Colors.white.withValues(alpha: 0.5),
-                                size: 28,
                               ),
                             ],
                           ),
@@ -323,12 +526,12 @@ class _PlayerScreenState extends State<PlayerScreen>
                             children: [
                               GestureDetector(
                                 onTap: () {
-                                  final user = MockData.getUserById(
-                                    show.primaryHost.id,
-                                  );
-                                  if (user != null) {
-                                    openUserDetail(context, user);
+                                  final openShow = widget.onOpenShow;
+                                  if (openShow != null) {
+                                    openShow();
+                                    return;
                                   }
+                                  openShowDetail(context, activeShow);
                                 },
                                 child: Row(
                                   children: [
@@ -350,7 +553,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      show.primaryHost.name,
+                                      activeShow.primaryHost.name,
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.white.withValues(
@@ -364,8 +567,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                               Row(
                                 children: [
                                   GestureDetector(
-                                    onTap: () =>
-                                        setState(() => _isLiked = !_isLiked),
+                                    onTap: () => _toggleFavorite(activeEpisode),
                                     child: AnimatedSwitcher(
                                       duration: const Duration(
                                         milliseconds: 200,
@@ -385,16 +587,29 @@ class _PlayerScreenState extends State<PlayerScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 24),
-                                  Icon(
-                                    Icons.share_outlined,
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    size: 22,
+                                  GestureDetector(
+                                    onTap: () => _shareEpisode(
+                                      activeShow,
+                                      activeEpisode,
+                                    ),
+                                    child: Icon(
+                                      Icons.share_outlined,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      size: 22,
+                                    ),
                                   ),
                                   const SizedBox(width: 24),
-                                  Icon(
-                                    Icons.queue_music_rounded,
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    size: 24,
+                                  GestureDetector(
+                                    onTap: _showQueue,
+                                    child: Icon(
+                                      Icons.queue_music_rounded,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      size: 24,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -411,7 +626,10 @@ class _PlayerScreenState extends State<PlayerScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  EpisodeCompanionSection(show: show, episode: episode),
+                  EpisodeCompanionSection(
+                    show: activeShow,
+                    episode: activeEpisode,
+                  ),
                   Container(
                     height: 1,
                     margin: const EdgeInsets.symmetric(horizontal: 28),
@@ -432,13 +650,23 @@ class _PlayerScreenState extends State<PlayerScreen>
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          episode.description,
+                          activeEpisode.description,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white.withValues(alpha: 0.6),
                             height: 1.6,
                           ),
                         ),
+                        if (!hasAudio) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Tap nay chua co audio playback trong app.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.45),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -448,7 +676,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                     child: GestureDetector(
                       onTap:
                           widget.onOpenShow ??
-                          () => openShowDetail(context, show),
+                          () => openShowDetail(context, activeShow),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -480,7 +708,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    show.title,
+                                    activeShow.title,
                                     style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
@@ -489,7 +717,7 @@ class _PlayerScreenState extends State<PlayerScreen>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${show.episodes.length} tập • ${show.category}',
+                                    '${activeShow.episodes.length} tập • ${activeShow.category}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.white.withValues(
@@ -521,16 +749,19 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   /// Full transcript view — shows all lines, highlights active line & words.
   Widget _buildTranscript() {
-    final bubbles = episode.bubbles;
+    final bubbles = (_playerState.episode ?? episode).bubbles;
+    final progress = _playerState.progress;
+    final currentSeconds = _playerState.position.inMilliseconds / 1000.0;
 
     // Ensure keys list is big enough
     while (_bubbleKeys.length < bubbles.length) {
       _bubbleKeys.add(GlobalKey());
     }
 
-    final activeBubbleIndex = (_progress * bubbles.length).floor().clamp(
-      0,
-      bubbles.length - 1,
+    final activeBubbleIndex = resolveActiveTranscriptBubbleIndex(
+      bubbles: bubbles,
+      currentSeconds: currentSeconds,
+      fallbackProgress: progress,
     );
 
     // Auto-scroll to active bubble whenever it changes
@@ -573,7 +804,12 @@ class _PlayerScreenState extends State<PlayerScreen>
     }
 
     // Progress within the active bubble (0.0 → 1.0)
-    final bubbleProgress = (_progress * bubbles.length) - activeBubbleIndex;
+    final bubbleProgress = resolveTranscriptBubbleProgress(
+      bubbles: bubbles,
+      activeBubbleIndex: activeBubbleIndex,
+      currentSeconds: currentSeconds,
+      fallbackProgress: progress,
+    );
 
     // Check if there are multiple speakers (conversation style vs storytelling)
     final hasMultipleSpeakers =
@@ -618,8 +854,9 @@ class _PlayerScreenState extends State<PlayerScreen>
                 ),
               isActive
                   ? _buildHighlightedText(
-                      text: bubble.text,
+                      bubble: bubble,
                       progress: bubbleProgress,
+                      currentSeconds: currentSeconds,
                     )
                   : AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 250),
@@ -642,13 +879,22 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   /// Renders text highlighting only the current word with rounded background.
   Widget _buildHighlightedText({
-    required String text,
+    required ChatBubble bubble,
     required double progress,
+    required double currentSeconds,
   }) {
-    final words = text.split(' ');
-    final currentWordIndex = (progress * words.length).floor().clamp(
-      0,
-      words.length - 1,
+    final words = bubble.text
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .toList();
+    if (words.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final currentWordIndex = resolveTranscriptWordIndex(
+      bubble: bubble,
+      currentSeconds: currentSeconds,
+      fallbackProgress: progress,
     );
 
     return Text.rich(

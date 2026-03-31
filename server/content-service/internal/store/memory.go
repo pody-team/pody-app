@@ -18,6 +18,10 @@ type ContentStore interface {
 	GetShowDetail(ctx context.Context, showID string) (domain.ShowDetail, error)
 	ListShowEpisodes(ctx context.Context, showID string) ([]domain.EpisodeSummary, error)
 	GetEpisodeDetail(ctx context.Context, episodeID string) (domain.EpisodeDetail, error)
+	ListEpisodeBookmarks(ctx context.Context, userID string) ([]domain.BookmarkedEpisode, error)
+	GetEpisodeBookmarkStatus(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error)
+	SaveEpisodeBookmark(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error)
+	DeleteEpisodeBookmark(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error)
 	ListCreatorShows(ctx context.Context, ownerUserID string) ([]domain.ShowSummary, error)
 	CreateShow(ctx context.Context, input domain.CreateShowInput) (domain.ShowDetail, error)
 }
@@ -27,6 +31,7 @@ type demoStore struct {
 	showDetails map[string]domain.ShowDetail
 	episodes    map[string][]domain.EpisodeSummary
 	episodeByID map[string]domain.EpisodeDetail
+	bookmarks   map[string]map[string]time.Time
 	myShows     []domain.ShowSummary
 }
 
@@ -173,6 +178,33 @@ func NewDemoStore() ContentStore {
 			Tags:            []string{"AI", "Architecture", "Mobile"},
 			LikeCount:       12500,
 			CommentCount:    842,
+			Transcript: &domain.EpisodeTranscript{
+				Status:          "completed",
+				Language:        "vi",
+				AlignmentMethod: "mms_fa",
+				AssetURL:        "https://example.com/audio/future-minds-001.transcript.json",
+				Text:            "Nova di tu nhung nguyen ly can ban cua MVC va khi nao can mot tang ViewModel.",
+				DurationSeconds: 32 * 60,
+				Segments: []domain.TranscriptSegment{
+					{
+						Speaker:      "Nova",
+						StartSeconds: 0,
+						EndSeconds:   18.4,
+						Text:         "Hom nay minh bat dau tu cau hoi co ban: MVC co con hop ly khong?",
+						Words: []domain.TranscriptWord{
+							{StartSeconds: 0, EndSeconds: 0.4, Text: "Hom"},
+							{StartSeconds: 0.4, EndSeconds: 0.8, Text: "nay"},
+							{StartSeconds: 0.8, EndSeconds: 1.2, Text: "minh"},
+						},
+					},
+					{
+						Speaker:      "Nova",
+						StartSeconds: 18.4,
+						EndSeconds:   41.8,
+						Text:         "Neu boundary giua data, UI va event van ro, MVC van rat de ship.",
+					},
+				},
+			},
 		},
 		"ep-future-minds-002": {
 			ID:              "ep-future-minds-002",
@@ -304,6 +336,7 @@ func NewDemoStore() ContentStore {
 		showDetails: showDetails,
 		episodes:    showEpisodes,
 		episodeByID: episodeByID,
+		bookmarks:   map[string]map[string]time.Time{},
 		myShows:     []domain.ShowSummary{futureMindsSummary, mindfulSummary},
 	}
 }
@@ -337,6 +370,94 @@ func (s *demoStore) GetEpisodeDetail(_ context.Context, episodeID string) (domai
 	}
 
 	return episode, nil
+}
+
+func (s *demoStore) ListEpisodeBookmarks(_ context.Context, userID string) ([]domain.BookmarkedEpisode, error) {
+	bookmarks := s.bookmarks[strings.TrimSpace(userID)]
+	if len(bookmarks) == 0 {
+		return []domain.BookmarkedEpisode{}, nil
+	}
+
+	items := make([]domain.BookmarkedEpisode, 0, len(bookmarks))
+	for episodeID, bookmarkedAt := range bookmarks {
+		episode, ok := s.episodeByID[episodeID]
+		if !ok {
+			continue
+		}
+		show, ok := s.showDetails[episode.ShowID]
+		if !ok {
+			continue
+		}
+		items = append(items, domain.BookmarkedEpisode{
+			Episode: domain.EpisodeSummary{
+				ID:              episode.ID,
+				ShowID:          episode.ShowID,
+				Title:           episode.Title,
+				Description:     episode.Description,
+				CoverImageURL:   episode.CoverImageURL,
+				DurationSeconds: episode.DurationSeconds,
+				PublishedAt:     episode.PublishedAt,
+				EpisodeNumber:   episode.EpisodeNumber,
+			},
+			Show: domain.ShowSummary{
+				ID:                show.ID,
+				Slug:              show.Slug,
+				Title:             show.Title,
+				CoverImageURL:     show.CoverImageURL,
+				PrimaryCategory:   fallbackFirst(show.Categories),
+				Hosts:             append([]domain.Host{}, show.Hosts...),
+				ContentType:       show.ContentType,
+				SubscriberCount:   show.SubscriberCount,
+				TotalEpisodeCount: show.TotalEpisodeCount,
+				PublishedAt:       show.PublishedAt,
+			},
+			BookmarkedAt: bookmarkedAt,
+		})
+	}
+
+	slices.SortFunc(items, func(left, right domain.BookmarkedEpisode) int {
+		return right.BookmarkedAt.Compare(left.BookmarkedAt)
+	})
+
+	return items, nil
+}
+
+func (s *demoStore) GetEpisodeBookmarkStatus(_ context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error) {
+	episodeID = strings.TrimSpace(episodeID)
+	if _, ok := s.episodeByID[episodeID]; !ok {
+		return domain.EpisodeBookmarkStatus{}, ErrNotFound
+	}
+	bookmarks := s.bookmarks[strings.TrimSpace(userID)]
+	_, exists := bookmarks[episodeID]
+	return domain.EpisodeBookmarkStatus{
+		EpisodeID:    episodeID,
+		IsBookmarked: exists,
+	}, nil
+}
+
+func (s *demoStore) SaveEpisodeBookmark(_ context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error) {
+	episodeID = strings.TrimSpace(episodeID)
+	userID = strings.TrimSpace(userID)
+	if _, ok := s.episodeByID[episodeID]; !ok {
+		return domain.EpisodeBookmarkStatus{}, ErrNotFound
+	}
+	if s.bookmarks[userID] == nil {
+		s.bookmarks[userID] = map[string]time.Time{}
+	}
+	s.bookmarks[userID][episodeID] = time.Now().UTC()
+	return domain.EpisodeBookmarkStatus{EpisodeID: episodeID, IsBookmarked: true}, nil
+}
+
+func (s *demoStore) DeleteEpisodeBookmark(_ context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error) {
+	episodeID = strings.TrimSpace(episodeID)
+	userID = strings.TrimSpace(userID)
+	if _, ok := s.episodeByID[episodeID]; !ok {
+		return domain.EpisodeBookmarkStatus{}, ErrNotFound
+	}
+	if s.bookmarks[userID] != nil {
+		delete(s.bookmarks[userID], episodeID)
+	}
+	return domain.EpisodeBookmarkStatus{EpisodeID: episodeID, IsBookmarked: false}, nil
 }
 
 func (s *demoStore) ListCreatorShows(_ context.Context, ownerUserID string) ([]domain.ShowSummary, error) {
@@ -473,4 +594,11 @@ func fallbackString(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func fallbackFirst(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(values[0])
 }

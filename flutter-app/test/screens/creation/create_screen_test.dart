@@ -15,7 +15,12 @@ import 'package:pody/features/auth/data/google_auth_data_source.dart';
 import 'package:pody/features/auth/domain/auth_session.dart';
 import 'package:pody/features/auth/domain/auth_user.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
+import 'package:pody/features/content/data/content_remote_data_source.dart';
+import 'package:pody/features/content/data/content_repository.dart';
+import 'package:pody/features/content/domain/content_models.dart';
+import 'package:pody/features/content/presentation/content_scope.dart';
 import 'package:pody/screens/creation/create_screen.dart';
+import 'package:pody/screens/creation/edit_plan_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -37,8 +42,119 @@ void main() {
     },
   );
 
+  testWidgets('new button resets current thread', (WidgetTester tester) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+
+    await tester.pumpWidget(_buildScreen(authController, aiRemote));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text(_createScreenPrompts.first));
+    await tester.tap(find.text(_createScreenPrompts.first));
+    await tester.pumpAndSettle();
+
+    expect(aiRemote.createThreadCalls, 1);
+    expect(find.byTooltip('New chat'), findsOneWidget);
+    expect(find.text('Assistant reply 1'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('New chat'));
+    await tester.pumpAndSettle();
+    await tester.pump();
+
+    expect(find.byTooltip('New chat'), findsOneWidget);
+    expect(find.text('Assistant reply 1'), findsNothing);
+    expect(find.text(_createScreenPrompts.first), findsOneWidget);
+  });
+
   testWidgets(
-    'new button resets current thread',
+    'history button opens previous threads and loads selected thread',
+    (WidgetTester tester) async {
+      final aiRemote = _FakeAIRemoteDataSource(
+        ApiClient(baseUrl: 'http://localhost:8080'),
+      );
+      final authController = await _buildAuthenticatedController();
+
+      await tester.pumpWidget(_buildScreen(authController, aiRemote));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Lịch sử chat'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Lịch sử chat'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New chat'), findsOneWidget);
+      expect(find.text('Drafts'), findsOneWidget);
+      expect(find.text('Gần đây'), findsOneWidget);
+      expect(find.text('Founder OS'), findsOneWidget);
+
+      await tester.tap(find.text('Founder OS'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Founder OS latest reply'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'wide layout shows fixed history panel instead of history button',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1440, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final aiRemote = _FakeAIRemoteDataSource(
+        ApiClient(baseUrl: 'http://localhost:8080'),
+      );
+      final authController = await _buildAuthenticatedController();
+
+      await tester.pumpWidget(_buildScreen(authController, aiRemote));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New chat'), findsOneWidget);
+      expect(find.text('Drafts'), findsOneWidget);
+      expect(find.text('Gần đây'), findsOneWidget);
+      expect(find.byTooltip('Lịch sử chat'), findsNothing);
+
+      await tester.tap(find.text('Founder OS'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create Founder OS'), findsOneWidget);
+      expect(find.text('Founder OS latest reply'), findsWidgets);
+    },
+  );
+
+  testWidgets('drafts section shows all drafts and opens draft detail', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+
+    await tester.pumpWidget(_buildScreen(authController, aiRemote));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Lịch sử chat'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Drafts'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tất cả draft'), findsOneWidget);
+    expect(find.text('Midnight Reset'), findsOneWidget);
+
+    await tester.tap(find.text('Midnight Reset').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
+  });
+
+  testWidgets(
+    'plan card create action queues backend job and shows pending snackbar',
     (WidgetTester tester) async {
       final aiRemote = _FakeAIRemoteDataSource(
         ApiClient(baseUrl: 'http://localhost:8080'),
@@ -52,19 +168,78 @@ void main() {
       await tester.tap(find.text(_createScreenPrompts.first));
       await tester.pumpAndSettle();
 
-      expect(aiRemote.createThreadCalls, 1);
-      expect(find.byTooltip('New chat'), findsOneWidget);
-      expect(find.text('Assistant reply 1'), findsOneWidget);
+      expect(find.byTooltip('Tạo show'), findsOneWidget);
+      expect(find.byTooltip('Edit Plan'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('New chat'));
+      await tester.tap(find.byTooltip('Tạo show'));
       await tester.pumpAndSettle();
-      await tester.pump();
 
-      expect(find.byTooltip('New chat'), findsOneWidget);
-      expect(find.text('Assistant reply 1'), findsNothing);
-      expect(find.text(_createScreenPrompts.first), findsOneWidget);
+      expect(aiRemote.createShowFromPlanCalls, 1);
+      expect(
+        find.textContaining('Ban se nhan thong bao trong app khi xong.'),
+        findsOneWidget,
+      );
     },
   );
+
+  testWidgets('edit screen create action queues backend job', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+    final plan = await aiRemote.getDraft('draft-1');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIScope(
+          repository: AIRepository(aiRemote),
+          child: AuthScope(
+            controller: authController,
+            child: EditPlanScreen(plan: plan),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final createFromDraftButton = find.widgetWithText(
+      FilledButton,
+      'Tạo show từ bản draft này',
+    );
+    await tester.ensureVisible(createFromDraftButton);
+    tester.widget<FilledButton>(createFromDraftButton).onPressed!.call();
+    await tester.pumpAndSettle();
+
+    expect(aiRemote.createShowFromPlanCalls, 1);
+    expect(
+      find.textContaining('App sẽ gửi thông báo khi xong.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('edit action still opens edit production plan screen', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+
+    await tester.pumpWidget(_buildScreen(authController, aiRemote));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text(_createScreenPrompts.first));
+    await tester.tap(find.text(_createScreenPrompts.first));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Edit Plan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chỉnh sửa plan'), findsOneWidget);
+    expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
+  });
 }
 
 const _createScreenPrompts = <String>[
@@ -78,9 +253,19 @@ Widget _buildScreen(
   _FakeAIRemoteDataSource aiRemote,
 ) {
   return MaterialApp(
-    home: AIScope(
-      repository: AIRepository(aiRemote),
-      child: AuthScope(controller: authController, child: const CreateScreen()),
+    home: ContentScope(
+      repository: ContentRepository(
+        _FakeContentRemoteDataSource(
+          ApiClient(baseUrl: 'http://localhost:8080'),
+        ),
+      ),
+      child: AIScope(
+        repository: AIRepository(aiRemote),
+        child: AuthScope(
+          controller: authController,
+          child: const CreateScreen(),
+        ),
+      ),
     ),
   );
 }
@@ -105,6 +290,7 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
 
   int createThreadCalls = 0;
   int addThreadMessageCalls = 0;
+  int createShowFromPlanCalls = 0;
   bool holdNextAddThread = false;
 
   AIChatThread? _currentThread;
@@ -120,6 +306,58 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
     );
     _currentThread = thread;
     return thread;
+  }
+
+  @override
+  Future<List<AIChatThreadSummary>> listThreads({int limit = 30}) async {
+    final threads = <AIChatThreadSummary>[
+      AIChatThreadSummary(
+        id: 'history-1',
+        title: 'Founder OS',
+        status: 'active',
+        createdAt: DateTime(2026, 3, 17, 8),
+        updatedAt: DateTime(2026, 3, 17, 9),
+        lastMessagePreview: 'Founder OS latest reply',
+        hasCurrentPlan: true,
+      ),
+      AIChatThreadSummary(
+        id: 'history-2',
+        title: 'Midnight Reset',
+        status: 'active',
+        createdAt: DateTime(2026, 3, 16, 22),
+        updatedAt: DateTime(2026, 3, 16, 23),
+        lastMessagePreview: 'Midnight Reset latest reply',
+        hasCurrentPlan: true,
+      ),
+    ];
+    return threads.take(limit).toList();
+  }
+
+  @override
+  Future<List<AIProductionPlanSummary>> listDrafts({int limit = 50}) async {
+    final drafts = <AIProductionPlanSummary>[
+      AIProductionPlanSummary(
+        id: 'draft-1',
+        threadId: 'history-1',
+        status: 'draft',
+        seriesTitle: 'Founder OS',
+        contentType: 'podcast',
+        episodeCount: 3,
+        createdAt: DateTime(2026, 3, 17, 8),
+        updatedAt: DateTime(2026, 3, 17, 9),
+      ),
+      AIProductionPlanSummary(
+        id: 'draft-2',
+        threadId: 'history-2',
+        status: 'draft',
+        seriesTitle: 'Midnight Reset',
+        contentType: 'storytelling',
+        episodeCount: 4,
+        createdAt: DateTime(2026, 3, 16, 22),
+        updatedAt: DateTime(2026, 3, 16, 23),
+      ),
+    ];
+    return drafts.take(limit).toList();
   }
 
   @override
@@ -143,7 +381,9 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
   }
 
   @override
-  Stream<AIChatStreamEvent> streamCreateThread({required String prompt}) async* {
+  Stream<AIChatStreamEvent> streamCreateThread({
+    required String prompt,
+  }) async* {
     createThreadCalls += 1;
     final thread = _buildThread(
       threadId: 'thread-$createThreadCalls',
@@ -175,6 +415,51 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
     _currentThread = thread;
     yield AIChatStreamEvent.thread(thread);
     yield AIChatStreamEvent.done(threadId: thread.id);
+  }
+
+  @override
+  Future<AIChatThread> getThread(String threadId) async {
+    if (threadId == 'history-1') {
+      return _buildThread(
+        threadId: 'history-1',
+        prompt: 'Create Founder OS',
+        assistantReply: 'Founder OS latest reply',
+      );
+    }
+    if (threadId == 'history-2') {
+      return _buildThread(
+        threadId: 'history-2',
+        prompt: 'Create Midnight Reset',
+        assistantReply: 'Midnight Reset latest reply',
+      );
+    }
+    return _currentThread ??
+        _buildThread(
+          threadId: threadId,
+          prompt: 'Open existing thread',
+          assistantReply: 'Existing thread reply',
+        );
+  }
+
+  @override
+  Future<AIProductionPlan> getDraft(String draftId) async {
+    if (draftId == 'draft-2') {
+      return _buildMidnightPlan();
+    }
+    return _buildPlan('history-1', DateTime(2026, 3, 17, 18));
+  }
+
+  @override
+  Future<AIGenerationJob> createShowFromPlan(String planId) async {
+    createShowFromPlanCalls += 1;
+    return AIGenerationJob(
+      id: 'job-$createShowFromPlanCalls',
+      planId: planId,
+      jobType: 'show_creation',
+      status: 'queued',
+      provider: 'google-genai',
+      createdAt: DateTime(2026, 3, 30, 6),
+    );
   }
 
   void completePendingAddThread() {
@@ -275,11 +560,11 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
         title: 'AI Builder Lab',
         description: 'Plan generated for testing.',
         primaryCategory: 'Cong nghe',
-        hosts: [AIHostDraft(displayName: 'Nova', role: 'host')],
+        hosts: [AIHostDraft(displayName: 'Nova', role: 'narrator')],
         categories: ['Cong nghe'],
         tags: ['ai'],
         languageCode: 'vi',
-        contentType: 'podcast',
+        contentType: 'storytelling',
       ),
       episodes: const [
         AIEpisodeDraft(
@@ -295,6 +580,42 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
       updatedAt: now,
     );
   }
+
+  AIProductionPlan _buildMidnightPlan() {
+    final now = DateTime(2026, 3, 16, 23);
+    return AIProductionPlan(
+      id: 'draft-2',
+      threadId: 'history-2',
+      status: 'draft',
+      seriesTitle: 'Midnight Reset',
+      seriesDescription: 'A calm late-night storytelling draft.',
+      targetLanguageCode: 'vi',
+      showDraft: const AIShowDraft(
+        slug: 'midnight-reset',
+        title: 'Midnight Reset',
+        description: 'A calm late-night storytelling draft.',
+        primaryCategory: 'Truyen ke',
+        hosts: [AIHostDraft(displayName: 'Lumi', role: 'narrator')],
+        categories: ['Truyen ke'],
+        tags: ['night'],
+        languageCode: 'vi',
+        contentType: 'storytelling',
+      ),
+      episodes: const [
+        AIEpisodeDraft(
+          episodeNumber: 1,
+          title: 'Tap dem',
+          description: 'Episode draft',
+          estimatedDurationSeconds: 1200,
+          status: 'draft',
+        ),
+      ],
+      tags: const ['night'],
+      createdAt: now,
+      updatedAt: now,
+      toneStyle: 'calm',
+    );
+  }
 }
 
 class _FakeGoogleAuthDataSource implements GoogleAuthDataSource {
@@ -303,6 +624,56 @@ class _FakeGoogleAuthDataSource implements GoogleAuthDataSource {
 
   @override
   Future<void> signOut() async {}
+}
+
+class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
+  _FakeContentRemoteDataSource(super.apiClient);
+
+  @override
+  Future<ContentHomeFeed> getHomeFeed() async {
+    return ContentHomeFeed(
+      categories: const ['Cong nghe', 'Truyen ke'],
+      shows: const [],
+    );
+  }
+
+  @override
+  Future<ContentShowDetail> createShow(ContentCreateShowInput input) async {
+    return ContentShowDetail(
+      id: 'created-show-1',
+      slug: 'created-show-1',
+      title: input.title,
+      description: input.description ?? '',
+      coverImageUrl: input.coverImageUrl ?? '',
+      categories: [input.primaryCategory],
+      tags: const [],
+      hosts: input.hosts
+          .map(
+            (host) => ContentHost(
+              id: 'host-${host.displayName}',
+              displayName: host.displayName,
+              avatarUrl: '',
+              role: host.role ?? 'host',
+              voiceProfileId: host.voiceProfileId,
+              bio: host.bio,
+            ),
+          )
+          .toList(),
+      owner: const ContentOwnerSummary(
+        id: 'user-1',
+        displayName: 'Creator',
+        avatarUrl: '',
+      ),
+      subscriberCount: 0,
+      totalEpisodeCount: 0,
+      totalListenCount: 0,
+      languageCode: 'vi',
+      contentType: input.contentType ?? 'podcast',
+      visibility: 'private',
+      monetizationType: 'free',
+      publishedAt: DateTime(2026, 3, 30),
+    );
+  }
 }
 
 class _FakeAuthRemoteDataSource extends AuthRemoteDataSource {

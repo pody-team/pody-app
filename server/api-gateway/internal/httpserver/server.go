@@ -172,6 +172,16 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
       <p><a href="/api/v1/public/identity/openapi.yaml">OpenAPI YAML</a></p>
     </div>
     <div class="card">
+      <h2>AI Service</h2>
+      <p><a href="/api/v1/public/ai/docs">Swagger UI</a></p>
+      <p><a href="/api/v1/public/ai/openapi.yaml">OpenAPI YAML</a></p>
+    </div>
+    <div class="card">
+      <h2>Content Service</h2>
+      <p><a href="/api/v1/public/content/docs">Swagger UI</a></p>
+      <p><a href="/api/v1/public/content/openapi.yaml">OpenAPI YAML</a></p>
+    </div>
+    <div class="card">
       <h2>Notification Service</h2>
       <p><a href="/api/v1/public/notifications/docs">Swagger UI</a></p>
       <p><a href="/api/v1/public/notifications/openapi.yaml">OpenAPI YAML</a></p>

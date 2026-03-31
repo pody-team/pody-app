@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:pody/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
+
+const Color _librarySurface = Color(0xFFFFFEFC);
+const Color _librarySurfaceStrong = Color(0xFFF2E6D9);
+const Color _libraryPrimary = Color(0xFFBF5700);
+const Color _libraryNeutral = Color(0xFF3E2723);
+const Color _libraryMuted = Color(0xFF7E665F);
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -13,15 +19,12 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   int _selectedFilter = 0;
-  final List<String> _filters = ['All', 'Podcasts', 'Episodes', 'Downloads'];
+  final List<String> _filters = ['Tất cả', 'Podcast', 'Tập', 'Tải về'];
 
   @override
   Widget build(BuildContext context) {
-    // Pull data from MockData
     final allPodcasts = MockData.shows;
     final progress = MockData.currentUserProgress;
-
-    // "Recently Played" = episodes with listening progress
     final recentlyPlayed = progress
         .map((p) {
           final ep = MockData.getEpisodeById(p.episodeId);
@@ -32,14 +35,43 @@ class _LibraryScreenState extends State<LibraryScreen> {
         .toList();
 
     return ListView(
-      padding: const EdgeInsets.only(top: 16, bottom: 100),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 120),
       children: [
-        // Filter Chips
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: _librarySurface,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: _libraryNeutral.withValues(alpha: 0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Thư viện nghe',
+                style: GoogleFonts.newsreader(
+                  color: _libraryNeutral,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Xem lại những gì bạn đã nghe và quay lại các show yêu thích theo bố cục sáng đồng bộ.',
+                style: GoogleFonts.workSans(
+                  color: _libraryMuted,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         SizedBox(
-          height: 44,
+          height: 42,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
             itemCount: _filters.length,
             separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
@@ -47,23 +79,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
               return GestureDetector(
                 onTap: () => setState(() => _selectedFilter = index),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.white : kBgCard,
-                    borderRadius: BorderRadius.circular(20),
-                    border: isSelected
-                        ? null
-                        : Border.all(color: Colors.white12),
+                    color: isSelected ? _libraryPrimary : _librarySurface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isSelected
+                          ? _libraryPrimary
+                          : _libraryNeutral.withValues(alpha: 0.08),
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: Text(
                     _filters[index],
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                      color: isSelected ? Colors.black : Colors.white,
+                    style: GoogleFonts.workSans(
+                      color: isSelected ? Colors.white : _libraryNeutral,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -71,49 +102,60 @@ class _LibraryScreenState extends State<LibraryScreen> {
             },
           ),
         ),
-        const SizedBox(height: 28),
-
-        // Recently Played
-        _buildSectionTitle('Recently Played'),
+        const SizedBox(height: 22),
+        Text(
+          'Nghe gần đây',
+          style: GoogleFonts.newsreader(
+            color: _libraryNeutral,
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 165,
+          height: 186,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 24),
             itemCount: recentlyPlayed.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 16),
+            separatorBuilder: (context, index) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
               final ep = recentlyPlayed[index]['episode'] as Episode;
               final pod = recentlyPlayed[index]['show'] as Show;
               return GestureDetector(
-                onTap: () {
-                  openPlayerScreen(context, show: pod, episode: ep);
-                },
-                child: SizedBox(
-                  width: 120,
+                onTap: () => openPlayerScreen(context, show: pod, episode: ep),
+                child: Container(
+                  width: 136,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _librarySurface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: _libraryNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(18),
                         child: Image.network(
                           ep.images.isNotEmpty ? ep.images.first : pod.imageUrl,
-                          width: 120,
-                          height: 120,
+                          width: 112,
+                          height: 112,
                           fit: BoxFit.cover,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Text(
                         ep.title,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.workSans(
+                          color: _libraryNeutral,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
                       ),
                     ],
                   ),
@@ -122,99 +164,87 @@ class _LibraryScreenState extends State<LibraryScreen> {
             },
           ),
         ),
-        const SizedBox(height: 28),
-
-        // Your Podcasts
-        _buildSectionTitle('Your Podcasts'),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: allPodcasts.map((show) {
-              return GestureDetector(
-                onTap: () {
-                  openShowDetail(context, show);
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: kBgCard,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          show.imageUrl,
-                          width: 50,
-                          height: 50,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              show.title,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${show.episodes.length} episodes available',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.play_arrow,
-                          color: Colors.black,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+        const SizedBox(height: 22),
+        Text(
+          'Podcast của bạn',
+          style: GoogleFonts.newsreader(
+            color: _libraryNeutral,
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
           ),
         ),
+        const SizedBox(height: 12),
+        ...allPodcasts.map((show) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => openShowDetail(context, show),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _librarySurface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: _libraryNeutral.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        show.imageUrl,
+                        width: 58,
+                        height: 58,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            show.title,
+                            style: GoogleFonts.workSans(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _libraryNeutral,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${show.episodes.length} tập khả dụng',
+                            style: GoogleFonts.workSans(
+                              fontSize: 12,
+                              color: _libraryMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        color: _librarySurfaceStrong,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: _libraryPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
       ],
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Text(
-        title.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.white54,
-          letterSpacing: 1.5,
-        ),
-      ),
     );
   }
 }

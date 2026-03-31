@@ -1,9 +1,19 @@
-import 'package:flutter/material.dart';
-import 'package:pody/theme/app_colors.dart';
-import 'package:pody/data/mock_data.dart';
-import 'package:pody/models/models.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:pody/core/network/api_exception.dart';
+import 'package:pody/data/article_scope.dart';
+import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
+import 'package:pody/screens/news/article_detail_screen.dart';
+
+const Color _newsCanvas = Color(0xFFFFFBF6);
+const Color _newsSurface = Color(0xFFFFFEFC);
+const Color _newsSurfaceStrong = Color(0xFFF2E6D9);
+const Color _newsPrimary = Color(0xFFBF5700);
+const Color _newsNeutral = Color(0xFF3E2723);
+const Color _newsMuted = Color(0xFF7E665F);
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -13,166 +23,588 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
-  int _selectedCategoryIndex = 0;
-  late final List<bool> _addedStates = MockData.newsArticles
-      .map((a) => a.isAdded)
-      .toList();
+  static const int _pageSize = 20;
+
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  Timer? _searchDebounce;
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _isLoadingCategories = false;
+  bool _hasMore = true;
+  int _offset = 0;
+  String _searchQuery = '';
+  String? _selectedCategorySlug;
+  String? _selectedCategoryName;
+  String? _errorMessage;
+  List<NewsCategory> _categories = const <NewsCategory>[];
+  List<NewsArticle> _articles = const <NewsArticle>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadInitialData() async {
+    await _fetchCategories();
+    await _fetchArticles(reset: true);
+  }
+
+  Future<void> _fetchCategories() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isLoadingCategories = true);
+
+    try {
+      final categories = await ArticleScope.of(context).fetchCategories();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _categories = categories;
+        _isLoadingCategories = false;
+        final stillExists = _categories.any(
+          (category) => category.slug == _selectedCategorySlug,
+        );
+        if (!stillExists) {
+          _selectedCategorySlug = null;
+          _selectedCategoryName = null;
+        }
+      });
+    } on ApiException {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoadingCategories = false);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoadingCategories = false);
+    }
+  }
+
+  Future<void> _fetchArticles({bool reset = false}) async {
+    if (!mounted) {
+      return;
+    }
+
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _isLoadingMore = false;
+        _hasMore = true;
+        _offset = 0;
+        _errorMessage = null;
+      });
+    } else {
+      if (_isLoading || _isLoadingMore || !_hasMore) {
+        return;
+      }
+      setState(() => _isLoadingMore = true);
+    }
+
+    try {
+      final results = await ArticleScope.of(context).fetchArticles(
+        category: _selectedCategorySlug,
+        query: _searchQuery.isEmpty ? null : _searchQuery,
+        limit: _pageSize,
+        offset: reset ? 0 : _offset,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _articles = reset ? results : [..._articles, ...results];
+        _offset = (reset ? 0 : _offset) + results.length;
+        _hasMore = results.length == _pageSize;
+        _isLoading = false;
+        _isLoadingMore = false;
+        _errorMessage = null;
+        if (_categories.isEmpty && results.isNotEmpty) {
+          _categories = _buildFallbackCategories(results);
+        }
+      });
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+        _errorMessage = error.message;
+        if (reset) {
+          _articles = const <NewsArticle>[];
+        }
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+        _errorMessage = 'Không tải được danh sách bài báo.';
+        if (reset) {
+          _articles = const <NewsArticle>[];
+        }
+      });
+    }
+  }
+
+  Future<void> _refreshArticles() async {
+    await _fetchCategories();
+    await _fetchArticles(reset: true);
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 300) {
+      _fetchArticles();
+    }
+  }
+
+  void _handleSearchChanged(String value) {
+    if (mounted) {
+      setState(() {});
+    }
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) {
+        return;
+      }
+      final trimmed = value.trim();
+      if (trimmed == _searchQuery) {
+        return;
+      }
+      setState(() => _searchQuery = trimmed);
+      _fetchArticles(reset: true);
+    });
+  }
+
+  void _submitSearch([String? value]) {
+    _searchDebounce?.cancel();
+    final trimmed = (value ?? _searchController.text).trim();
+    if (trimmed == _searchQuery) {
+      return;
+    }
+    setState(() => _searchQuery = trimmed);
+    _fetchArticles(reset: true);
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    _fetchArticles(reset: true);
+  }
+
+  void _selectCategory(NewsCategory? category) {
+    setState(() {
+      _selectedCategorySlug = category?.slug;
+      _selectedCategoryName = category?.name;
+    });
+    _fetchArticles(reset: true);
+  }
+
+  List<NewsCategory> _buildFallbackCategories(List<NewsArticle> articles) {
+    final counts = <String, int>{};
+    final labels = <String, String>{};
+
+    for (final article in articles) {
+      final names = article.categories.isNotEmpty
+          ? article.categories
+          : <String>[article.category];
+      for (final name in names) {
+        final trimmed = name.trim();
+        if (trimmed.isEmpty) {
+          continue;
+        }
+        final slug = trimmed.toLowerCase().replaceAll(RegExp(r'\s+'), '-');
+        labels.putIfAbsent(slug, () => trimmed);
+        counts[slug] = (counts[slug] ?? 0) + 1;
+      }
+    }
+
+    final categories = counts.entries.map((entry) {
+      return NewsCategory(
+        id: entry.key,
+        slug: entry.key,
+        name: labels[entry.key] ?? entry.key,
+        articleCount: entry.value,
+      );
+    }).toList();
+
+    categories.sort((a, b) {
+      final byCount = b.articleCount.compareTo(a.articleCount);
+      if (byCount != 0) {
+        return byCount;
+      }
+      return a.name.compareTo(b.name);
+    });
+    return categories;
+  }
+
+  void _toggleAdded(NewsArticle article) {
+    setState(() {
+      article.isAdded = !article.isAdded;
+    });
+  }
+
+  String get _heroTitle {
+    if (_searchQuery.isNotEmpty) {
+      return 'Kết quả theo từ khóa';
+    }
+    if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
+      return _selectedCategoryName!;
+    }
+    return 'Bản tin công nghệ sáng nay';
+  }
+
+  String get _heroSubtitle {
+    if (_searchQuery.isNotEmpty && _selectedCategoryName != null) {
+      return 'Đang lọc bài viết về $_selectedCategoryName theo từ khóa "$_searchQuery".';
+    }
+    if (_searchQuery.isNotEmpty) {
+      return 'Những bài viết mới nhất khớp với "$_searchQuery".';
+    }
+    if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
+      return 'Những bài nổi bật mới nhất trong chủ đề $_selectedCategoryName.';
+    }
+    return 'Tổng hợp các bài báo mới từ article service để bạn đọc, chọn và tạo bản tin.';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final articles = MockData.newsArticles;
+    final highlightedCount = _articles
+        .where((article) => article.isAdded)
+        .length;
+    final topArticle = _articles.isEmpty ? null : _articles.first;
+
     return Scaffold(
-      backgroundColor: kBgBlack,
+      backgroundColor: _newsCanvas,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // AI Podcast Station
-            SliverToBoxAdapter(child: _buildAIPodcastStation(context)),
-
-            // Categories
-            SliverToBoxAdapter(child: _buildCategories()),
-
-            // Highlight Story
-            if (articles.isNotEmpty)
-              SliverToBoxAdapter(child: _buildHighlightStory(0, articles[0])),
-
-            // Compact List News
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  if (index == 0) {
-                    return const SizedBox.shrink(); // Skips highlight
-                  }
-                  return _buildCompactNewsRow(index, articles[index]);
-                }, childCount: articles.length),
+        child: RefreshIndicator(
+          onRefresh: _refreshArticles,
+          color: _newsPrimary,
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  child: _buildDigestHero(context, highlightedCount),
+                ),
               ),
-            ),
-          ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  child: _buildSearchBar(),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  child: Text(
+                    'Danh mục',
+                    style: GoogleFonts.newsreader(
+                      color: _newsNeutral,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(child: _buildCategories()),
+              if (_isLoading && _articles.isEmpty)
+                const SliverFillRemaining(
+                  child: Center(child: CircularProgressIndicator.adaptive()),
+                )
+              else if (_errorMessage != null && _articles.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+                    child: _NewsStateCard(
+                      icon: Icons.cloud_off_outlined,
+                      title: 'Chưa tải được bản tin',
+                      message: _errorMessage!,
+                      actionLabel: 'Thử lại',
+                      onPressed: () => _fetchArticles(reset: true),
+                    ),
+                  ),
+                )
+              else if (topArticle == null)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+                    child: _NewsStateCard(
+                      icon: Icons.newspaper_outlined,
+                      title: 'Chưa có bài viết',
+                      message:
+                          'Hiện chưa có bài báo phù hợp với bộ lọc đang chọn.',
+                      actionLabel: 'Tải lại',
+                      onPressed: () => _fetchArticles(reset: true),
+                    ),
+                  ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                    child: _buildHighlightStory(topArticle),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      if (index >= _articles.length - 1) {
+                        return _isLoadingMore
+                            ? const Padding(
+                                padding: EdgeInsets.only(top: 6, bottom: 18),
+                                child: Center(
+                                  child: CircularProgressIndicator.adaptive(),
+                                ),
+                              )
+                            : const SizedBox.shrink();
+                      }
+                      return _buildCompactNewsRow(_articles[index + 1]);
+                    }, childCount: _articles.length),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAIPodcastStation(BuildContext context) {
+  Widget _buildDigestHero(BuildContext context, int highlightedCount) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: kBgCard,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF4E6), Color(0xFFF4E7D2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: _newsPrimary.withValues(alpha: 0.10)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 4,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: kTikRed.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _newsSurface,
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.auto_awesome, color: kTikRed, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      'AI Playlist',
-                      style: TextStyle(
-                        color: kTikRed,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  _selectedCategoryName ?? 'AI Playlist',
+                  style: GoogleFonts.workSans(
+                    color: _newsPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              const Text(
-                '~12 phút',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 13,
+              const Spacer(),
+              Text(
+                '${_articles.length} bài',
+                style: GoogleFonts.workSans(
+                  color: _newsMuted,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Bản tin Công nghệ\nsáng nay của bạn',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.2,
+          Text(
+            _heroTitle,
+            style: GoogleFonts.newsreader(
+              color: _newsNeutral,
+              fontSize: 34,
+              fontWeight: FontWeight.w700,
+              height: 1.02,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
-            'Dựa trên ${MockData.newsArticles.where((a) => a.isAdded).isNotEmpty ? MockData.newsArticles.where((a) => a.isAdded).length : 5} tin tức bạn đã chọn và xu hướng Tech.',
-            style: const TextStyle(fontSize: 13, color: Colors.white54),
+            _heroSubtitle,
+            style: GoogleFonts.workSans(
+              fontSize: 14,
+              color: _newsMuted,
+              height: 1.5,
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildMiniStat(
+                icon: Icons.check_circle_outline,
+                label:
+                    '${highlightedCount > 0 ? highlightedCount : 0} bài đã chọn',
+              ),
+              _buildMiniStat(
+                icon: Icons.grid_view_rounded,
+                label: '${_categories.length} chủ đề',
+              ),
+              _buildMiniStat(
+                icon: Icons.newspaper_rounded,
+                label: _hasMore ? 'Còn thêm bài viết' : 'Đã tải hết',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [kTikRed, kTikRed.withValues(alpha: 0.8)],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
+                child: FilledButton(
+                  onPressed: () {},
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _newsPrimary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      '▶ Tạo & Nghe',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
+                    textStyle: GoogleFonts.workSans(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
                     ),
                   ),
+                  child: const Text('Tạo và nghe'),
                 ),
               ),
               const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () {
+              IconButton.filledTonal(
+                onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
+                    MaterialPageRoute<void>(
                       builder: (_) => const AiSummarySetupScreen(),
                     ),
                   );
                 },
-                child: Container(
-                  height: 44,
-                  width: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.schedule, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: _newsSurface,
+                  foregroundColor: _newsPrimary,
+                  minimumSize: const Size(48, 48),
                 ),
+                icon: const Icon(Icons.schedule),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _newsSurface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _newsPrimary, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.workSans(
+              color: _newsNeutral,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: _newsSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _newsNeutral.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Icon(Icons.search, color: _newsPrimary),
+          ),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: _handleSearchChanged,
+              onSubmitted: _submitSearch,
+              cursorColor: _newsPrimary,
+              textInputAction: TextInputAction.search,
+              style: GoogleFonts.workSans(color: _newsNeutral, fontSize: 15),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFFFFFEFC),
+                hintText: 'Tìm bài báo, chủ đề hoặc tác giả...',
+                hintStyle: GoogleFonts.workSans(color: _newsMuted),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
+                ),
+              ),
+            ),
+          ),
+          if (_searchController.text.isNotEmpty)
+            IconButton(
+              onPressed: _clearSearch,
+              icon: const Icon(Icons.close_rounded, color: _newsMuted),
+            ),
+          IconButton(
+            onPressed: _submitSearch,
+            icon: const Icon(Icons.arrow_forward_rounded, color: _newsMuted),
           ),
         ],
       ),
@@ -180,210 +612,405 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildCategories() {
-    final categories = MockData.newsCategories;
     return Container(
-      height: 36,
-      margin: const EdgeInsets.only(top: 8, bottom: 8),
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 42,
+      margin: const EdgeInsets.only(top: 12),
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         scrollDirection: Axis.horizontal,
-        itemCount: categories.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final isSelected = _selectedCategoryIndex == index;
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                _selectedCategoryIndex = index;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? kTikRed
-                    : Colors.white.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                categories[index],
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : Colors.white70,
+        children: [
+          _buildCategoryChip(
+            label: 'Tất cả',
+            isSelected: _selectedCategorySlug == null,
+            onTap: () => _selectCategory(null),
+          ),
+          ..._categories.map(
+            (category) => _buildCategoryChip(
+              label: category.name,
+              isSelected: _selectedCategorySlug == category.slug,
+              onTap: () => _selectCategory(category),
+              count: category.articleCount,
+            ),
+          ),
+          if (_isLoadingCategories)
+            const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _newsPrimary,
+                  ),
                 ),
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHighlightStory(int index, NewsArticle article) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Image.network(article.imageUrl, fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            article.title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            article.description,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.white54,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    article.publisher,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    '•',
-                    style: TextStyle(color: Colors.white38, fontSize: 12),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    article.time,
-                    style: const TextStyle(color: Colors.white38, fontSize: 12),
-                  ),
-                ],
-              ),
-              _buildAddButton(index),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildCompactNewsRow(int index, NewsArticle article) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              article.imageUrl,
-              width: 76,
-              height: 76,
-              fit: BoxFit.cover,
+  Widget _buildCategoryChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    int? count,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? _newsPrimary : _newsSurface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isSelected
+                  ? _newsPrimary
+                  : _newsNeutral.withValues(alpha: 0.08),
             ),
           ),
-          const SizedBox(width: 12),
-
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.workSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? Colors.white : _newsNeutral,
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 8),
                 Text(
-                  article.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    height: 1.3,
+                  '$count',
+                  style: GoogleFonts.workSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isSelected ? Colors.white : _newsMuted,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Row(
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHighlightStory(NewsArticle article) {
+    final categories = article.categories.isNotEmpty
+        ? article.categories
+        : <String>[article.category];
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(28),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => ArticleDetailScreen(article: article),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: _newsSurface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: _newsNeutral.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  article.imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: _newsSurfaceStrong,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: _newsMuted,
+                        size: 40,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.take(3).map((category) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _newsSurfaceStrong,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    category,
+                    style: GoogleFonts.workSans(
+                      color: _newsPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              article.title,
+              style: GoogleFonts.newsreader(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: _newsNeutral,
+                height: 1.15,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              article.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.workSans(
+                fontSize: 14,
+                color: _newsMuted,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${article.publisher} • ${article.time}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.workSans(
+                      color: _newsNeutral,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildAddButton(article),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactNewsRow(NewsArticle article) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => ArticleDetailScreen(article: article),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _newsSurface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _newsNeutral.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  article.imageUrl,
+                  width: 82,
+                  height: 82,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: 82,
+                      height: 82,
+                      color: _newsSurfaceStrong,
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: _newsMuted,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      article.publisher,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      article.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.workSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: _newsNeutral,
+                        height: 1.35,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      '•',
-                      style: TextStyle(color: Colors.white38, fontSize: 10),
-                    ),
-                    const SizedBox(width: 6),
+                    const SizedBox(height: 8),
                     Text(
-                      article.time,
-                      style: const TextStyle(
-                        color: Colors.white38,
+                      article.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.workSans(
+                        fontSize: 12,
+                        color: _newsMuted,
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${article.publisher} • ${article.time}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.workSans(
+                        color: _newsMuted,
                         fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              _buildAddButton(article),
+            ],
           ),
-
-          const SizedBox(width: 8),
-
-          // Add to queue btn
-          _buildAddButton(index),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildAddButton(int index) {
-    final bool isAdded = _addedStates[index];
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _addedStates[index] = !isAdded;
-        });
-      },
-      child: Container(
-        width: 32,
-        height: 32,
+  Widget _buildAddButton(NewsArticle article) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () => _toggleAdded(article),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isAdded
-              ? kTikRed.withValues(alpha: 0.2)
-              : Colors.white.withValues(alpha: 0.08),
-          shape: BoxShape.circle,
+          color: article.isAdded ? _newsPrimary : _newsSurfaceStrong,
+          borderRadius: BorderRadius.circular(999),
         ),
-        child: Icon(
-          isAdded ? Icons.check : Icons.add,
-          color: isAdded ? kTikRed : Colors.white,
-          size: 18,
+        child: Text(
+          article.isAdded ? 'Đã chọn' : 'Thêm',
+          style: GoogleFonts.workSans(
+            color: article.isAdded ? Colors.white : _newsNeutral,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _NewsStateCard extends StatelessWidget {
+  const _NewsStateCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _newsSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _newsNeutral.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: _newsSurfaceStrong,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(icon, color: _newsPrimary, size: 30),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.newsreader(
+              color: _newsNeutral,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.workSans(
+              color: _newsMuted,
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(
+              backgroundColor: _newsPrimary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              textStyle: GoogleFonts.workSans(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+            child: Text(actionLabel),
+          ),
+        ],
       ),
     );
   }

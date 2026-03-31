@@ -13,6 +13,23 @@ from app.planner import (
 )
 
 
+class SuccessfulSearchTool:
+    def search(self, *, query: str) -> str:
+        return json.dumps(
+            {
+                "query": query,
+                "results": [
+                    {
+                        "title": "Founder podcast trends",
+                        "url": "https://example.com/founder-podcast-trends",
+                        "description": "Research result for founders.",
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        )
+
+
 def _voice_profile() -> VoiceProfile:
     now = datetime.now(timezone.utc)
     return VoiceProfile(
@@ -86,6 +103,8 @@ def test_validate_planner_content_normalizes_role_and_voice() -> None:
     assert str(validation.output.hosts[0].voice_profile_id) == str(_voice_profile().id)
     assert validation.output.categories == ["Cong nghe"]
     assert validation.output.assistant_reply
+    assert "2 host" in validation.output.assistant_reply
+    assert "Nova, Atlas" in validation.output.assistant_reply
 
 
 def test_validate_planner_content_rejects_wrong_requested_episode_count() -> None:
@@ -173,11 +192,57 @@ def test_validate_planner_content_rejects_storytelling_with_multiple_hosts() -> 
     assert any("Storytelling shows must have exactly 1 host" in error for error in validation.errors)
 
 
+def test_validate_planner_content_rejects_when_prompt_requires_two_hosts() -> None:
+    content = json.dumps(
+        {
+            "thread_title": "Go Builder Lab",
+            "assistant_reply": "Atlas va Lumi se dong hanh cung ban.",
+            "series_title": "Go Builder Lab",
+            "series_description": "Hoc Go co he thong",
+            "primary_category": "Cong nghe",
+            "categories": ["Cong nghe"],
+            "language_code": "vi",
+            "content_type": "podcast",
+            "tone_style": "practical",
+            "tags": ["golang"],
+            "hosts": [
+                {
+                    "display_name": "Atlas",
+                    "voice_profile_id": str(_voice_profile().id),
+                    "role": "host",
+                    "bio": "AI host",
+                }
+            ],
+            "episodes": [
+                {
+                    "episode_number": 1,
+                    "title": "Tap 1",
+                    "description": "desc 1",
+                    "estimated_duration_seconds": 900,
+                    "status": "draft",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    validation = _validate_planner_content(
+        content,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        requested_host_count=2,
+    )
+
+    assert validation.valid is False
+    assert any("Expected exactly 2 hosts" in error for error in validation.errors)
+
+
 def test_brave_search_tool_returns_soft_error_when_not_configured() -> None:
+    state = AgentPlanState()
     result = _execute_plan_tool(
         "brave_search",
         {"query": "podcast xu huong AI 2026"},
-        state=AgentPlanState(),
+        state=state,
         voice_profiles=[_voice_profile()],
         requested_episode_count=None,
         search_tool=DisabledSearchTool(),
@@ -186,6 +251,61 @@ def test_brave_search_tool_returns_soft_error_when_not_configured() -> None:
     payload = json.loads(result)
     assert "error" in payload
     assert "BRAVE_SEARCH_API_KEY" in payload["error"]
+    assert state.has_searched is False
+
+
+def test_brave_search_tool_marks_state_only_after_success() -> None:
+    state = AgentPlanState()
+
+    result = _execute_plan_tool(
+        "brave_search",
+        {"query": "podcast xu huong AI 2026"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=SuccessfulSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["results"]
+    assert state.has_searched is True
+
+
+def test_brave_search_tool_emits_tool_specific_status() -> None:
+    events: list[dict[str, object]] = []
+    state = AgentPlanState()
+
+    _execute_plan_tool(
+        "brave_search",
+        {"query": "podcast xu huong AI 2026"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+        emit_event=events.append,
+    )
+
+    assert events[0]["event"] == "status"
+    assert events[0]["data"]["tool"] == "brave_search"
+    assert "Đang tìm kiếm thông tin" in events[0]["data"]["message"]
+    assert state.has_searched is False
+
+
+def test_write_plan_requires_search_first() -> None:
+    state = AgentPlanState()
+
+    result = _execute_plan_tool(
+        "write_plan",
+        {"content": "{}"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["success"] is False
+    assert "brave_search" in payload["error"]
 
 
 def test_validate_planner_content_accepts_agent_decided_episode_count() -> None:
@@ -252,3 +372,123 @@ def test_validate_planner_content_accepts_agent_decided_episode_count() -> None:
     assert validation.valid is True
     assert validation.output is not None
     assert len(validation.output.episodes) == 4
+
+
+def test_begin_edit_session_switches_state_and_returns_plan() -> None:
+    content = json.dumps(
+        {
+            "thread_title": "AI Builder Lab",
+            "assistant_reply": "done",
+            "series_title": "AI Builder Lab",
+            "series_description": "Show for builders",
+            "primary_category": "Cong nghe",
+            "categories": ["Cong nghe"],
+            "language_code": "vi",
+            "content_type": "podcast",
+            "tone_style": "sharp",
+            "tags": ["ai"],
+            "hosts": [
+                {
+                    "display_name": "Nova",
+                    "voice_profile_id": str(_voice_profile().id),
+                    "role": "host",
+                    "bio": "AI host",
+                }
+            ],
+            "episodes": [
+                {
+                    "episode_number": 1,
+                    "title": "Tap 1",
+                    "description": "desc 1",
+                    "estimated_duration_seconds": 900,
+                    "status": "draft",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    validation = _validate_planner_content(
+        content,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+    )
+    assert validation.valid is True
+
+    state = AgentPlanState(
+        content=validation.normalized_json,
+        output=validation.output,
+        validation=validation,
+    )
+
+    result = _execute_plan_tool(
+        "begin_edit_session",
+        {"focus": "show.title"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["success"] is True
+    assert payload["mode"] == "edit"
+    assert payload["focus"] == "show.title"
+    assert payload["plan"]["series_title"] == "AI Builder Lab"
+    assert state.mode == "edit"
+    assert state.edit_focus == "show.title"
+
+
+def test_finalize_turn_emits_reply_status() -> None:
+    events: list[dict[str, object]] = []
+    state = AgentPlanState(has_searched=True)
+
+    result = _execute_plan_tool(
+        "finalize_turn",
+        {"message": "Minh da cap nhat xong draft."},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+        emit_event=events.append,
+    )
+
+    payload = json.loads(result)
+    assert payload["finalized"] is True
+    assert state.finalized_reply == "Minh da cap nhat xong draft."
+    assert events[0]["data"]["tool"] == "finalize_turn"
+    assert "Đang hoàn thiện phản hồi" in events[0]["data"]["message"]
+
+
+def test_finalize_turn_requires_search_first() -> None:
+    state = AgentPlanState()
+
+    result = _execute_plan_tool(
+        "finalize_turn",
+        {"message": "Minh da cap nhat xong draft."},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["success"] is False
+    assert "brave_search" in payload["error"]
+
+
+def test_finalize_turn_requires_draft_when_turn_is_plan_mode() -> None:
+    state = AgentPlanState(has_searched=True, requires_plan=True)
+
+    result = _execute_plan_tool(
+        "finalize_turn",
+        {"message": "Minh da cap nhat xong draft."},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["success"] is False
+    assert "create or update the draft" in payload["error"]

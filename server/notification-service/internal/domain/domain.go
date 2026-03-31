@@ -28,6 +28,19 @@ type Notification struct {
 	CreatedAt      time.Time      `json:"created_at"`
 }
 
+type CreateNotificationInput struct {
+	UserID         string         `json:"user_id"`
+	ActorUserID    string         `json:"actor_user_id,omitempty"`
+	Type           string         `json:"type"`
+	TargetType     string         `json:"target_type,omitempty"`
+	TargetID       string         `json:"target_id,omitempty"`
+	Title          string         `json:"title"`
+	Body           string         `json:"body"`
+	Preview        string         `json:"preview,omitempty"`
+	ActorSnapshot  ActorSnapshot  `json:"actor_snapshot"`
+	TargetSnapshot TargetSnapshot `json:"target_snapshot"`
+}
+
 type NotificationSettings struct {
 	UserID            string    `json:"user_id"`
 	PushEnabled       bool      `json:"push_enabled"`

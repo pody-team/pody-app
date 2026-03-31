@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:pody/features/auth/presentation/auth_error_message.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
 import 'package:pody/screens/auth/verify_reset_otp_screen.dart';
-import 'package:pody/theme/app_colors.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -99,123 +99,105 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBgBlack,
-      body: Stack(
-        children: [
-          AuthBackgroundOrb(
-            top: -80,
-            right: -80,
-            diameter: 260,
-            blurSigma: 70,
-            color: kTikTeal.withValues(alpha: 0.12),
-          ),
-          AuthBackgroundOrb(
-            bottom: -60,
-            left: -60,
-            diameter: 240,
-            blurSigma: 70,
-            color: kTikRed.withValues(alpha: 0.10),
-          ),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const AuthBackButton(),
-                      const SizedBox(height: 36),
-                      Center(
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: kTikRed.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Icon(
-                            Icons.lock_reset,
-                            color: kTikRed,
-                            size: 36,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      const Text(
-                        'Quên mật khẩu?',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Nhập email của bạn, chúng tôi sẽ gửi mã OTP đặt lại mật khẩu.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: kTextSec,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 36),
-                      AuthTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        hintText: 'name@example.com',
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.email],
-                        validator: _validateEmail,
-                        onFieldSubmitted: (_) => _sendResetLink(),
-                      ),
-                      const SizedBox(height: 24),
-                      const AuthInfoCard(
-                        title: 'Điều gì sẽ xảy ra tiếp theo?',
-                        message:
-                            'Sau khi gửi OTP, Pody sẽ chuyển bạn thẳng sang màn nhập mã. Bạn sẽ chỉ đổi được mật khẩu sau khi mã OTP hợp lệ.',
-                        icon: Icons.info_outline,
-                      ),
-                      const SizedBox(height: 24),
-                      AuthPrimaryButton(
-                        label: 'Tiếp tục',
-                        isLoading: _isSubmitting,
-                        onPressed: _sendResetLink,
-                      ),
-                      const SizedBox(height: 28),
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Icon(
-                            Icons.arrow_back,
-                            size: 16,
-                            color: Colors.white.withValues(alpha: 0.5),
-                          ),
-                          label: Text(
-                            'Quay lại đăng nhập',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ),
+    return AuthPageScaffold(
+      topPadding: 20,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AuthBackButton(),
+              const SizedBox(height: 30),
+              Center(
+                child: Container(
+                  width: 82,
+                  height: 82,
+                  decoration: BoxDecoration(
+                    color: kAuthSurface,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kAuthPrimary.withValues(alpha: 0.12),
+                        blurRadius: 24,
+                        offset: const Offset(0, 14),
                       ),
                     ],
                   ),
+                  child: const Icon(
+                    Icons.lock_reset_rounded,
+                    color: kAuthPrimary,
+                    size: 36,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 28),
+              const AuthHeroHeader(
+                title: 'Quên mật khẩu?',
+                subtitle:
+                    'Nhập email của bạn, Pody sẽ gửi mã OTP để đặt lại mật khẩu.',
+                badge: 'Khôi phục',
+                alignCenter: true,
+              ),
+              const SizedBox(height: 28),
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: kAuthCanvasSoft.withValues(alpha: 0.78),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: kAuthNeutral.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    AuthTextField(
+                      controller: _emailController,
+                      label: 'Email',
+                      hintText: 'name@example.com',
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.email],
+                      validator: _validateEmail,
+                      onFieldSubmitted: (_) => _sendResetLink(),
+                    ),
+                    const SizedBox(height: 22),
+                    const AuthInfoCard(
+                      title: 'Điều gì sẽ xảy ra tiếp theo?',
+                      message:
+                          'Sau khi gửi OTP, Pody sẽ chuyển bạn thẳng sang màn nhập mã. Bạn sẽ chỉ đổi được mật khẩu sau khi mã OTP hợp lệ.',
+                      icon: Icons.info_outline,
+                      accentColor: kAuthSecondary,
+                    ),
+                    const SizedBox(height: 22),
+                    AuthPrimaryButton(
+                      label: 'Tiếp tục',
+                      isLoading: _isSubmitting,
+                      onPressed: _sendResetLink,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    size: 16,
+                    color: kAuthMuted,
+                  ),
+                  label: Text(
+                    'Quay lại đăng nhập',
+                    style: GoogleFonts.workSans(color: kAuthMuted),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

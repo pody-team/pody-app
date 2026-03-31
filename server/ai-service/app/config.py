@@ -22,12 +22,22 @@ def _optional_env(*keys: str) -> str | None:
 @dataclass(frozen=True)
 class Settings:
     database_url: str
+    content_database_url: str
     port: int
     google_api_key: str | None
     google_model: str
+    google_tts_model: str
     google_base_url: str | None
+    google_cloud_project: str | None
+    google_cloud_location: str
+    google_cloud_storage_bucket: str | None
+    google_cloud_storage_public_base_url: str | None
+    notification_service_url: str | None
+    notification_internal_api_key: str | None
     brave_search_api_key: str | None
     brave_search_base_url: str
+    transcript_alignment_mode: str
+    transcript_timeout_seconds: int
     provider_mode: str
 
     @property
@@ -46,15 +56,25 @@ def load_settings() -> Settings:
 
     return Settings(
         database_url=_required_env("DATABASE_URL"),
+        content_database_url=_required_env("CONTENT_DATABASE_URL"),
         port=int(os.getenv("PORT", "8085")),
         google_api_key=_optional_env("GOOGLE_API_KEY", "GEMINI_API_KEY"),
         google_model=os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash",
+        google_tts_model=os.getenv("GOOGLE_TTS_MODEL", "gemini-2.5-flash-tts").strip() or "gemini-2.5-flash-tts",
         google_base_url=_optional_env("GOOGLE_GENAI_BASE_URL"),
+        google_cloud_project=_optional_env("GOOGLE_CLOUD_PROJECT"),
+        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1").strip() or "us-central1",
+        google_cloud_storage_bucket=_optional_env("GOOGLE_CLOUD_STORAGE_BUCKET"),
+        google_cloud_storage_public_base_url=_optional_env("GOOGLE_CLOUD_STORAGE_PUBLIC_BASE_URL"),
+        notification_service_url=_optional_env("NOTIFICATION_SERVICE_URL"),
+        notification_internal_api_key=_optional_env("NOTIFICATION_INTERNAL_API_KEY"),
         brave_search_api_key=_optional_env("BRAVE_SEARCH_API_KEY"),
         brave_search_base_url=os.getenv(
             "BRAVE_SEARCH_BASE_URL",
             "https://api.search.brave.com/res/v1/web/search",
         ).strip()
         or "https://api.search.brave.com/res/v1/web/search",
+        transcript_alignment_mode=os.getenv("TRANSCRIPT_ALIGNMENT_MODE", "auto").strip().lower() or "auto",
+        transcript_timeout_seconds=int(os.getenv("TRANSCRIPT_TIMEOUT_SECONDS", "900")),
         provider_mode=provider_mode,
     )

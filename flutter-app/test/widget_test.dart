@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/data/article_service.dart';
 import 'package:pody/features/ai/data/ai_remote_data_source.dart';
 import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/auth/application/auth_controller.dart';
@@ -16,6 +17,8 @@ import 'package:pody/features/content/data/content_repository.dart';
 import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/notifications/data/notification_remote_data_source.dart';
 import 'package:pody/features/notifications/data/notification_repository.dart';
+import 'package:pody/models/news/news_article.dart';
+import 'package:pody/models/news/news_category.dart';
 
 import 'package:pody/main.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
@@ -50,6 +53,7 @@ void main() {
           notificationRepository: NotificationRepository(
             NotificationRemoteDataSource(apiClient),
           ),
+          articleApiService: _FakeArticleApiService(apiClient),
         ),
       );
       await tester.pump();
@@ -74,7 +78,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
   @override
   Future<ContentHomeFeed> getHomeFeed() async {
     return ContentHomeFeed(
-      categories: const ['Tat ca', 'Cong nghe'],
+      categories: const ['Tất cả', 'Công nghệ'],
       shows: [
         ContentHomeShowCard(
           show: ContentShowSummary(
@@ -82,7 +86,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
             slug: 'show-1',
             title: 'Future Minds',
             coverImageUrl: 'https://example.com/show-1.jpg',
-            primaryCategory: 'Cong nghe',
+            primaryCategory: 'Công nghệ',
             hosts: const [
               ContentHost(
                 id: 'ai-1',
@@ -100,7 +104,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
             ContentPreviewEpisode(
               id: 'episode-1',
               showId: 'show-1',
-              title: 'MVC thoi hien dai',
+              title: 'MVC thời hiện đại',
               durationSeconds: 1800,
               publishedAt: DateTime(2026, 3, 17),
             ),
@@ -108,6 +112,32 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
         ),
       ],
     );
+  }
+}
+
+class _FakeArticleApiService extends ArticleApiService {
+  _FakeArticleApiService(super.apiClient);
+
+  @override
+  Future<List<NewsCategory>> fetchCategories() async {
+    return const <NewsCategory>[
+      NewsCategory(
+        id: 'all',
+        slug: 'cong-nghe',
+        name: 'Công nghệ',
+        articleCount: 0,
+      ),
+    ];
+  }
+
+  @override
+  Future<List<NewsArticle>> fetchArticles({
+    String? category,
+    String? query,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    return const <NewsArticle>[];
   }
 }
 

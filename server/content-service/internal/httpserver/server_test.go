@@ -29,6 +29,38 @@ func TestPublicHomeFeedDoesNotRequireAuth(t *testing.T) {
 	}
 }
 
+func TestOpenAPIYAMLEndpoint(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/content/openapi.yaml", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "openapi: 3.0.3") {
+		t.Fatalf("expected OpenAPI document, got %q", recorder.Body.String())
+	}
+}
+
+func TestSwaggerUIDocsEndpoint(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/content/docs", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "SwaggerUIBundle") {
+		t.Fatalf("expected Swagger UI page, got %q", recorder.Body.String())
+	}
+}
+
 func TestShowDetailIncludesHostsWithoutEpisodes(t *testing.T) {
 	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
 
@@ -46,6 +78,29 @@ func TestShowDetailIncludesHostsWithoutEpisodes(t *testing.T) {
 	}
 }
 
+func TestEpisodeDetailIncludesTranscriptStatus(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/content/episodes/ep-future-minds-001", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, "\"transcript\":{\"status\":\"completed\"") {
+		t.Fatalf("expected transcript status in episode detail, got %q", body)
+	}
+	if !strings.Contains(body, "\"speaker\":\"Nova\"") {
+		t.Fatalf("expected transcript speaker in response, got %q", body)
+	}
+	if !strings.Contains(body, "\"words\":[{\"start_seconds\":0,") {
+		t.Fatalf("expected transcript word timings in response, got %q", body)
+	}
+}
+
 func TestMyShowsRequiresAuthHeader(t *testing.T) {
 	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
 
@@ -56,6 +111,108 @@ func TestMyShowsRequiresAuthHeader(t *testing.T) {
 
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
+
+func TestEpisodeBookmarkRequiresAuthHeader(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/bookmarks/ep-future-minds-001", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
+
+func TestEpisodeBookmarksListRequiresAuthHeader(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/bookmarks", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
+
+func TestEpisodeBookmarkLifecycle(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	getStatus := func() string {
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/bookmarks/ep-future-minds-001", nil)
+		request.Header.Set("X-Auth-User-ID", "creator-123")
+		recorder := httptest.NewRecorder()
+		server.Handler.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("expected 200 from GET, got %d with body %q", recorder.Code, recorder.Body.String())
+		}
+		return recorder.Body.String()
+	}
+
+	if body := getStatus(); !strings.Contains(body, "\"is_bookmarked\":false") {
+		t.Fatalf("expected unbookmarked status initially, got %q", body)
+	}
+
+	putRequest := httptest.NewRequest(http.MethodPut, "/api/v1/content/me/bookmarks/ep-future-minds-001", nil)
+	putRequest.Header.Set("X-Auth-User-ID", "creator-123")
+	putRecorder := httptest.NewRecorder()
+	server.Handler.ServeHTTP(putRecorder, putRequest)
+	if putRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from PUT, got %d with body %q", putRecorder.Code, putRecorder.Body.String())
+	}
+	if !strings.Contains(putRecorder.Body.String(), "\"is_bookmarked\":true") {
+		t.Fatalf("expected bookmarked status after PUT, got %q", putRecorder.Body.String())
+	}
+
+	if body := getStatus(); !strings.Contains(body, "\"is_bookmarked\":true") {
+		t.Fatalf("expected bookmarked status after PUT, got %q", body)
+	}
+
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/content/me/bookmarks/ep-future-minds-001", nil)
+	deleteRequest.Header.Set("X-Auth-User-ID", "creator-123")
+	deleteRecorder := httptest.NewRecorder()
+	server.Handler.ServeHTTP(deleteRecorder, deleteRequest)
+	if deleteRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from DELETE, got %d with body %q", deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+	if !strings.Contains(deleteRecorder.Body.String(), "\"is_bookmarked\":false") {
+		t.Fatalf("expected unbookmarked status after DELETE, got %q", deleteRecorder.Body.String())
+	}
+}
+
+func TestEpisodeBookmarksListReturnsSavedEpisodes(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	saveRequest := httptest.NewRequest(http.MethodPut, "/api/v1/content/me/bookmarks/ep-future-minds-001", nil)
+	saveRequest.Header.Set("X-Auth-User-ID", "creator-123")
+	saveRecorder := httptest.NewRecorder()
+	server.Handler.ServeHTTP(saveRecorder, saveRequest)
+	if saveRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from PUT, got %d with body %q", saveRecorder.Code, saveRecorder.Body.String())
+	}
+
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/bookmarks", nil)
+	listRequest.Header.Set("X-Auth-User-ID", "creator-123")
+	listRecorder := httptest.NewRecorder()
+	server.Handler.ServeHTTP(listRecorder, listRequest)
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("expected 200 from GET list, got %d with body %q", listRecorder.Code, listRecorder.Body.String())
+	}
+
+	body := listRecorder.Body.String()
+	if !strings.Contains(body, "\"bookmarks\"") {
+		t.Fatalf("expected bookmarks envelope, got %q", body)
+	}
+	if !strings.Contains(body, "\"episode\":{\"id\":\"ep-future-minds-001\"") {
+		t.Fatalf("expected saved episode in response, got %q", body)
+	}
+	if !strings.Contains(body, "\"show\":{\"id\":\"show-future-minds\"") {
+		t.Fatalf("expected show summary in response, got %q", body)
 	}
 }
 

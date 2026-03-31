@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:pody/features/auth/presentation/auth_error_message.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
 import 'package:pody/screens/auth/reset_password_screen.dart';
-import 'package:pody/theme/app_colors.dart';
 
 class VerifyResetOTPScreen extends StatefulWidget {
   const VerifyResetOTPScreen({
@@ -149,139 +149,109 @@ class _VerifyResetOTPScreenState extends State<VerifyResetOTPScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBgBlack,
-      body: Stack(
-        children: [
-          AuthBackgroundOrb(
-            top: -60,
-            left: -80,
-            diameter: 260,
-            blurSigma: 70,
-            color: kTikTeal.withValues(alpha: 0.12),
-          ),
-          AuthBackgroundOrb(
-            bottom: -80,
-            right: -60,
-            diameter: 280,
-            blurSigma: 80,
-            color: kTikRed.withValues(alpha: 0.10),
-          ),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SingleChildScrollView(
+    return AuthPageScaffold(
+      topPadding: 20,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AuthBackButton(),
+              const SizedBox(height: 30),
+              AuthHeroHeader(
+                title: 'Nhập mã OTP',
+                subtitle:
+                    'Chúng tôi đã gửi mã OTP $_otpLength số tới ${widget.initialEmail}. Xác thực xong, Pody sẽ chuyển bạn sang màn đặt mật khẩu mới.',
+                badge: 'Bước 1/2',
+              ),
+              const SizedBox(height: 18),
+              Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
+                  horizontal: 14,
+                  vertical: 12,
                 ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const AuthBackButton(),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Nhập mã OTP',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -1,
+                decoration: BoxDecoration(
+                  color: kAuthSurface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: kAuthNeutral.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.looks_one_outlined,
+                      color: kAuthTertiary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Xác minh mã OTP trước khi đặt mật khẩu mới.',
+                        style: GoogleFonts.workSans(
+                          color: kAuthNeutral,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Chúng tôi đã gửi mã OTP $_otpLength số tới ${widget.initialEmail}. Xác thực xong, Pody sẽ chuyển bạn sang màn đặt mật khẩu mới.',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: kTextSec,
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08),
-                          ),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.looks_one_outlined,
-                              color: kTikTeal,
-                              size: 18,
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Bước 1/2: Xác minh mã OTP trước khi đặt mật khẩu mới.',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      AuthInfoCard(
-                        title: 'Email nhận mã',
-                        message:
-                            '${widget.initialEmail}${_otpExpiresAt == null ? '' : '\nMã OTP hiện tại sẽ hết hạn lúc ${_formatExpiry(_otpExpiresAt!)}.'}',
-                        icon: Icons.mark_email_unread_outlined,
-                      ),
-                      const SizedBox(height: 16),
-                      AuthTextField(
-                        controller: _otpController,
-                        label: 'Mã OTP',
-                        hintText: 'Nhập mã $_otpLength số',
-                        prefixIcon: Icons.pin_outlined,
-                        textInputAction: TextInputAction.done,
-                        keyboardType: TextInputType.number,
-                        validator: _validateOTP,
-                        onFieldSubmitted: (_) => _verifyOTP(),
-                      ),
-                      const SizedBox(height: 24),
-                      AuthPrimaryButton(
-                        label: 'Xác minh mã OTP',
-                        backgroundColor: kTikTeal,
-                        foregroundColor: Colors.black,
-                        isLoading: _isVerifying,
-                        onPressed: _verifyOTP,
-                      ),
-                      const SizedBox(height: 12),
-                      Center(
-                        child: TextButton(
-                          onPressed: _isVerifying || _isResending
-                              ? null
-                              : _resendOTP,
-                          child: Text(
-                            _isResending
-                                ? 'Đang gửi lại mã...'
-                                : 'Gửi lại mã OTP',
-                            style: const TextStyle(color: kTikTeal),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              AuthInfoCard(
+                title: 'Email nhận mã',
+                message:
+                    '${widget.initialEmail}${_otpExpiresAt == null ? '' : '\nMã OTP hiện tại sẽ hết hạn lúc ${_formatExpiry(_otpExpiresAt!)}.'}',
+                icon: Icons.mark_email_unread_outlined,
+                accentColor: kAuthSecondary,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: kAuthCanvasSoft.withValues(alpha: 0.78),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: kAuthNeutral.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    AuthTextField(
+                      controller: _otpController,
+                      label: 'Mã OTP',
+                      hintText: 'Nhập mã $_otpLength số',
+                      prefixIcon: Icons.pin_outlined,
+                      textInputAction: TextInputAction.done,
+                      keyboardType: TextInputType.number,
+                      validator: _validateOTP,
+                      onFieldSubmitted: (_) => _verifyOTP(),
+                    ),
+                    const SizedBox(height: 22),
+                    AuthPrimaryButton(
+                      label: 'Xác minh mã OTP',
+                      isLoading: _isVerifying,
+                      onPressed: _verifyOTP,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: TextButton(
+                  onPressed: _isVerifying || _isResending ? null : _resendOTP,
+                  child: Text(
+                    _isResending ? 'Đang gửi lại mã...' : 'Gửi lại mã OTP',
+                    style: GoogleFonts.workSans(color: kAuthPrimary),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

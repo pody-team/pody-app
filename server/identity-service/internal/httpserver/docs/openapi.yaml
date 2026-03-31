@@ -5,6 +5,7 @@ info:
   description: Authentication and account lifecycle APIs for Pody.
 tags:
   - name: Health
+  - name: Docs
   - name: Auth
   - name: Account
 servers:
@@ -22,6 +23,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /api/v1/public/identity/openapi.yaml:
+    get:
+      tags: [Docs]
+      operationId: getIdentityOpenAPI
+      summary: Download identity OpenAPI spec
+      responses:
+        '200':
+          description: YAML spec
+  /api/v1/public/identity/docs:
+    get:
+      tags: [Docs]
+      operationId: getIdentitySwaggerUI
+      summary: Swagger UI for identity service
+      responses:
+        '200':
+          description: HTML page
   /api/v1/public/identity/sign-up:
     post:
       tags: [Auth]
@@ -255,6 +272,30 @@ paths:
                 $ref: '#/components/schemas/UserEnvelope'
         '401':
           $ref: '#/components/responses/ErrorResponse'
+  /api/v1/identity/change-password:
+    post:
+      tags: [Account]
+      operationId: changePassword
+      summary: Change the current user's password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -348,6 +389,15 @@ components:
         otp:
           type: string
       required: [email, otp]
+    ChangePasswordRequest:
+      type: object
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+      required: [current_password, new_password]
     VerificationChallenge:
       type: object
       properties:

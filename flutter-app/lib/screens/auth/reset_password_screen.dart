@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:pody/features/auth/domain/auth_policy.dart';
 import 'package:pody/features/auth/presentation/auth_error_message.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/auth/auth_components.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
-import 'package:pody/theme/app_colors.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({
@@ -118,187 +118,161 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBgBlack,
-      body: Stack(
-        children: [
-          AuthBackgroundOrb(
-            top: -60,
-            left: -80,
-            diameter: 260,
-            blurSigma: 70,
-            color: kTikTeal.withValues(alpha: 0.12),
-          ),
-          AuthBackgroundOrb(
-            bottom: -80,
-            right: -60,
-            diameter: 280,
-            blurSigma: 80,
-            color: kTikRed.withValues(alpha: 0.10),
-          ),
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+    return AuthPageScaffold(
+      topPadding: 20,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AuthBackButton(),
+              const SizedBox(height: 30),
+              AuthHeroHeader(
+                title: 'Đặt mật khẩu mới',
+                subtitle: _isCompleted
+                    ? 'Mật khẩu đã được cập nhật. Bạn có thể đăng nhập lại ngay bây giờ.'
+                    : 'Mã OTP cho ${widget.email} đã được xác thực thành công. Bây giờ bạn chỉ cần đặt mật khẩu mới để hoàn tất.',
+                badge: 'Bước 2/2',
+              ),
+              const SizedBox(height: 22),
+              if (!_isCompleted) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kAuthSurface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: kAuthNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Row(
                     children: [
-                      const AuthBackButton(),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Đặt mật khẩu mới',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -1,
-                        ),
+                      const Icon(
+                        Icons.looks_two_outlined,
+                        color: kAuthTertiary,
+                        size: 18,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _isCompleted
-                            ? 'Mật khẩu đã được cập nhật. Bạn có thể đăng nhập lại ngay bây giờ.'
-                            : 'Mã OTP cho ${widget.email} đã được xác thực thành công. Bây giờ bạn chỉ cần đặt mật khẩu mới để hoàn tất.',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: kTextSec,
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      if (!_isCompleted) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
-                            ),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(
-                                Icons.looks_two_outlined,
-                                color: kTikTeal,
-                                size: 18,
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Bước 2/2: Đặt mật khẩu mới cho tài khoản của bạn.',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        AuthInfoCard(
-                          title: 'Đang đổi mật khẩu cho',
-                          message: widget.email,
-                          icon: Icons.verified_user_outlined,
-                        ),
-                        const SizedBox(height: 16),
-                        AuthTextField(
-                          controller: _passwordController,
-                          label: 'Mật khẩu mới',
-                          hintText: AuthPolicy.passwordHint,
-                          prefixIcon: Icons.lock_outline,
-                          textInputAction: TextInputAction.next,
-                          obscureText: _isPasswordObscured,
-                          validator: _validatePassword,
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _isPasswordObscured = !_isPasswordObscured;
-                              });
-                            },
-                            icon: Icon(
-                              _isPasswordObscured
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        AuthTextField(
-                          controller: _confirmPasswordController,
-                          label: 'Nhập lại mật khẩu mới',
-                          hintText: 'Nhập lại để xác nhận',
-                          prefixIcon: Icons.lock_reset_outlined,
-                          textInputAction: TextInputAction.done,
-                          obscureText: _isConfirmPasswordObscured,
-                          validator: _validateConfirmPassword,
-                          onFieldSubmitted: (_) => _submit(),
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(() {
-                                _isConfirmPasswordObscured =
-                                    !_isConfirmPasswordObscured;
-                              });
-                            },
-                            icon: Icon(
-                              _isConfirmPasswordObscured
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        AuthPrimaryButton(
-                          label: 'Cập nhật mật khẩu',
-                          backgroundColor: kTikTeal,
-                          foregroundColor: Colors.black,
-                          isLoading: _isSubmitting,
-                          onPressed: _submit,
-                        ),
-                      ] else ...[
-                        const AuthInfoCard(
-                          title: 'Đặt lại mật khẩu thành công',
-                          message:
-                              'Mật khẩu mới đã được lưu. Bạn có thể quay lại màn đăng nhập và dùng mật khẩu mới ngay bây giờ.',
-                          icon: Icons.check_circle_outline,
-                        ),
-                        const SizedBox(height: 24),
-                        AuthPrimaryButton(
-                          label: 'Đăng nhập ngay',
-                          onPressed: () {
-                            _returnToSignIn();
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      Center(
-                        child: TextButton(
-                          onPressed: _returnToSignIn,
-                          child: const Text(
-                            'Quay lại đăng nhập',
-                            style: TextStyle(color: kTextSec),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Đặt mật khẩu mới cho tài khoản của bạn.',
+                          style: GoogleFonts.workSans(
+                            color: kAuthNeutral,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                AuthInfoCard(
+                  title: 'Đang đổi mật khẩu cho',
+                  message: widget.email,
+                  icon: Icons.verified_user_outlined,
+                  accentColor: kAuthSecondary,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    color: kAuthCanvasSoft.withValues(alpha: 0.78),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: kAuthNeutral.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      AuthTextField(
+                        controller: _passwordController,
+                        label: 'Mật khẩu mới',
+                        hintText: AuthPolicy.passwordHint,
+                        prefixIcon: Icons.lock_outline,
+                        textInputAction: TextInputAction.next,
+                        obscureText: _isPasswordObscured,
+                        validator: _validatePassword,
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _isPasswordObscured = !_isPasswordObscured;
+                            });
+                          },
+                          icon: Icon(
+                            _isPasswordObscured
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: kAuthMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      AuthTextField(
+                        controller: _confirmPasswordController,
+                        label: 'Nhập lại mật khẩu mới',
+                        hintText: 'Nhập lại để xác nhận',
+                        prefixIcon: Icons.lock_reset_outlined,
+                        textInputAction: TextInputAction.done,
+                        obscureText: _isConfirmPasswordObscured,
+                        validator: _validateConfirmPassword,
+                        onFieldSubmitted: (_) => _submit(),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _isConfirmPasswordObscured =
+                                  !_isConfirmPasswordObscured;
+                            });
+                          },
+                          icon: Icon(
+                            _isConfirmPasswordObscured
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: kAuthMuted,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      AuthPrimaryButton(
+                        label: 'Cập nhật mật khẩu',
+                        isLoading: _isSubmitting,
+                        onPressed: _submit,
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                const AuthInfoCard(
+                  title: 'Đặt lại mật khẩu thành công',
+                  message:
+                      'Mật khẩu mới đã được lưu. Bạn có thể quay lại màn đăng nhập và dùng mật khẩu mới ngay bây giờ.',
+                  icon: Icons.check_circle_outline,
+                  accentColor: kAuthTertiary,
+                ),
+                const SizedBox(height: 24),
+                AuthPrimaryButton(
+                  label: 'Đăng nhập ngay',
+                  onPressed: _returnToSignIn,
+                ),
+              ],
+              const SizedBox(height: 24),
+              Center(
+                child: TextButton(
+                  onPressed: _returnToSignIn,
+                  child: Text(
+                    'Quay lại đăng nhập',
+                    style: GoogleFonts.workSans(color: kAuthMuted),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

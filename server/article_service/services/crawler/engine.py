@@ -134,7 +134,7 @@ class CrawlerEngine:
         # We use the strict semaphore to limit heavy IO and avoid getting blocked
         async with self.crawl_semaphore:
             # Extract metadata from feed entry
-            title = (entry.get('title') or 'Untitled').strip()
+            title = self.metadata_parser.normalize_text(entry.get('title')) or 'Untitled'
             author = self.metadata_parser.extract_author(entry)
             published_at = self.metadata_parser.parse_date(entry)
             summary = self.metadata_parser.extract_summary(entry)

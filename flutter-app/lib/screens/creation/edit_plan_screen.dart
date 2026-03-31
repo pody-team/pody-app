@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/features/ai/domain/ai_models.dart';
-import 'package:pody/features/content/domain/content_models.dart';
-import 'package:pody/screens/user/create_show_screen.dart';
+import 'package:pody/features/ai/presentation/ai_scope.dart';
+
+const Color _planCanvas = Color(0xFFFFFBF6);
+const Color _planSurface = Color(0xFFFFFEFC);
+const Color _planSurfaceStrong = Color(0xFFF2E6D9);
+const Color _planPrimary = Color(0xFFBF5700);
+const Color _planNeutral = Color(0xFF3E2723);
+const Color _planMuted = Color(0xFF7E665F);
 
 class EditPlanScreen extends StatefulWidget {
   const EditPlanScreen({required this.plan, super.key});
@@ -19,6 +26,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
   late bool _autoGenerateImages;
   late bool _autoGenerateIntroMusic;
   late final List<_EditableHost> _hosts;
+  bool _isCreatingShow = false;
 
   static const List<Map<String, String>> _availableVoices = [
     {
@@ -76,8 +84,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                   name: host.displayName,
                   voiceId: _normalizeVoiceId(host.voiceProfileId),
                   role: host.role,
-                  bio:
-                      host.personaSummary?.trim().isNotEmpty == true
+                  bio: host.personaSummary?.trim().isNotEmpty == true
                       ? host.personaSummary!
                       : (host.bio ?? ''),
                 ),
@@ -130,8 +137,8 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                 bottom: MediaQuery.of(ctx).viewInsets.bottom,
               ),
               decoration: const BoxDecoration(
-                color: Color(0xFF252525),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                color: _planSurface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -144,74 +151,40 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.white24,
+                          color: _planMuted.withValues(alpha: 0.30),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+                    Text(
                       'Chỉnh sửa giọng nói',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                      style: GoogleFonts.newsreader(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: _planNeutral,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Tên host',
-                      style: TextStyle(color: Colors.white54, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
+                    const SizedBox(height: 18),
+                    _PlanInput(
                       controller: nameController,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.07),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.person,
-                          color: Colors.white38,
-                          size: 20,
-                        ),
-                      ),
+                      label: 'Tên host',
+                      icon: Icons.person_outline,
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Persona summary',
-                      style: TextStyle(color: Colors.white54, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
+                    const SizedBox(height: 14),
+                    _PlanInput(
                       controller: bioController,
+                      label: 'Persona summary',
                       maxLines: 3,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.07),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
+                    const SizedBox(height: 18),
+                    Text(
                       'Chọn giọng nói AI',
-                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                      style: GoogleFonts.workSans(
+                        color: _planNeutral,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     ...List.generate(_availableVoices.length, (i) {
@@ -223,22 +196,18 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(bottom: 8),
+                          margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? const Color(
-                                    0xFFFE2C55,
-                                  ).withValues(alpha: 0.12)
-                                : Colors.white.withValues(alpha: 0.04),
-                            borderRadius: BorderRadius.circular(14),
+                                ? _planPrimary.withValues(alpha: 0.10)
+                                : _planSurfaceStrong,
+                            borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: isSelected
-                                  ? const Color(
-                                      0xFFFE2C55,
-                                    ).withValues(alpha: 0.4)
-                                  : Colors.white.withValues(alpha: 0.06),
-                              width: isSelected ? 1.5 : 1,
+                                  ? _planPrimary
+                                  : _planNeutral.withValues(alpha: 0.08),
+                              width: isSelected ? 1.4 : 1,
                             ),
                           ),
                           child: Row(
@@ -248,17 +217,13 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                                 height: 40,
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(
-                                          0xFFFE2C55,
-                                        ).withValues(alpha: 0.2)
-                                      : Colors.white.withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(10),
+                                      ? _planPrimary.withValues(alpha: 0.14)
+                                      : _planSurface,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
                                   Icons.graphic_eq,
-                                  color: isSelected
-                                      ? const Color(0xFFFE2C55)
-                                      : Colors.white38,
+                                  color: isSelected ? _planPrimary : _planMuted,
                                   size: 20,
                                 ),
                               ),
@@ -269,37 +234,30 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                                   children: [
                                     Text(
                                       voice['name']!,
-                                      style: TextStyle(
-                                        color: isSelected
-                                            ? Colors.white
-                                            : Colors.white70,
-                                        fontWeight: FontWeight.bold,
+                                      style: GoogleFonts.workSans(
+                                        color: _planNeutral,
+                                        fontWeight: FontWeight.w700,
                                         fontSize: 14,
                                       ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       voice['desc']!,
-                                      style: const TextStyle(
-                                        color: Colors.white38,
+                                      style: GoogleFonts.workSans(
+                                        color: _planMuted,
                                         fontSize: 12,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              if (isSelected)
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: Color(0xFFFE2C55),
-                                  size: 22,
-                                )
-                              else
-                                Icon(
-                                  Icons.play_circle_outline,
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  size: 22,
-                                ),
+                              Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.play_circle_outline,
+                                color: isSelected ? _planPrimary : _planMuted,
+                                size: 22,
+                              ),
                             ],
                           ),
                         ),
@@ -308,8 +266,8 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
+                      height: 50,
+                      child: FilledButton(
                         onPressed: () {
                           setState(() {
                             _hosts[hostIndex] = _EditableHost(
@@ -323,20 +281,18 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                           });
                           Navigator.pop(ctx);
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFE2C55),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _planPrimary,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          textStyle: GoogleFonts.workSans(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: const Text(
-                          'Lưu thay đổi',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: const Text('Lưu thay đổi'),
                       ),
                     ),
                   ],
@@ -353,42 +309,44 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     final title = _seriesTitleController.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Series title khong duoc de trong.')),
+        const SnackBar(content: Text('Series title không được để trống.')),
       );
       return;
     }
 
-    final result = await Navigator.of(context).push<dynamic>(
-      MaterialPageRoute(
-        builder: (_) => CreateShowScreen(initialSeed: _buildSeed()),
-      ),
-    );
-
-    if (!mounted || result == null) {
+    if (_isCreatingShow) {
       return;
     }
 
-    Navigator.of(context).pop(result);
-  }
-
-  ContentCreateShowSeed _buildSeed() {
-    return ContentCreateShowSeed(
-      title: _seriesTitleController.text.trim(),
-      description: _seriesDescriptionController.text.trim(),
-      primaryCategory: widget.plan.showDraft.primaryCategory,
-      coverImageUrl: widget.plan.showDraft.coverImageUrl,
-      contentType: widget.plan.showDraft.contentType,
-      hosts: _hosts
-          .map(
-            (host) => ContentCreateHostInput(
-              displayName: host.name,
-              role: host.role,
-              voiceProfileId: host.voiceId,
-              bio: host.bio.trim().isEmpty ? null : host.bio.trim(),
-            ),
-          )
-          .toList(),
-    );
+    setState(() => _isCreatingShow = true);
+    try {
+      final job = await AIScope.of(context).createShowFromPlan(widget.plan.id);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Đang tạo "${widget.plan.seriesTitle}" bằng worker (${job.status}). App sẽ gửi thông báo khi xong.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Không thể bắt đầu tạo show lúc này. Thử lại sau ít phút nữa.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingShow = false);
+      }
+    }
   }
 
   @override
@@ -398,32 +356,32 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
         : widget.plan.showDraft.tags;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: _planCanvas,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1E1E),
+        backgroundColor: _planCanvas,
+        surfaceTintColor: _planCanvas,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: _planNeutral),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Edit Production Plan',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+        title: Text(
+          'Chỉnh sửa plan',
+          style: GoogleFonts.newsreader(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: _planNeutral,
           ),
         ),
-        centerTitle: true,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+            child: Text(
+              'Lưu',
+              style: GoogleFonts.workSans(
+                color: _planPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
               ),
             ),
           ),
@@ -432,158 +390,120 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
       body: SingleChildScrollView(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom + 32,
-          left: 16,
-          right: 16,
-          top: 8,
+          left: 20,
+          right: 20,
+          top: 10,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Series Title',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _seriesTitleController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.05),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Series Description',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _seriesDescriptionController,
-              maxLines: 3,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.05),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            if (tags.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: tags
-                    .take(5)
-                    .map(
-                      (tag) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          tag,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-            const SizedBox(height: 16),
-            const Text(
-              'Hosts & Voices',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: List.generate(_hosts.length, (i) {
-                final host = _hosts[i];
-                final voiceName = _voiceLabel(host.voiceId);
-                return SizedBox(
-                  width: (MediaQuery.of(context).size.width - 44) / 2,
-                  child: _buildHostVoiceSelector(
-                    name: host.name,
-                    voiceType: voiceName,
-                    onTap: () => _openHostEditor(i),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Tone & Style',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _toneStyleController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.05),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'AI Generation',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
             Container(
+              padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFF4E6), Color(0xFFF4E7D2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: _planPrimary.withValues(alpha: 0.10)),
               ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tinh chỉnh production plan',
+                    style: GoogleFonts.newsreader(
+                      color: _planNeutral,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Điều chỉnh title, host, tone và danh sách tập trước khi queue worker tạo show.',
+                    style: GoogleFonts.workSans(
+                      color: _planMuted,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _PlanCard(
+              title: 'Series',
+              child: Column(
+                children: [
+                  _PlanInput(
+                    controller: _seriesTitleController,
+                    label: 'Series title',
+                  ),
+                  const SizedBox(height: 14),
+                  _PlanInput(
+                    controller: _seriesDescriptionController,
+                    label: 'Series description',
+                    maxLines: 3,
+                  ),
+                  if (tags.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: tags
+                          .take(5)
+                          .map((tag) => _PlanTag(label: tag))
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _PlanCard(
+              title: 'Hosts & voices',
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: List.generate(_hosts.length, (i) {
+                  final host = _hosts[i];
+                  final voiceName = _voiceLabel(host.voiceId);
+                  return SizedBox(
+                    width: (MediaQuery.of(context).size.width - 52) / 2,
+                    child: _buildHostVoiceSelector(
+                      name: host.name,
+                      voiceType: voiceName,
+                      onTap: () => _openHostEditor(i),
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 18),
+            _PlanCard(
+              title: 'Tone & style',
+              child: _PlanInput(
+                controller: _toneStyleController,
+                label: 'Tone description',
+              ),
+            ),
+            const SizedBox(height: 18),
+            _PlanCard(
+              title: 'AI generation',
               child: Column(
                 children: [
                   _buildToggleRow(
                     icon: Icons.image_outlined,
-                    title: 'Auto-generate Cover Images',
+                    title: 'Tự tạo cover image',
                     value: _autoGenerateImages,
                     onChanged: (val) =>
                         setState(() => _autoGenerateImages = val),
                   ),
-                  Container(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
+                  const SizedBox(height: 8),
                   _buildToggleRow(
                     icon: Icons.music_note_outlined,
-                    title: 'Auto-generate Intro Music',
+                    title: 'Tự tạo intro music',
                     value: _autoGenerateIntroMusic,
                     onChanged: (val) =>
                         setState(() => _autoGenerateIntroMusic = val),
@@ -591,47 +511,45 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 18),
+            _PlanCard(
+              title: 'Episodes',
+              child: Column(
+                children: widget.plan.episodes
+                    .map(
+                      (ep) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildEpisodeEditorCard(
+                          num: '${ep.episodeNumber}',
+                          title: ep.title,
+                          description: ep.description,
+                          duration: '${ep.estimatedDurationSeconds ~/ 60}',
+                          notes: ep.notes ?? '',
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
             const SizedBox(height: 24),
-            const Text(
-              'Episodes',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...widget.plan.episodes.map(
-              (ep) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildEpisodeEditorCard(
-                  num: '${ep.episodeNumber}',
-                  title: ep.title,
-                  description: ep.description,
-                  duration: '${ep.estimatedDurationSeconds ~/ 60}',
-                  notes: ep.notes ?? '',
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _createShowFromDraft,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFE2C55),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+              child: FilledButton(
+                onPressed: _isCreatingShow ? null : _createShowFromDraft,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _planPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  textStyle: GoogleFonts.workSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                child: const Text(
-                  'Tạo show từ bản draft này',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+                child: Text(
+                  _isCreatingShow ? 'Đang tạo...' : 'Tạo show từ bản draft này',
                 ),
               ),
             ),
@@ -651,9 +569,8 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: _planSurfaceStrong,
+        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,33 +578,31 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
           Row(
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
+                  color: _planSurface,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: Text(
                   num,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.workSans(
+                    color: _planPrimary,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
-                'Episode Details',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+              Text(
+                'Episode details',
+                style: GoogleFonts.workSans(
+                  color: _planNeutral,
+                  fontWeight: FontWeight.w700,
                   fontSize: 14,
                 ),
               ),
-              const Spacer(),
-              const Icon(Icons.drag_indicator, color: Colors.white24, size: 20),
             ],
           ),
           const SizedBox(height: 12),
@@ -696,7 +611,6 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
               Expanded(flex: 2, child: _buildMiniTextField('Title', title)),
               const SizedBox(width: 8),
               Expanded(
-                flex: 1,
                 child: _buildMiniTextField(
                   'Duration',
                   duration,
@@ -727,27 +641,31 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Colors.white54, fontSize: 11),
+          style: GoogleFonts.workSans(
+            color: _planMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const SizedBox(height: 4),
         TextField(
           controller: TextEditingController(text: text),
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: const TextStyle(color: Colors.white, fontSize: 13),
+          style: GoogleFonts.workSans(color: _planNeutral, fontSize: 13),
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
+            fillColor: _planSurface,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
-              vertical: 8,
+              vertical: 10,
             ),
             suffixText: suffixText,
-            suffixStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+            suffixStyle: GoogleFonts.workSans(color: _planMuted, fontSize: 13),
           ),
         ),
       ],
@@ -759,47 +677,53 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     required String voiceType,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          color: _planSurfaceStrong,
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.person, color: Colors.white, size: 16),
+                const Icon(Icons.person_outline, color: _planPrimary, size: 16),
                 const SizedBox(width: 6),
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                Expanded(
+                  child: Text(
+                    name,
+                    style: GoogleFonts.workSans(
+                      color: _planNeutral,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.graphic_eq, color: Colors.white54, size: 14),
+                const Icon(Icons.graphic_eq, color: _planMuted, size: 14),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     voiceType,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    style: GoogleFonts.workSans(
+                      color: _planMuted,
+                      fontSize: 12,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const Icon(
                   Icons.keyboard_arrow_down,
-                  color: Colors.white54,
+                  color: _planMuted,
                   size: 16,
                 ),
               ],
@@ -816,27 +740,134 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: _planSurfaceStrong,
+        borderRadius: BorderRadius.circular(18),
+      ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white54, size: 18),
+          Icon(icon, color: _planPrimary, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: GoogleFonts.workSans(
+                color: _planNeutral,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Switch(
             value: value,
             onChanged: onChanged,
             activeThumbColor: Colors.white,
-            activeTrackColor: Colors.white38,
-            inactiveThumbColor: Colors.white38,
-            inactiveTrackColor: Colors.white12,
+            activeTrackColor: _planPrimary,
+            inactiveThumbColor: Colors.white,
+            inactiveTrackColor: _planMuted.withValues(alpha: 0.28),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _planSurface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _planNeutral.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.newsreader(
+              color: _planNeutral,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanInput extends StatelessWidget {
+  const _PlanInput({
+    required this.controller,
+    required this.label,
+    this.icon,
+    this.maxLines = 1,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData? icon;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: GoogleFonts.workSans(color: _planNeutral),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.workSans(color: _planMuted),
+        prefixIcon: icon == null
+            ? null
+            : Icon(icon, color: _planPrimary, size: 18),
+        filled: true,
+        fillColor: _planSurfaceStrong,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanTag extends StatelessWidget {
+  const _PlanTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _planSurfaceStrong,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.workSans(
+          color: _planPrimary,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

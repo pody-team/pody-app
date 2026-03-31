@@ -268,55 +268,192 @@ class AIChatThread {
   }
 }
 
-enum AIChatStreamEventType { status, assistantDelta, thread, done, error }
+class AIChatThreadSummary {
+  const AIChatThreadSummary({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastMessagePreview,
+    this.hasCurrentPlan = false,
+  });
+
+  final String id;
+  final String title;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? lastMessagePreview;
+  final bool hasCurrentPlan;
+
+  factory AIChatThreadSummary.fromJson(Map<String, dynamic> json) {
+    return AIChatThreadSummary(
+      id: _readString(json['id']),
+      title: _readString(json['title']),
+      status: _readString(json['status']),
+      createdAt: _readDateTime(json['created_at']),
+      updatedAt: _readDateTime(json['updated_at']),
+      lastMessagePreview: _readNullableString(json['last_message_preview']),
+      hasCurrentPlan: json['has_current_plan'] == true,
+    );
+  }
+}
+
+class AIProductionPlanSummary {
+  const AIProductionPlanSummary({
+    required this.id,
+    required this.status,
+    required this.seriesTitle,
+    required this.contentType,
+    required this.episodeCount,
+    required this.createdAt,
+    required this.updatedAt,
+    this.threadId,
+  });
+
+  final String id;
+  final String status;
+  final String seriesTitle;
+  final String contentType;
+  final int episodeCount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? threadId;
+
+  factory AIProductionPlanSummary.fromJson(Map<String, dynamic> json) {
+    return AIProductionPlanSummary(
+      id: _readString(json['id']),
+      status: _readString(json['status'], fallback: 'draft'),
+      seriesTitle: _readString(json['series_title']),
+      contentType: _readString(json['content_type'], fallback: 'podcast'),
+      episodeCount: _readInt(json['episode_count']),
+      createdAt: _readDateTime(json['created_at']),
+      updatedAt: _readDateTime(json['updated_at']),
+      threadId: _readNullableString(json['thread_id']),
+    );
+  }
+}
+
+class AIGenerationJob {
+  const AIGenerationJob({
+    required this.id,
+    required this.planId,
+    required this.jobType,
+    required this.status,
+    required this.createdAt,
+    this.episodeDraftId,
+    this.provider,
+    this.errorMessage,
+    this.startedAt,
+    this.finishedAt,
+  });
+
+  final String id;
+  final String planId;
+  final String? episodeDraftId;
+  final String jobType;
+  final String status;
+  final String? provider;
+  final String? errorMessage;
+  final DateTime? startedAt;
+  final DateTime? finishedAt;
+  final DateTime createdAt;
+
+  bool get isQueued => status == 'queued' || status == 'running';
+
+  factory AIGenerationJob.fromJson(Map<String, dynamic> json) {
+    return AIGenerationJob(
+      id: _readString(json['id']),
+      planId: _readString(json['plan_id']),
+      episodeDraftId: _readNullableString(json['episode_draft_id']),
+      jobType: _readString(json['job_type']),
+      status: _readString(json['status']),
+      provider: _readNullableString(json['provider']),
+      errorMessage: _readNullableString(json['error_message']),
+      startedAt: _readNullableDateTime(json['started_at']),
+      finishedAt: _readNullableDateTime(json['finished_at']),
+      createdAt: _readDateTime(json['created_at']),
+    );
+  }
+}
+
+enum AIChatStreamEventType {
+  status,
+  assistantDelta,
+  planUpdated,
+  thread,
+  done,
+  error,
+}
 
 class AIChatStreamEvent {
   const AIChatStreamEvent._({
     required this.type,
     this.message,
     this.deltaText,
+    this.plan,
     this.thread,
     this.threadId,
+    this.debugLabel,
   });
 
   final AIChatStreamEventType type;
   final String? message;
   final String? deltaText;
+  final AIProductionPlan? plan;
   final AIChatThread? thread;
   final String? threadId;
+  final String? debugLabel;
 
-  factory AIChatStreamEvent.status(String message) {
+  factory AIChatStreamEvent.status(String message, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.status,
       message: message,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.assistantDelta(String text) {
+  factory AIChatStreamEvent.assistantDelta(String text, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.assistantDelta,
       deltaText: text,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.thread(AIChatThread thread) {
+  factory AIChatStreamEvent.thread(AIChatThread thread, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.thread,
       thread: thread,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.done({String? threadId}) {
+  factory AIChatStreamEvent.planUpdated(
+    AIProductionPlan plan, {
+    String? debugLabel,
+  }) {
+    return AIChatStreamEvent._(
+      type: AIChatStreamEventType.planUpdated,
+      plan: plan,
+      debugLabel: debugLabel,
+    );
+  }
+
+  factory AIChatStreamEvent.done({String? threadId, String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.done,
       threadId: threadId,
+      debugLabel: debugLabel,
     );
   }
 
-  factory AIChatStreamEvent.error(String message) {
+  factory AIChatStreamEvent.error(String message, {String? debugLabel}) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.error,
       message: message,
+      debugLabel: debugLabel,
     );
   }
 }
@@ -370,6 +507,19 @@ DateTime _readDateTime(Object? value) {
   }
 
   return DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+DateTime? _readNullableDateTime(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  if (value is String && value.trim().isNotEmpty) {
+    return DateTime.tryParse(value)?.toLocal();
+  }
+  return null;
 }
 
 String _formatDuration(int totalSeconds) {

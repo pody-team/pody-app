@@ -35,6 +35,19 @@ type devSeedNotificationsRequest struct {
 	UserID string `json:"user_id"`
 }
 
+type createInboxNotificationRequest struct {
+	UserID         string               `json:"user_id"`
+	ActorUserID    string               `json:"actor_user_id"`
+	Type           string               `json:"type"`
+	TargetType     string               `json:"target_type"`
+	TargetID       string               `json:"target_id"`
+	Title          string               `json:"title"`
+	Body           string               `json:"body"`
+	Preview        string               `json:"preview"`
+	ActorSnapshot  domain.ActorSnapshot `json:"actor_snapshot"`
+	TargetSnapshot domain.TargetSnapshot `json:"target_snapshot"`
+}
+
 func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificationStore store.NotificationStore) *http.Server {
 	s := &server{
 		cfg:               cfg,
@@ -71,6 +84,7 @@ func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificati
 	router.Route("/internal", func(r chi.Router) {
 		r.Use(s.withInternalAPIKey)
 		r.Post("/notifications/email/verification", s.handleVerificationEmail)
+		r.Post("/notifications/inbox", s.handleCreateInboxNotification)
 		r.Post("/notifications/dev/seed-inbox", s.handleSeedInbox)
 	})
 
@@ -126,6 +140,40 @@ func (s *server) handleSeedInbox(w http.ResponseWriter, r *http.Request) {
 		"status":         "seeded",
 		"inserted_count": insertedCount,
 		"user_id":        userID,
+	})
+}
+
+func (s *server) handleCreateInboxNotification(w http.ResponseWriter, r *http.Request) {
+	var req createInboxNotificationRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	notification, err := s.notificationStore.CreateNotification(r.Context(), domain.CreateNotificationInput{
+		UserID:         req.UserID,
+		ActorUserID:    req.ActorUserID,
+		Type:           req.Type,
+		TargetType:     req.TargetType,
+		TargetID:       req.TargetID,
+		Title:          req.Title,
+		Body:           req.Body,
+		Preview:        req.Preview,
+		ActorSnapshot:  req.ActorSnapshot,
+		TargetSnapshot: req.TargetSnapshot,
+	})
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "required") {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"status":       "queued",
+		"notification": notification,
 	})
 }
 

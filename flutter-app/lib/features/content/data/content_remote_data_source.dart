@@ -41,6 +41,48 @@ class ContentRemoteDataSource {
     );
   }
 
+  Future<ContentEpisodeBookmarkStatus> getEpisodeBookmarkStatus(
+    String episodeId,
+  ) async {
+    final response = await _apiClient.get(
+      '/api/v1/content/me/bookmarks/$episodeId',
+      requiresAuth: true,
+    );
+    return ContentEpisodeBookmarkStatus.fromJson(response);
+  }
+
+  Future<List<ContentBookmarkedEpisode>> listBookmarkedEpisodes() async {
+    final response = await _apiClient.get(
+      '/api/v1/content/me/bookmarks',
+      requiresAuth: true,
+    );
+    final rawBookmarks = response['bookmarks'] as List<dynamic>? ?? const [];
+    return rawBookmarks
+        .whereType<Map<String, dynamic>>()
+        .map(ContentBookmarkedEpisode.fromJson)
+        .toList();
+  }
+
+  Future<ContentEpisodeBookmarkStatus> saveEpisodeBookmark(
+    String episodeId,
+  ) async {
+    final response = await _apiClient.put(
+      '/api/v1/content/me/bookmarks/$episodeId',
+      requiresAuth: true,
+    );
+    return ContentEpisodeBookmarkStatus.fromJson(response);
+  }
+
+  Future<ContentEpisodeBookmarkStatus> deleteEpisodeBookmark(
+    String episodeId,
+  ) async {
+    final response = await _apiClient.delete(
+      '/api/v1/content/me/bookmarks/$episodeId',
+      requiresAuth: true,
+    );
+    return ContentEpisodeBookmarkStatus.fromJson(response);
+  }
+
   Future<List<ContentShowSummary>> listMyShows() async {
     final response = await _apiClient.get(
       '/api/v1/content/me/shows',

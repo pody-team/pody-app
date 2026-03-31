@@ -1,3 +1,4 @@
+import html
 import time
 from datetime import datetime
 from typing import Optional
@@ -5,6 +6,17 @@ from bs4 import BeautifulSoup
 import feedparser
 
 class MetadataParser:
+    @staticmethod
+    def normalize_text(value: Optional[str]) -> Optional[str]:
+        """Decode HTML entities/tags and normalize whitespace."""
+        if not value:
+            return None
+
+        text = html.unescape(value)
+        text = BeautifulSoup(text, 'lxml').get_text(separator=' ').strip()
+        text = ' '.join(text.split())
+        return text or None
+
     @staticmethod
     def extract_thumbnail(entry: feedparser.FeedParserDict) -> Optional[str]:
         """Extract a cover image URL from an RSS/Atom entry."""
@@ -45,11 +57,11 @@ class MetadataParser:
         """Return the author name from a feedparser entry."""
         author = getattr(entry, 'author', None) or entry.get('author')
         if author and isinstance(author, str):
-            return author.strip() or None
+            return MetadataParser.normalize_text(author)
         authors = getattr(entry, 'authors', None) or entry.get('authors', [])
         if authors:
             name = authors[0].get('name', '')
-            return name.strip() or None
+            return MetadataParser.normalize_text(name)
         return None
 
     @staticmethod
@@ -70,5 +82,5 @@ class MetadataParser:
         raw = entry.get('summary') or entry.get('description') or ''
         if not raw:
             return None
-        text = BeautifulSoup(raw, 'lxml').get_text(separator=' ').strip()
+        text = MetadataParser.normalize_text(raw)
         return text[:1000] if text else None

@@ -5,6 +5,7 @@ import os
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -35,6 +36,7 @@ class DatabaseManager:
         
         # SQLAlchemy with asyncpg handles SSL differently than psycopg2
         connect_args = {}
+        use_null_pool = False
         if database_url:
             # SQLAlchemy with asyncpg requires 'postgresql+asyncpg://'
             if database_url.startswith('postgres://'):
@@ -44,11 +46,15 @@ class DatabaseManager:
             
             # Handle Supabase/PostgreSQL sslmode parameter
             if 'sslmode=' in database_url:
-                # Remove sslmode from query string as asyncpg doesn't support it there
                 import re
                 database_url = re.sub(r'([?&])sslmode=[^&]*(&|$)', r'\1', database_url).rstrip('?&')
-                # Use ssl="require" in connect_args for asyncpg
                 connect_args["ssl"] = "require"
+            elif 'pooler.supabase.com' in database_url:
+                # Supabase poolers already manage connections well; avoid double-pooling
+                # in the app to reduce idle client pressure and startup spikes.
+                connect_args["ssl"] = "require"
+                connect_args["statement_cache_size"] = 0
+                use_null_pool = True
         else:
             # Fallback to individual components
             db_host = os.getenv('DB_HOST', 'localhost')
@@ -58,15 +64,25 @@ class DatabaseManager:
             db_password = os.getenv('DB_PASSWORD', '')
             database_url = f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         
+        force_null_pool = os.getenv("DB_USE_NULL_POOL", "").strip().lower() in {"1", "true", "yes"}
+        if force_null_pool:
+            use_null_pool = True
+
+        engine_kwargs = {
+            "echo": False,
+            "pool_pre_ping": True,
+            "connect_args": connect_args,
+        }
+        if use_null_pool:
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            engine_kwargs["pool_size"] = int(os.getenv('DB_POOL_SIZE', '8'))
+            engine_kwargs["max_overflow"] = int(os.getenv('DB_MAX_OVERFLOW', '4'))
+
         # Create async engine
         self._engine = create_async_engine(
             database_url,
-            echo=False,  
-            # We use a managed pool to avoid exhausting Supabase connections
-            pool_size=int(os.getenv('DB_POOL_SIZE', '15')),
-            max_overflow=int(os.getenv('DB_MAX_OVERFLOW', '5')),
-            pool_pre_ping=True,  
-            connect_args=connect_args,
+            **engine_kwargs,
         )
         
         # Create session factory

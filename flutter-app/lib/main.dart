@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'package:pody/screens/show/content_home_screen.dart';
 import 'package:pody/screens/news/news_screen.dart';
 import 'package:pody/screens/creation/create_screen.dart';
@@ -11,6 +13,8 @@ import 'package:pody/widgets/mini_player.dart';
 import 'package:pody/theme/app_theme.dart';
 import 'package:pody/core/config/app_environment.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/data/article_service.dart';
+import 'package:pody/data/article_scope.dart';
 import 'package:pody/features/ai/data/ai_remote_data_source.dart';
 import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/ai/presentation/ai_scope.dart';
@@ -26,8 +30,18 @@ import 'package:pody/features/content/presentation/content_scope.dart';
 import 'package:pody/features/notifications/data/notification_remote_data_source.dart';
 import 'package:pody/features/notifications/data/notification_repository.dart';
 
-void main() {
+const _navPrimary = Color(0xFFBF5700);
+const _navSecondary = Color(0xFFE1AD01);
+const _navNeutral = Color(0xFF3E2723);
+const _navSurface = Color(0xFFFFFBF6);
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.pody.team.pody.audio',
+    androidNotificationChannelName: 'Audio playback',
+    androidNotificationOngoing: true,
+  );
 
   final apiClient = ApiClient(baseUrl: AppEnvironment.apiBaseUrl);
   final authLocalDataSource = AuthLocalDataSource();
@@ -52,6 +66,7 @@ void main() {
   final notificationRepository = NotificationRepository(
     NotificationRemoteDataSource(apiClient),
   );
+  final articleApiService = ArticleApiService(apiClient);
 
   runApp(
     PodyApp(
@@ -59,6 +74,7 @@ void main() {
       aiRepository: aiRepository,
       contentRepository: contentRepository,
       notificationRepository: notificationRepository,
+      articleApiService: articleApiService,
     ),
   );
 }
@@ -69,6 +85,7 @@ class PodyApp extends StatelessWidget {
     required this.aiRepository,
     required this.contentRepository,
     required this.notificationRepository,
+    required this.articleApiService,
     super.key,
   }) : navigatorKey = GlobalKey<NavigatorState>();
 
@@ -76,24 +93,28 @@ class PodyApp extends StatelessWidget {
   final AIRepository aiRepository;
   final ContentRepository contentRepository;
   final NotificationRepository notificationRepository;
+  final ArticleApiService articleApiService;
   final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
-    return AIScope(
-      repository: aiRepository,
-      child: ContentScope(
-        repository: contentRepository,
-        child: AuthScope(
-          controller: authController,
-          child: MaterialApp(
-            navigatorKey: navigatorKey,
-            title: 'Pody',
-            debugShowCheckedModeBanner: false,
-            theme: buildAppTheme(),
-            home: AppShell(
+    return ArticleScope(
+      service: articleApiService,
+      child: AIScope(
+        repository: aiRepository,
+        child: ContentScope(
+          repository: contentRepository,
+          child: AuthScope(
+            controller: authController,
+            child: MaterialApp(
               navigatorKey: navigatorKey,
-              notificationRepository: notificationRepository,
+              title: 'Pody',
+              debugShowCheckedModeBanner: false,
+              theme: buildAppTheme(),
+              home: AppShell(
+                navigatorKey: navigatorKey,
+                notificationRepository: notificationRepository,
+              ),
             ),
           ),
         ),
@@ -243,6 +264,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  final ValueNotifier<bool> _notificationsVisible = ValueNotifier<bool>(false);
 
   // A navigator key per tab so each tab has its own navigation stack
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
@@ -251,13 +273,21 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   );
 
   @override
+  void dispose() {
+    _notificationsVisible.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isCreateTab = _currentIndex == 2;
     final screens = [
       const ContentHomeScreen(),
       const NewsScreen(),
       const CreateScreen(),
-      NotificationsScreen(repository: widget.notificationRepository),
+      NotificationsScreen(
+        repository: widget.notificationRepository,
+        visibilityListenable: _notificationsVisible,
+      ),
       ProfileScreen(
         noticeMessage: widget.authNoticeMessage,
         onNoticeDismissed: widget.onAuthNoticeDismissed,
@@ -294,68 +324,64 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               const Positioned(
                 left: 0,
                 right: 0,
-                bottom: 72,
+                bottom: 86,
                 child: MiniPlayer(),
               ),
           ],
         ),
-        bottomNavigationBar: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(
-            color: isCreateTab ? Colors.white : const Color(0xFF0F1115),
-            border: Border(
-              top: BorderSide(
-                color: isCreateTab
-                    ? const Color(0xFFE5E7EB)
-                    : Colors.white.withValues(alpha: 0.08),
-              ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: _navSurface.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: _navPrimary.withValues(alpha: 0.12)),
+              boxShadow: [
+                BoxShadow(
+                  color: _navNeutral.withValues(alpha: 0.12),
+                  blurRadius: 26,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            boxShadow: [
-              BoxShadow(
-                color: isCreateTab
-                    ? const Color(0x140F172A)
-                    : Colors.black.withValues(alpha: 0.32),
-                blurRadius: 18,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 6, bottom: 2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                  _buildNavItem(
-                    1,
-                    Icons.newspaper_outlined,
-                    Icons.newspaper,
-                    'News',
-                  ),
-                  _buildNavItem(
-                    2,
-                    Icons.add_circle_outline,
-                    Icons.add_circle,
-                    'Create',
-                    isCreate: true,
-                  ),
-                  _buildNavItem(
-                    3,
-                    Icons.mail_outline,
-                    Icons.mail,
-                    'Notify',
-                  ),
-                  _buildNavItem(
-                    4,
-                    Icons.account_circle_outlined,
-                    Icons.account_circle,
-                    'Profile',
-                  ),
-                ],
-              ),
+            child: Row(
+              children: [
+                _buildNavItem(
+                  0,
+                  Icons.home_outlined,
+                  Icons.home_rounded,
+                  'Trang chủ',
+                ),
+                _buildNavItem(
+                  1,
+                  Icons.newspaper_outlined,
+                  Icons.newspaper_rounded,
+                  'Tin mới',
+                ),
+                _buildNavItem(
+                  2,
+                  Icons.auto_awesome_outlined,
+                  Icons.auto_awesome_rounded,
+                  'Tạo',
+                  isCreate: true,
+                ),
+                _buildNavItem(
+                  3,
+                  Icons.notifications_none_rounded,
+                  Icons.notifications_rounded,
+                  'Thông báo',
+                ),
+                _buildNavItem(
+                  4,
+                  Icons.account_circle_outlined,
+                  Icons.account_circle_rounded,
+                  'Hồ sơ',
+                ),
+              ],
             ),
           ),
         ),
@@ -372,58 +398,52 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     int badgeCount = 0,
   }) {
     final isActive = _currentIndex == index;
-    final isCreateTab = _currentIndex == 2;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      child: SizedBox(
-        width: 60,
-        height: 44,
+    final accent = isCreate ? _navSecondary : _navPrimary;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          setState(() {
+            _currentIndex = index;
+            _notificationsVisible.value = index == 3;
+          });
+        },
         child: Stack(
-          alignment: Alignment.center,
+          clipBehavior: Clip.none,
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.fastOutSlowIn,
-              padding: EdgeInsets.symmetric(
-                horizontal: isActive ? (isCreate ? 14 : 16) : 0,
-                vertical: isActive ? 6 : 4,
-              ),
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               decoration: BoxDecoration(
                 color: isActive
-                    ? (isCreateTab
-                        ? const Color(0xFFF3F4F6)
-                        : Colors.white.withValues(alpha: 0.12))
+                    ? accent.withValues(alpha: isCreate ? 0.28 : 0.12)
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(
-                isActive ? activeIcon : icon,
-                color: isActive
-                    ? (isCreateTab
-                        ? const Color(0xFF111827)
-                        : Colors.white)
-                    : (isCreateTab
-                        ? const Color(0xFF6B7280)
-                        : Colors.white54),
-                size: isCreate ? 32 : 28,
+              child: Tooltip(
+                message: label,
+                child: Icon(
+                  isActive ? activeIcon : icon,
+                  color: isActive
+                      ? accent
+                      : _navNeutral.withValues(alpha: 0.52),
+                  size: isCreate ? 26 : 24,
+                ),
               ),
             ),
             if (badgeCount > 0)
               Positioned(
                 top: 2,
-                right: 6,
+                right: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 5,
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFE2C55),
+                    color: _navPrimary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   constraints: const BoxConstraints(
@@ -432,10 +452,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   ),
                   child: Text(
                     badgeCount > 99 ? '99+' : '$badgeCount',
-                    style: const TextStyle(
+                    style: GoogleFonts.workSans(
                       color: Colors.white,
                       fontSize: 9,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                     ),
                     textAlign: TextAlign.center,
                   ),

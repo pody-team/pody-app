@@ -9,6 +9,8 @@ from app.main import create_app
 from app.models import (
     AIHostDraft,
     ChatMessage,
+    ProductionPlanSummary,
+    ChatThreadSummary,
     ChatThreadView,
     EpisodeDraft,
     GenerationJob,
@@ -42,10 +44,48 @@ class FakeAIService:
         _ = auth
         return self._thread(prompt=request.prompt)
 
+    def list_threads(self, auth, limit=30):
+        _ = auth
+        _ = limit
+        now = datetime.now(timezone.utc)
+        return [
+            ChatThreadSummary(
+                id=uuid4(),
+                title="Founder OS",
+                status="active",
+                created_at=now,
+                updated_at=now,
+                last_message_preview="Doi title ngan gon hon thanh Founder OS",
+                has_current_plan=True,
+            )
+        ]
+
     def get_thread(self, auth, thread_id):
         _ = auth
         _ = thread_id
         return self._thread(prompt="thread")
+
+    def list_drafts(self, auth, limit=50):
+        _ = auth
+        _ = limit
+        now = datetime.now(timezone.utc)
+        return [
+            ProductionPlanSummary(
+                id=uuid4(),
+                thread_id=uuid4(),
+                status="draft",
+                series_title="Founder OS",
+                content_type="podcast",
+                episode_count=3,
+                created_at=now,
+                updated_at=now,
+            )
+        ]
+
+    def get_draft(self, auth, plan_id):
+        _ = auth
+        _ = plan_id
+        return self._thread(prompt="draft").current_plan
 
     def add_thread_message(self, auth, thread_id, request):
         _ = auth
@@ -101,6 +141,20 @@ class FakeAIService:
             created_at=now,
             started_at=now,
             finished_at=now,
+        )
+
+    def create_show_from_plan(self, auth, plan_id):
+        _ = auth
+        now = datetime.now(timezone.utc)
+        return GenerationJob(
+            id=uuid4(),
+            plan_id=plan_id,
+            job_type="show_creation",
+            status="queued",
+            provider="google-genai",
+            input_payload={},
+            output_payload={},
+            created_at=now,
         )
 
     def _thread(self, *, prompt: str) -> ChatThreadView:
@@ -178,6 +232,29 @@ def test_voice_profiles_require_auth_header() -> None:
     assert response.status_code == 401
 
 
+def test_public_openapi_yaml_endpoint() -> None:
+    client = create_client()
+
+    response = client.get("/api/v1/public/ai/openapi.yaml")
+
+    assert response.status_code == 200
+    assert "openapi: 3.0.3" in response.text
+    assert "/api/v1/ai/chat-create/threads:" in response.text
+    assert "X-Auth-User-ID" in response.text
+    assert "type: 'null'" not in response.text
+    assert "\n  /healthz:\n" not in response.text
+
+
+def test_public_swagger_ui_endpoint() -> None:
+    client = create_client()
+
+    response = client.get("/api/v1/public/ai/docs")
+
+    assert response.status_code == 200
+    assert "/api/v1/public/ai/openapi.yaml" in response.text
+    assert "SwaggerUIBundle" in response.text
+
+
 def test_create_thread_returns_show_level_hosts() -> None:
     client = create_client()
 
@@ -192,6 +269,50 @@ def test_create_thread_returns_show_level_hosts() -> None:
     assert payload["thread"]["current_plan"]["show_draft"]["hosts"][0]["display_name"] == "Nova"
     assert payload["thread"]["current_plan"]["show_draft"]["hosts"][1]["role"] == "co_host"
     assert payload["thread"]["current_plan"]["episodes"][0]["title"] == "Tap 1"
+
+
+def test_list_threads_returns_history() -> None:
+    client = create_client()
+
+    response = client.get(
+        "/api/v1/ai/chat-create/threads",
+        headers={"X-Auth-User-ID": str(uuid4())},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["threads"][0]["title"] == "Founder OS"
+    assert payload["threads"][0]["has_current_plan"] is True
+
+
+def test_create_show_from_plan_returns_queued_job() -> None:
+    client = create_client()
+    plan_id = str(uuid4())
+
+    response = client.post(
+        f"/api/v1/ai/production-plans/{plan_id}/create-show",
+        headers={"X-Auth-User-ID": str(uuid4())},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["job"]["plan_id"] == plan_id
+    assert payload["job"]["job_type"] == "show_creation"
+    assert payload["job"]["status"] == "queued"
+
+
+def test_list_drafts_returns_draft_history() -> None:
+    client = create_client()
+
+    response = client.get(
+        "/api/v1/ai/production-plans",
+        headers={"X-Auth-User-ID": str(uuid4())},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["drafts"][0]["series_title"] == "Founder OS"
+    assert payload["drafts"][0]["episode_count"] == 3
 
 
 def test_stream_create_thread_emits_sse_events() -> None:

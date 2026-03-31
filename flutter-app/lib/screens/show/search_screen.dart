@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:pody/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/utils/player_utils.dart';
+
+const Color _searchCanvas = Color(0xFFFFFBF6);
+const Color _searchSurface = Color(0xFFFFFEFC);
+const Color _searchSurfaceStrong = Color(0xFFF2E6D9);
+const Color _searchPrimary = Color(0xFFBF5700);
+const Color _searchNeutral = Color(0xFF3E2723);
+const Color _searchMuted = Color(0xFF7E665F);
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -14,523 +20,347 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   int _selectedTab = 0;
   final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocus = FocusNode();
-  bool _isHeaderVisible = true;
-
   final List<String> _recentSearches = [
     'Technology',
     'True Crime',
     'Design Systems',
   ];
 
-  final List<Map<String, dynamic>> _topResults = [
-    {
-      'title': MockData.shows[0].title,
-      'subtitle': 'Hosted by ${MockData.shows[0].hostsLabel}',
-      'tag': MockData.shows[0].category.toUpperCase(),
-      'eps': '${MockData.shows[0].totalEpisodeCount} eps',
-      'image': MockData.shows[0].imageUrl,
-      'isImage': true,
-      'podcastIndex': 0,
-    },
-    {
-      'title': MockData.shows[1].title,
-      'subtitle': 'Hosted by ${MockData.shows[1].hostsLabel}',
-      'tag': MockData.shows[1].category.toUpperCase(),
-      'eps': '${MockData.shows[1].totalEpisodeCount} eps',
-      'image': MockData.shows[1].imageUrl,
-      'isImage': true,
-      'podcastIndex': 1,
-    },
-    {
-      'title': 'The Creative Loop',
-      'subtitle': 'Design Weekly',
-      'tag': 'ART',
-      'eps': '205 eps',
-      'icon': Icons.graphic_eq,
-      'isImage': false,
-    },
-    {
-      'title': 'Nature Calls',
-      'subtitle': 'Earth Foundation',
-      'tag': 'NATURE',
-      'eps': '42 eps',
-      'icon': Icons.forest,
-      'isImage': false,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _categories = [
-    {'name': 'Comedy', 'icon': Icons.theater_comedy},
-    {'name': 'News', 'icon': Icons.newspaper},
-    {'name': 'Education', 'icon': Icons.school},
-    {'name': 'Business', 'icon': Icons.trending_up},
-  ];
-
   @override
   void dispose() {
     _searchController.dispose();
-    _searchFocus.dispose();
     super.dispose();
-  }
-
-  bool _handleScroll(UserScrollNotification notification) {
-    if (notification.metrics.axis != Axis.vertical) {
-      return false;
-    }
-
-    if (_searchFocus.hasFocus) {
-      if (!_isHeaderVisible) {
-        setState(() => _isHeaderVisible = true);
-      }
-      return false;
-    }
-
-    if (notification.direction == ScrollDirection.reverse && _isHeaderVisible) {
-      setState(() => _isHeaderVisible = false);
-    } else if (notification.direction == ScrollDirection.forward &&
-        !_isHeaderVisible) {
-      setState(() => _isHeaderVisible = true);
-    }
-
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final showHeader = _isHeaderVisible || _searchFocus.hasFocus;
+    final shows = MockData.shows
+        .where(
+          (show) =>
+              _searchController.text.trim().isEmpty ||
+              show.title.toLowerCase().contains(
+                _searchController.text.trim().toLowerCase(),
+              ) ||
+              show.category.toLowerCase().contains(
+                _searchController.text.trim().toLowerCase(),
+              ),
+        )
+        .toList();
+    final episodes = shows.expand((show) => show.episodes).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
+      backgroundColor: _searchCanvas,
       body: SafeArea(
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
           children: [
-            AnimatedSize(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              child: showHeader
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                      child: Column(
-                        children: [
-                          Container(
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: kBgCard,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 16),
-                                  child: Icon(
-                                    Icons.search,
-                                    color: Colors.white38,
-                                    size: 22,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchController,
-                                    focusNode: _searchFocus,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      filled: false,
-                                      hintText:
-                                          'Search podcasts, episodes, or hosts...',
-                                      hintStyle: TextStyle(
-                                        color: Colors.white38,
-                                        fontSize: 14,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      errorBorder: InputBorder.none,
-                                      focusedErrorBorder: InputBorder.none,
-                                      disabledBorder: InputBorder.none,
-                                      isDense: true,
-                                      contentPadding: EdgeInsets.zero,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.mic,
-                                    color: Colors.white38,
-                                  ),
-                                  onPressed: () {},
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _selectedTab = 0),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _selectedTab == 0
-                                          ? Colors.white
-                                          : kBgCard,
-                                      borderRadius: BorderRadius.circular(24),
-                                      border: _selectedTab == 0
-                                          ? null
-                                          : Border.all(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.05,
-                                              ),
-                                            ),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Podcasts',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: _selectedTab == 0
-                                            ? Colors.black
-                                            : Colors.white54,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: () => setState(() => _selectedTab = 1),
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 200),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _selectedTab == 1
-                                          ? Colors.white
-                                          : kBgCard,
-                                      borderRadius: BorderRadius.circular(24),
-                                      border: _selectedTab == 1
-                                          ? null
-                                          : Border.all(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.05,
-                                              ),
-                                            ),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      'Episodes',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: _selectedTab == 1
-                                            ? Colors.black
-                                            : Colors.white54,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+            Text(
+              'Tìm kiếm',
+              style: GoogleFonts.newsreader(
+                color: _searchNeutral,
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Khám phá show, tập và host theo cùng hệ danh mục của Pody.',
+              style: GoogleFonts.workSans(
+                color: _searchMuted,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              decoration: BoxDecoration(
+                color: _searchSurface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _searchNeutral.withValues(alpha: 0.08),
+                ),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                style: GoogleFonts.workSans(
+                  color: _searchNeutral,
+                  fontSize: 15,
+                ),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: _searchSurface,
+                  hintText: 'Tìm show, tập hoặc host...',
+                  hintStyle: GoogleFonts.workSans(color: _searchMuted),
+                  prefixIcon: const Icon(Icons.search, color: _searchPrimary),
+                  suffixIcon: _searchController.text.isEmpty
+                      ? const Icon(Icons.mic_none_rounded, color: _searchMuted)
+                      : IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                          icon: const Icon(Icons.close, color: _searchMuted),
+                        ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _Segment(
+                    label: 'Show',
+                    selected: _selectedTab == 0,
+                    onTap: () => setState(() => _selectedTab = 0),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _Segment(
+                    label: 'Tập',
+                    selected: _selectedTab == 1,
+                    onTap: () => setState(() => _selectedTab = 1),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            if (_searchController.text.isEmpty) ...[
+              Text(
+                'Tìm gần đây',
+                style: GoogleFonts.newsreader(
+                  color: _searchNeutral,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _recentSearches
+                    .map(
+                      (term) => ActionChip(
+                        label: Text(term),
+                        onPressed: () {
+                          _searchController.text = term;
+                          setState(() {});
+                        },
+                        backgroundColor: _searchSurfaceStrong,
+                        labelStyle: GoogleFonts.workSans(
+                          color: _searchNeutral,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     )
-                  : const SizedBox.shrink(),
-            ),
+                    .toList(),
+              ),
+              const SizedBox(height: 20),
+            ],
+            ...(_selectedTab == 0
+                ? shows.map((show) => _ShowResultCard(show: show))
+                : episodes.map(
+                    (episode) => _EpisodeResultCard(episode: episode),
+                  )),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            // Scrollable Content
-            Expanded(
-              child: NotificationListener<UserScrollNotification>(
-                onNotification: _handleScroll,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+class _Segment extends StatelessWidget {
+  const _Segment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? _searchPrimary : _searchSurface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? _searchPrimary
+                : _searchNeutral.withValues(alpha: 0.08),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.workSans(
+            color: selected ? Colors.white : _searchNeutral,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShowResultCard extends StatelessWidget {
+  const _ShowResultCard({required this.show});
+
+  final dynamic show;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => openShowDetail(context, show),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _searchSurface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _searchNeutral.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  show.imageUrl,
+                  width: 72,
+                  height: 72,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Recent Searches
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'RECENT SEARCHES',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => setState(() => _recentSearches.clear()),
-                          child: const Text(
-                            'Clear All',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _recentSearches.map((search) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: kBgCard,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.history,
-                                size: 16,
-                                color: Colors.white38,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                search,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(
-                                    () => _recentSearches.remove(search),
-                                  );
-                                },
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 14,
-                                  color: Colors.white24,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Top Results
-                    const Text(
-                      'TOP RESULTS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
+                    Text(
+                      show.title,
+                      style: GoogleFonts.workSans(
+                        color: _searchNeutral,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    ..._topResults.map((item) => _buildResultCard(item)),
-                    const SizedBox(height: 32),
-
-                    // Browse Categories
-                    const Text(
-                      'BROWSE CATEGORIES',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
+                    const SizedBox(height: 6),
+                    Text(
+                      'Host: ${show.hostsLabel}',
+                      style: GoogleFonts.workSans(
+                        color: _searchMuted,
+                        fontSize: 12,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 1.7,
-                      children: _categories
-                          .map((cat) => _buildCategoryCard(cat))
-                          .toList(),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _searchSurfaceStrong,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        show.category,
+                        style: GoogleFonts.workSans(
+                          color: _searchPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildResultCard(Map<String, dynamic> item) {
-    return GestureDetector(
-      onTap: () {
-        if (item.containsKey('podcastIndex')) {
-          final show = MockData.shows[item['podcastIndex'] as int];
-          openShowDetail(context, show);
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: kBgCard,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        ),
-        child: Row(
-          children: [
-            // Cover
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: item['isImage'] == true
-                  ? Image.network(
-                      item['image'],
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        item['icon'] as IconData,
-                        color: Colors.white54,
-                        size: 32,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 14),
+class _EpisodeResultCard extends StatelessWidget {
+  const _EpisodeResultCard({required this.episode});
 
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['title'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    item['subtitle'],
-                    style: const TextStyle(fontSize: 12, color: Colors.white38),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          item['tag'],
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white54,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '• ${item['eps']}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.white24,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
+  final dynamic episode;
 
-            // Add button
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.add, color: Colors.white54, size: 20),
-            ),
-          ],
-        ),
-      ),
+  @override
+  Widget build(BuildContext context) {
+    final show = MockData.shows.firstWhere(
+      (candidate) => candidate.id == episode.showId,
     );
-  }
-
-  Widget _buildCategoryCard(Map<String, dynamic> cat) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Stack(
-        children: [
-          // Background icon
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Icon(
-              cat['icon'] as IconData,
-              size: 40,
-              color: Colors.white.withValues(alpha: 0.06),
-            ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => openPlayerScreen(context, show: show, episode: episode),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _searchSurface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: _searchNeutral.withValues(alpha: 0.08)),
           ),
-          // Label
-          Positioned(
-            left: 14,
-            bottom: 14,
-            child: Text(
-              cat['name'],
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white70,
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  episode.images.isNotEmpty
+                      ? episode.images.first
+                      : show.imageUrl,
+                  width: 72,
+                  height: 72,
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      episode.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.workSans(
+                        color: _searchNeutral,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      show.title,
+                      style: GoogleFonts.workSans(
+                        color: _searchMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.play_circle_fill_rounded, color: _searchPrimary),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -372,44 +372,92 @@ class MockData {
 
   static final newsArticles = [
     NewsArticle(
-      id: 'n001',
+      id: 1,
       title:
           'FPT giảm lao động sau nhiều năm tăng nóng: Hàng chục nghìn kỹ sư hiện hữu s...',
       description:
           'Ba điểm cốt lõi trong chính sách mới của FPT liên quan đến trí tuệ nhân tạo...',
+      content: '''
+Tập đoàn FPT vừa công bố chiến lược mới tập trung vào AI, bán dẫn và xe điện. 
+Trong đó, việc tối ưu hóa nguồn lực con người thông qua tự động hóa bằng AI là ưu tiên hàng đầu. 
+
+Hàng chục nghìn kỹ sư của tập đoàn đang được đào tạo lại để thích nghi với kỷ nguyên GenAI. 
+Chủ tịch Trương Gia Bình nhấn mạnh rằng AI không thay thế con người, nhưng người dùng AI sẽ thay thế người không dùng AI.
+
+Ba điểm cốt lõi trong chính sách mới của FPT:
+1. AI First: Áp dụng AI vào mọi quy trình vận hành.
+2. Chip Semiconductor: Đẩy mạnh thiết kế và sản xuất chip nguồn.
+3. Electric Vehicles: Cung cấp giải pháp phần mềm cho các hãng xe điện toàn cầu.
+      ''',
       imageUrl: _coverFutureMinds,
       publisher: 'CafeBiz',
+      category: '💻 Công nghệ',
       time: '9h',
+      viewCount: 1250,
     ),
     NewsArticle(
-      id: 'n002',
+      id: 2,
       title:
           'Lãi 120 tỷ USD/năm, Nvidia trở thành cỗ máy in tiền khổng lồ, xóa tan hoài nghi v...',
       description:
           'Nvidia tiếp tục công bố mức lợi nhuận kỷ lục, khẳng định vị trí độc tôn trong mảng chip AI...',
+      content: '''
+Nvidia vừa công bố kết quả tài chính vượt xa mọi dự đoán của phố Wall. 
+Với nhu cầu bùng nổ về chip H100 và Blackwell, công ty đã đạt mức lợi nhuận kỷ lục 120 tỷ USD trong năm qua.
+
+Jensen Huang, CEO của Nvidia, tuyên bố rằng chúng ta đang ở điểm khởi đầu của cuộc cách mạng công nghiệp thứ tư. 
+Trung tâm dữ liệu AI đang trở thành các "nhà máy AI" sản xuất ra tri thức.
+
+Các chuyên gia nhận định, dù các hãng như Google, MS hay Meta đang tự làm chip, 
+nhưng hệ sinh thái CUDA của Nvidia vẫn là rào cản quá lớn để vượt qua.
+      ''',
       imageUrl: _coverTrueCrime,
       publisher: 'GenK',
+      category: '💻 Công nghệ',
       time: '8h',
+      viewCount: 3400,
+      isLoved: true,
     ),
     NewsArticle(
-      id: 'n003',
+      id: 3,
       title:
           'Podcast industry trends: Why short-form audio is taking over social media platforms',
       description:
           'Analysis on how user behavior is shifting towards bite-sized audio content...',
+      content: '''
+The rise of TikTok and Reels has influenced the way people consume audio. 
+"Micro-podcasts" under 10 minutes are seeing 300% more engagement than 1-hour episodes.
+
+Spotify and Apple Podcasts are testing "clips" features to help users discover new shows. 
+The focus is now on high-density information and engaging storytelling in a short window.
+      ''',
       imageUrl: _coverAiNewsExtra,
       publisher: 'TechCrunch',
+      category: '🎨 Design',
       time: '12h',
+      viewCount: 890,
       isAdded: true,
     ),
     NewsArticle(
-      id: 'n004',
-      title: 'AI Overview: Hàng loạt các startup công nghệ mọc lên như nấm',
+      id: 4,
+      title: 'Bí quyết sống khỏe: 5 thói quen buổi sáng giúp bạn tràn đầy năng lượng',
       description:
-          'Bức tranh khởi nghiệp đang thay đổi liên tục với sự trỗi dậy của AI...',
+          'Dành 15 phút mỗi sáng để thay đổi cuộc sống của bạn một cách tích cực hơn...',
+      content: '''
+Nghiên cứu mới nhất chỉ ra rằng cách bạn bắt đầu buổi sáng sẽ quyết định 80% hiệu suất làm việc cả ngày. 
+
+Dưới đây là 5 thói quen vàng:
+1. Uống 500ml nước ấm ngay khi thức dậy.
+2. Không chạm vào điện thoại trong 30 phút đầu tiên.
+3. Tiếp xúc với ánh sáng mặt trời tự nhiên.
+4. Vận động nhẹ nhàng hoặc thiền định.
+5. Lên kế hoạch cho 3 mục tiêu quan trọng nhất trong ngày.
+      ''',
       imageUrl: _coverVnExpress,
       publisher: 'VnExpress',
+      category: '🔥 Nóng hổi',
       time: '1 ngày',
+      viewCount: 5600,
     ),
   ];
 

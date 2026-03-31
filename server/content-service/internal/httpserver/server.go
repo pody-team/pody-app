@@ -62,6 +62,8 @@ func New(cfg config.Config, logger *slog.Logger, contentStore store.ContentStore
 		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
+		r.Get("/openapi.yaml", s.handleOpenAPI)
+		r.Get("/docs", s.handleSwaggerUI)
 		r.Get("/home", s.handleHomeFeed)
 		r.Get("/shows/{showID}", s.handleShowDetail)
 		r.Get("/shows/{showID}/episodes", s.handleShowEpisodes)
@@ -71,6 +73,10 @@ func New(cfg config.Config, logger *slog.Logger, contentStore store.ContentStore
 	router.Route("/api/v1/content", func(r chi.Router) {
 		r.Post("/shows", s.handleCreateShow)
 		r.Get("/me/shows", s.handleMyShows)
+		r.Get("/me/bookmarks", s.handleEpisodeBookmarks)
+		r.Get("/me/bookmarks/{episodeID}", s.handleEpisodeBookmarkStatus)
+		r.Put("/me/bookmarks/{episodeID}", s.handleSaveEpisodeBookmark)
+		r.Delete("/me/bookmarks/{episodeID}", s.handleDeleteEpisodeBookmark)
 	})
 
 	return &http.Server{
@@ -172,6 +178,22 @@ func (s *server) handleMyShows(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"shows": shows})
 }
 
+func (s *server) handleEpisodeBookmarks(w http.ResponseWriter, r *http.Request) {
+	auth, ok := authContextFromRequest(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, errors.New("missing auth user id"))
+		return
+	}
+
+	bookmarks, err := s.contentStore.ListEpisodeBookmarks(r.Context(), auth.UserID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"bookmarks": bookmarks})
+}
+
 func (s *server) handleCreateShow(w http.ResponseWriter, r *http.Request) {
 	auth, ok := authContextFromRequest(r)
 	if !ok {
@@ -214,6 +236,51 @@ func (s *server) handleCreateShow(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"show": show})
 }
 
+func (s *server) handleEpisodeBookmarkStatus(w http.ResponseWriter, r *http.Request) {
+	auth, episodeID, ok := s.authenticatedEpisodeIDRequest(w, r)
+	if !ok {
+		return
+	}
+
+	status, err := s.contentStore.GetEpisodeBookmarkStatus(r.Context(), auth.UserID, episodeID)
+	if err != nil {
+		s.writeBookmarkError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *server) handleSaveEpisodeBookmark(w http.ResponseWriter, r *http.Request) {
+	auth, episodeID, ok := s.authenticatedEpisodeIDRequest(w, r)
+	if !ok {
+		return
+	}
+
+	status, err := s.contentStore.SaveEpisodeBookmark(r.Context(), auth.UserID, episodeID)
+	if err != nil {
+		s.writeBookmarkError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *server) handleDeleteEpisodeBookmark(w http.ResponseWriter, r *http.Request) {
+	auth, episodeID, ok := s.authenticatedEpisodeIDRequest(w, r)
+	if !ok {
+		return
+	}
+
+	status, err := s.contentStore.DeleteEpisodeBookmark(r.Context(), auth.UserID, episodeID)
+	if err != nil {
+		s.writeBookmarkError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, status)
+}
+
 func mapCreateHosts(items []createShowHostRequest) []domain.CreateHostInput {
 	hosts := make([]domain.CreateHostInput, 0, len(items))
 	for _, item := range items {
@@ -226,6 +293,30 @@ func mapCreateHosts(items []createShowHostRequest) []domain.CreateHostInput {
 		})
 	}
 	return hosts
+}
+
+func (s *server) authenticatedEpisodeIDRequest(w http.ResponseWriter, r *http.Request) (authContext, string, bool) {
+	auth, ok := authContextFromRequest(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, errors.New("missing auth user id"))
+		return authContext{}, "", false
+	}
+
+	episodeID := strings.TrimSpace(chi.URLParam(r, "episodeID"))
+	if episodeID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("episode id is required"))
+		return authContext{}, "", false
+	}
+
+	return auth, episodeID, true
+}
+
+func (s *server) writeBookmarkError(w http.ResponseWriter, err error) {
+	if errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, errors.New("episode not found"))
+		return
+	}
+	writeError(w, http.StatusInternalServerError, err)
 }
 
 func authContextFromRequest(r *http.Request) (authContext, bool) {

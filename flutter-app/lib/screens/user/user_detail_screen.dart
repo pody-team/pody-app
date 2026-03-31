@@ -1,14 +1,20 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/mock_data.dart';
 import 'package:pody/models/models.dart';
-import 'package:pody/theme/app_colors.dart';
 import 'package:pody/utils/player_utils.dart';
 
-class UserDetailScreen extends StatefulWidget {
-  final UserProfile user;
+const Color _userCanvas = Color(0xFFFFFBF6);
+const Color _userSurface = Color(0xFFFFFEFC);
+const Color _userSurfaceStrong = Color(0xFFF2E6D9);
+const Color _userPrimary = Color(0xFFBF5700);
+const Color _userNeutral = Color(0xFF3E2723);
+const Color _userMuted = Color(0xFF7E665F);
 
+class UserDetailScreen extends StatefulWidget {
   const UserDetailScreen({super.key, required this.user});
+
+  final UserProfile user;
 
   @override
   State<UserDetailScreen> createState() => _UserDetailScreenState();
@@ -25,14 +31,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
 
   UserProfile get user => widget.user;
 
-  // Find shows hosted by this user
   List<Show> get _userPodcasts {
     return MockData.shows
         .where((p) => p.hosts.any((h) => h.id == user.id))
         .toList();
   }
 
-  // Get all episodes from this user's shows
   List<Map<String, dynamic>> get _userEpisodes {
     final result = <Map<String, dynamic>>[];
     for (final show in _userPodcasts) {
@@ -55,361 +59,267 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     final episodes = _userEpisodes;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
+      backgroundColor: _userCanvas,
       body: CustomScrollView(
         slivers: [
-          // Header with blurred background
+          SliverAppBar(
+            backgroundColor: _userCanvas,
+            surfaceTintColor: _userCanvas,
+            pinned: true,
+            elevation: 0,
+            leading: IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back_ios_new, color: _userNeutral),
+            ),
+            actions: const [
+              Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Icon(Icons.more_horiz, color: _userNeutral),
+              ),
+            ],
+          ),
           SliverToBoxAdapter(
-            child: Stack(
-              children: [
-                // Blurred background avatar
-                SizedBox(
-                  height: 260,
-                  width: double.infinity,
-                  child: ImageFiltered(
-                    imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                    child: Image.network(
-                      user.avatarUrl,
-                      fit: BoxFit.cover,
-                      color: Colors.black.withValues(alpha: 0.5),
-                      colorBlendMode: BlendMode.darken,
-                    ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: _userSurface,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: _userNeutral.withValues(alpha: 0.08),
                   ),
                 ),
-
-                // Gradient overlay
-                Container(
-                  height: 260,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        const Color(0xFF0F0E13).withValues(alpha: 0.8),
-                        const Color(0xFF0F0E13),
+                child: Column(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(48),
+                      child: Image.network(
+                        user.avatarUrl,
+                        width: 96,
+                        height: 96,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      user.name,
+                      style: GoogleFonts.newsreader(
+                        color: _userNeutral,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '@${user.name.toLowerCase().replaceAll(' ', '')}',
+                      style: GoogleFonts.workSans(
+                        color: _userMuted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      user.bio,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.workSans(
+                        color: _userMuted,
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _StatTile(
+                            value: _formatCount(user.followerCount),
+                            label: 'Người theo dõi',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatTile(
+                            value: _formatCount(user.followingCount),
+                            label: 'Đang theo dõi',
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _StatTile(
+                            value: '${user.showCount}',
+                            label: 'Show',
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ),
-
-                // Back button
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 8,
-                  left: 16,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back_ios_new,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // More button
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 8,
-                  right: 16,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.more_horiz,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Profile info
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Column(
-                    children: [
-                      // Avatar
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF0F0E13),
-                            width: 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.4),
-                              blurRadius: 20,
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () {
+                              setState(() => _isFollowing = !_isFollowing);
+                            },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _isFollowing
+                                  ? _userSurfaceStrong
+                                  : _userPrimary,
+                              foregroundColor: _isFollowing
+                                  ? _userNeutral
+                                  : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              textStyle: GoogleFonts.workSans(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(44),
-                          child: Image.network(
-                            user.avatarUrl,
-                            fit: BoxFit.cover,
+                            child: Text(
+                              _isFollowing ? 'Đang theo dõi' : 'Theo dõi',
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Name
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                        const SizedBox(width: 10),
+                        OutlinedButton(
+                          onPressed: () {},
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _userNeutral,
+                            side: BorderSide(
+                              color: _userNeutral.withValues(alpha: 0.12),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 14,
+                            ),
+                          ),
+                          child: const Text('Nhắn tin'),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '@${user.name.toLowerCase().replaceAll(' ', '')}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white38,
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-
-          // Bio
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
               child: Text(
-                user.bio,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white60,
-                  height: 1.5,
+                'Show nổi bật',
+                style: GoogleFonts.newsreader(
+                  color: _userNeutral,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-
-          // Stats Row
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _statItem(_formatCount(user.followerCount), 'Followers'),
-                  _divider(),
-                  _statItem(_formatCount(user.followingCount), 'Following'),
-                  _divider(),
-                  _statItem('${user.showCount}', 'Podcasts'),
-                ],
-              ),
-            ),
-          ),
-
-          // Follow / Message buttons
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Row(
-                children: [
-                  // Follow button
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() => _isFollowing = !_isFollowing);
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _isFollowing
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: _isFollowing
-                              ? Border.all(color: Colors.white24)
-                              : null,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _isFollowing ? 'Following' : 'Follow',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: _isFollowing ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Message button
-                  GestureDetector(
-                    onTap: () {},
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Icon(
-                        Icons.chat_bubble_outline,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Podcasts section
-          if (shows.isNotEmpty) ...[
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 32, 24, 12),
-                child: Text(
-                  'PODCASTS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white38,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 180,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: shows.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    final show = shows[index];
-                    return GestureDetector(
-                      onTap: () {
-                        openShowDetail(context, show);
-                      },
-                      child: SizedBox(
-                        width: 140,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                show.imageUrl,
-                                width: 140,
-                                height: 140,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              show.title,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-
-          // Latest Episodes section
-          if (episodes.isNotEmpty) ...[
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 28, 24, 12),
-                child: Text(
-                  'LATEST EPISODES',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white38,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.only(left: 24, right: 24, bottom: 100),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final item = episodes[index];
-                  final show = item['podcast'] as Show;
-                  final episode = item['episode'] as Episode;
+            child: SizedBox(
+              height: 208,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                scrollDirection: Axis.horizontal,
+                itemCount: shows.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final show = shows[index];
                   return GestureDetector(
-                    onTap: () {
-                      openPlayerScreen(context, show: show, episode: episode);
-                    },
+                    onTap: () => openShowDetail(context, show),
                     child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
+                      width: 154,
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: kBgCard,
-                        borderRadius: BorderRadius.circular(14),
+                        color: _userSurface,
+                        borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: _userNeutral.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: Image.network(
+                              show.imageUrl,
+                              width: 126,
+                              height: 126,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            show.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.workSans(
+                              color: _userNeutral,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+              child: Text(
+                'Tập gần đây',
+                style: GoogleFonts.newsreader(
+                  color: _userNeutral,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final item = episodes[index];
+                final show = item['podcast'] as Show;
+                final episode = item['episode'] as Episode;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () =>
+                        openPlayerScreen(context, show: show, episode: episode),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _userSurface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: _userNeutral.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Row(
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(16),
                             child: Image.network(
                               episode.images.isNotEmpty
                                   ? episode.images.first
                                   : show.imageUrl,
-                              width: 52,
-                              height: 52,
+                              width: 68,
+                              height: 68,
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -420,95 +330,80 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                               children: [
                                 Text(
                                   episode.title,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.workSans(
+                                    color: _userNeutral,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.35,
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Text(
-                                      show.title,
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white38,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '·  ${episode.formattedDuration}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white24,
-                                      ),
-                                    ),
-                                  ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  show.title,
+                                  style: GoogleFonts.workSans(
+                                    color: _userMuted,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
+                          const Icon(
+                            Icons.play_circle_fill_rounded,
+                            color: _userPrimary,
                           ),
                         ],
                       ),
                     ),
-                  );
-                }, childCount: episodes.length),
-              ),
+                  ),
+                );
+              }, childCount: episodes.length),
             ),
-          ],
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _statItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            color: Colors.white38,
-            letterSpacing: 1,
-          ),
-        ),
-      ],
-    );
-  }
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.value, required this.label});
 
-  Widget _divider() {
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 1,
-      height: 28,
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      color: Colors.white12,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _userSurfaceStrong,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.workSans(
+              color: _userNeutral,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.workSans(
+              color: _userMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

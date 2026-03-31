@@ -13,6 +13,10 @@ class AuthContext(BaseModel):
     name: str | None = None
 
 
+class HealthResponse(BaseModel):
+    status: str
+
+
 class VoiceProfile(BaseModel):
     id: UUID
     name: str
@@ -63,6 +67,10 @@ class ShowDraft(BaseModel):
     hosts: list[AIHostDraft] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 
+    @property
+    def primary_host(self) -> AIHostDraft | None:
+        return self.hosts[0] if self.hosts else None
+
 
 class ProductionPlan(BaseModel):
     id: UUID
@@ -95,6 +103,27 @@ class ChatThreadView(BaseModel):
     updated_at: datetime
     messages: list[ChatMessage] = Field(default_factory=list)
     current_plan: ProductionPlan | None = None
+
+
+class ChatThreadSummary(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    last_message_preview: str | None = None
+    has_current_plan: bool = False
+
+
+class ProductionPlanSummary(BaseModel):
+    id: UUID
+    thread_id: UUID | None = None
+    status: str
+    series_title: str
+    content_type: str = "podcast"
+    episode_count: int = 0
+    created_at: datetime
+    updated_at: datetime
 
 
 class GenerationJob(BaseModel):
@@ -147,3 +176,32 @@ class ChatTurnResult(BaseModel):
     thread_title: str
     assistant_reply: str
     plan_output: PlannerOutput | None = None
+
+
+class VoiceProfilesResponse(BaseModel):
+    voice_profiles: list[VoiceProfile] = Field(default_factory=list)
+
+
+class ChatThreadResponse(BaseModel):
+    thread: ChatThreadView
+
+
+class ChatThreadListResponse(BaseModel):
+    threads: list[ChatThreadSummary] = Field(default_factory=list)
+
+
+class ProductionPlanResponse(BaseModel):
+    draft: ProductionPlan
+
+
+class ProductionPlansResponse(BaseModel):
+    drafts: list[ProductionPlanSummary] = Field(default_factory=list)
+
+
+class GeneratePlanResponse(BaseModel):
+    plan: ProductionPlan
+    job: GenerationJob
+
+
+class GenerationJobResponse(BaseModel):
+    job: GenerationJob

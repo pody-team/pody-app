@@ -375,6 +375,95 @@ class ContentEpisodeSummary {
   }
 }
 
+class ContentTranscriptWord {
+  const ContentTranscriptWord({
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.text,
+  });
+
+  final double startSeconds;
+  final double endSeconds;
+  final String text;
+
+  factory ContentTranscriptWord.fromJson(Map<String, dynamic> json) {
+    return ContentTranscriptWord(
+      startSeconds: _readDouble(json['start_seconds']),
+      endSeconds: _readDouble(json['end_seconds']),
+      text: _readString(json['text']),
+    );
+  }
+}
+
+class ContentTranscriptSegment {
+  const ContentTranscriptSegment({
+    required this.speaker,
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.text,
+    required this.words,
+  });
+
+  final String speaker;
+  final double startSeconds;
+  final double endSeconds;
+  final String text;
+  final List<ContentTranscriptWord> words;
+
+  factory ContentTranscriptSegment.fromJson(Map<String, dynamic> json) {
+    final rawWords = json['words'] as List<dynamic>? ?? const [];
+    return ContentTranscriptSegment(
+      speaker: _readString(json['speaker'], fallback: 'Speaker'),
+      startSeconds: _readDouble(json['start_seconds']),
+      endSeconds: _readDouble(json['end_seconds']),
+      text: _readString(json['text']),
+      words: rawWords
+          .whereType<Map<String, dynamic>>()
+          .map(ContentTranscriptWord.fromJson)
+          .toList(),
+    );
+  }
+}
+
+class ContentEpisodeTranscript {
+  const ContentEpisodeTranscript({
+    required this.status,
+    required this.language,
+    required this.durationSeconds,
+    required this.segments,
+    this.alignmentMethod,
+    this.assetUrl,
+    this.text,
+    this.error,
+  });
+
+  final String status;
+  final String language;
+  final double durationSeconds;
+  final List<ContentTranscriptSegment> segments;
+  final String? alignmentMethod;
+  final String? assetUrl;
+  final String? text;
+  final String? error;
+
+  factory ContentEpisodeTranscript.fromJson(Map<String, dynamic> json) {
+    final rawSegments = json['segments'] as List<dynamic>? ?? const [];
+    return ContentEpisodeTranscript(
+      status: _readString(json['status'], fallback: 'pending'),
+      language: _readString(json['language'], fallback: 'vi'),
+      durationSeconds: _readDouble(json['duration_seconds']),
+      segments: rawSegments
+          .whereType<Map<String, dynamic>>()
+          .map(ContentTranscriptSegment.fromJson)
+          .toList(),
+      alignmentMethod: _readNullableString(json['alignment_method']),
+      assetUrl: _readNullableString(json['asset_url']),
+      text: _readNullableString(json['text']),
+      error: _readNullableString(json['error']),
+    );
+  }
+}
+
 class ContentEpisodeDetail {
   const ContentEpisodeDetail({
     required this.id,
@@ -389,6 +478,7 @@ class ContentEpisodeDetail {
     required this.tags,
     required this.likeCount,
     required this.commentCount,
+    this.transcript,
   });
 
   final String id;
@@ -403,6 +493,7 @@ class ContentEpisodeDetail {
   final List<String> tags;
   final int likeCount;
   final int commentCount;
+  final ContentEpisodeTranscript? transcript;
 
   String get formattedDuration => _formatDuration(durationSeconds);
   String get formattedLikeCount => _formatCount(likeCount);
@@ -422,6 +513,11 @@ class ContentEpisodeDetail {
       tags: _readStringList(json['tags']),
       likeCount: _readInt(json['like_count']),
       commentCount: _readInt(json['comment_count']),
+      transcript: (json['transcript'] as Map<String, dynamic>?) != null
+          ? ContentEpisodeTranscript.fromJson(
+              json['transcript'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 }
@@ -433,9 +529,60 @@ class ContentShowBundle {
   final List<ContentEpisodeSummary> episodes;
 }
 
+class ContentEpisodeBookmarkStatus {
+  const ContentEpisodeBookmarkStatus({
+    required this.episodeId,
+    required this.isBookmarked,
+  });
+
+  final String episodeId;
+  final bool isBookmarked;
+
+  factory ContentEpisodeBookmarkStatus.fromJson(Map<String, dynamic> json) {
+    return ContentEpisodeBookmarkStatus(
+      episodeId: _readString(json['episode_id']),
+      isBookmarked: _readBool(json['is_bookmarked']),
+    );
+  }
+}
+
+class ContentBookmarkedEpisode {
+  const ContentBookmarkedEpisode({
+    required this.episode,
+    required this.show,
+    required this.bookmarkedAt,
+  });
+
+  final ContentEpisodeSummary episode;
+  final ContentShowSummary show;
+  final DateTime bookmarkedAt;
+
+  factory ContentBookmarkedEpisode.fromJson(Map<String, dynamic> json) {
+    return ContentBookmarkedEpisode(
+      episode: ContentEpisodeSummary.fromJson(
+        (json['episode'] as Map<String, dynamic>?) ?? const {},
+      ),
+      show: ContentShowSummary.fromJson(
+        (json['show'] as Map<String, dynamic>?) ?? const {},
+      ),
+      bookmarkedAt: _readDateTime(json['bookmarked_at']),
+    );
+  }
+}
+
 String _readString(Object? value, {String fallback = ''}) {
   if (value is String) {
     return value;
+  }
+  return fallback;
+}
+
+bool _readBool(Object? value, {bool fallback = false}) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
   }
   return fallback;
 }
@@ -453,6 +600,16 @@ int _readInt(Object? value) {
   }
   if (value is num) {
     return value.toInt();
+  }
+  return 0;
+}
+
+double _readDouble(Object? value) {
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
   }
   return 0;
 }

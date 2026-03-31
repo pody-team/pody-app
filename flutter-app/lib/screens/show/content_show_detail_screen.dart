@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/content/domain/content_models.dart';
+import 'package:pody/features/content/presentation/content_legacy_mapper.dart';
 import 'package:pody/features/content/presentation/content_scope.dart';
-import 'package:pody/models/models.dart';
 import 'package:pody/utils/player_utils.dart';
+
+const _detailCanvas = Color(0xFFF7F0E8);
+const _detailPrimary = Color(0xFFBF5700);
+const _detailSecondary = Color(0xFFE1AD01);
+const _detailTertiary = Color(0xFF566931);
+const _detailNeutral = Color(0xFF3E2723);
+const _detailSurface = Color(0xFFFFFBF6);
+const _detailSurfaceStrong = Color(0xFFF1E2D3);
 
 class ContentShowDetailScreen extends StatefulWidget {
   const ContentShowDetailScreen({
@@ -76,12 +85,27 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
     try {
       final repository = ContentScope.of(context);
       final detail = await repository.getEpisodeDetail(episode.id);
+      final remainingDetails = await Future.wait([
+        for (final summary in bundle.episodes)
+          if (summary.id != episode.id) repository.getEpisodeDetail(summary.id),
+      ]);
       if (!mounted) {
         return;
       }
 
-      final legacyShow = _mapShowToLegacy(bundle.show, bundle.episodes);
-      final legacyEpisode = _mapEpisodeToLegacy(detail);
+      final detailById = <String, ContentEpisodeDetail>{
+        detail.id: detail,
+        for (final item in remainingDetails) item.id: item,
+      };
+      final legacyShow = mapContentShowToLegacyWithEpisodeDetails(
+        bundle.show,
+        bundle.episodes,
+        detailById,
+      );
+      final legacyEpisode = mapContentEpisodeDetailToLegacy(
+        detail,
+        hosts: bundle.show.hosts,
+      );
 
       openPlayerScreen(
         context,
@@ -121,164 +145,298 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
     final show = bundle?.show;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0E13),
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              backgroundColor: const Color(0xFF0F0E13),
-              pinned: true,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+      backgroundColor: _detailCanvas,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [_detailSurface, _detailCanvas],
+          ),
+        ),
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                backgroundColor: _detailCanvas,
+                surfaceTintColor: Colors.transparent,
+                pinned: true,
+                leading: Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: _IconCircleButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                leadingWidth: 56,
+                title: Text(
+                  show?.title ?? summary?.title ?? 'Chi tiết show',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.workSans(
+                    color: _detailNeutral,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-              title: Text(
-                show?.title ?? summary?.title ?? 'Chi tiet show',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            if (_isLoading && bundle == null)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator.adaptive()),
-              )
-            else if (_errorMessage != null && bundle == null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _ErrorState(message: _errorMessage!, onRetry: _loadShow),
-              )
-            else
-              SliverList.list(
-                children: [
-                  _buildHero(show, summary),
-                  _buildDescription(show),
-                  _buildEpisodes(bundle),
-                ],
-              ),
-          ],
+              if (_isLoading && bundle == null)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator.adaptive()),
+                )
+              else if (_errorMessage != null && bundle == null)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _ErrorState(
+                    message: _errorMessage!,
+                    onRetry: _loadShow,
+                  ),
+                )
+              else
+                SliverList.list(
+                  children: [
+                    _buildHero(show, summary, bundle),
+                    _buildDescription(show),
+                    _buildEpisodes(bundle),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHero(ContentShowDetail? show, ContentShowSummary? summary) {
-    final title = show?.title ?? summary?.title ?? 'Dang tai';
+  Widget _buildHero(
+    ContentShowDetail? show,
+    ContentShowSummary? summary,
+    ContentShowBundle? bundle,
+  ) {
+    final title = show?.title ?? summary?.title ?? 'Đang tải';
     final coverImageUrl = show?.coverImageUrl ?? summary?.coverImageUrl ?? '';
     final hosts = show?.hosts ?? summary?.hosts ?? const [];
-    final primaryHost = hosts.isEmpty ? null : hosts.first;
     final hostLabel = hosts.map((host) => host.displayName).join(', ');
-    final categoryChips =
-        show?.categories ??
-        <String>[if (summary != null) summary.primaryCategory];
+    final categories = <String>{
+      if ((summary?.primaryCategory ?? '').isNotEmpty) summary!.primaryCategory,
+      ...?show?.categories.where((item) => item.isNotEmpty),
+    }.toList(growable: false);
+    final latestEpisodes =
+        bundle == null ? <ContentEpisodeSummary>[] : [...bundle.episodes]
+          ..sort((left, right) {
+            final byNumber = right.episodeNumber.compareTo(left.episodeNumber);
+            if (byNumber != 0) {
+              return byNumber;
+            }
+            return right.publishedAt.compareTo(left.publishedAt);
+          });
+    final latest = latestEpisodes.isEmpty ? null : latestEpisodes.first;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-      child: Column(
-        children: [
-          Container(
-            width: 192,
-            height: 192,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  blurRadius: 32,
-                  offset: const Offset(0, 18),
-                ),
-              ],
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: _detailSurface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: _detailPrimary.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: _detailNeutral.withValues(alpha: 0.08),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Image.network(coverImageUrl, fit: BoxFit.cover),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 280,
+              child: _DetailImage(
+                imageUrl: coverImageUrl,
+                fallbackColor: _detailSurfaceStrong,
+                iconColor: _detailPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          if (primaryHost != null)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: NetworkImage(primaryHost.avatarUrl),
-                ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    'Hosts: $hostLabel',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.74),
-                      fontSize: 14,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ...categories.map(
+                        (category) => _buildChip(
+                          category,
+                          backgroundColor: _detailPrimary.withValues(
+                            alpha: 0.08,
+                          ),
+                          foregroundColor: _detailPrimary,
+                        ),
+                      ),
+                      if (show != null)
+                        _buildChip(
+                          show.contentType,
+                          backgroundColor: _detailTertiary.withValues(
+                            alpha: 0.12,
+                          ),
+                          foregroundColor: _detailTertiary,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    title,
+                    style: GoogleFonts.newsreader(
+                      color: _detailNeutral,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w700,
+                      height: 0.95,
                     ),
                   ),
-                ),
-              ],
-            ),
-          if (show != null) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ...categoryChips
-                    .where((item) => item.isNotEmpty)
-                    .map(_buildChip),
-                _buildStatChip('${show.formattedListenCount} luot nghe'),
-                _buildStatChip('${show.formattedSubscriberCount} theo doi'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundImage: NetworkImage(show.owner.avatarUrl),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  if (hostLabel.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
                       children: [
-                        Text(
-                          show.owner.displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                        if (hosts.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 10),
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: _detailSurfaceStrong,
+                              backgroundImage: hosts.first.avatarUrl.isEmpty
+                                  ? null
+                                  : NetworkImage(hosts.first.avatarUrl),
+                              child: hosts.first.avatarUrl.isEmpty
+                                  ? Text(
+                                      _initialFor(hosts.first.displayName),
+                                      style: GoogleFonts.workSans(
+                                        color: _detailNeutral,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    )
+                                  : null,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${show.totalEpisodeCount} tap • ${show.languageCode.toUpperCase()} • ${show.contentType}',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: 12,
+                        Expanded(
+                          child: Text(
+                            'Dẫn bởi $hostLabel',
+                            style: GoogleFonts.workSans(
+                              color: _detailNeutral.withValues(alpha: 0.72),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
+                  if (show != null) ...[
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _buildStatChip(
+                          '${show.formattedListenCount} lượt nghe',
+                        ),
+                        _buildStatChip(
+                          '${show.formattedSubscriberCount} theo dõi',
+                        ),
+                        _buildStatChip('${show.totalEpisodeCount} tập'),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _detailCanvas,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: _detailSurfaceStrong,
+                            backgroundImage: show.owner.avatarUrl.isEmpty
+                                ? null
+                                : NetworkImage(show.owner.avatarUrl),
+                            child: show.owner.avatarUrl.isEmpty
+                                ? Text(
+                                    _initialFor(show.owner.displayName),
+                                    style: GoogleFonts.workSans(
+                                      color: _detailNeutral,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  show.owner.displayName,
+                                  style: GoogleFonts.workSans(
+                                    color: _detailNeutral,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${show.totalEpisodeCount} tập • ${show.languageCode.toUpperCase()} • ${show.contentType}',
+                                  style: GoogleFonts.workSans(
+                                    color: _detailNeutral.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (latest != null) ...[
+                    const SizedBox(height: 18),
+                    FilledButton.icon(
+                      onPressed: () => _openEpisode(latest),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _detailPrimary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(
+                        'Nghe tập mới nhất',
+                        style: GoogleFonts.workSans(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -289,32 +447,34 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          color: Colors.white.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: _detailNeutral.withValues(alpha: 0.08)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Ve show',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+            Text(
+              'Về show',
+              style: GoogleFonts.workSans(
+                color: _detailPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(
               show.description,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
+              style: GoogleFonts.workSans(
+                color: _detailNeutral.withValues(alpha: 0.78),
                 fontSize: 14,
-                height: 1.6,
+                height: 1.65,
+                fontWeight: FontWeight.w500,
               ),
             ),
             if (show.tags.isNotEmpty) ...[
@@ -322,7 +482,17 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: show.tags.map((tag) => _buildChip(tag)).toList(),
+                children: show.tags
+                    .map(
+                      (tag) => _buildChip(
+                        tag,
+                        backgroundColor: _detailSecondary.withValues(
+                          alpha: 0.18,
+                        ),
+                        foregroundColor: _detailNeutral,
+                      ),
+                    )
+                    .toList(),
               ),
             ],
           ],
@@ -336,35 +506,55 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
       return const SizedBox.shrink();
     }
 
-    final episodes = bundle.episodes;
+    final episodes = [...bundle.episodes]
+      ..sort((left, right) {
+        final byNumber = left.episodeNumber.compareTo(right.episodeNumber);
+        if (byNumber != 0) {
+          return byNumber;
+        }
+        return left.publishedAt.compareTo(right.publishedAt);
+      });
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tat ca episodes',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+          Text(
+            'THƯ VIỆN TẬP',
+            style: GoogleFonts.workSans(
+              color: _detailPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          Text(
+            'Tất cả tập',
+            style: GoogleFonts.newsreader(
+              color: _detailNeutral,
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
           if (episodes.isEmpty)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                color: Colors.white.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: _detailNeutral.withValues(alpha: 0.08),
+                ),
               ),
               child: Text(
-                'Show nay da co hosts va metadata day du, nhung chua co episode nao duoc phat hanh.',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.66),
+                'Show này đã có host và metadata đầy đủ, nhưng chưa có tập nào được phát hành.',
+                style: GoogleFonts.workSans(
+                  color: _detailNeutral.withValues(alpha: 0.72),
+                  fontSize: 13,
                   height: 1.6,
                 ),
               ),
@@ -374,88 +564,105 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
               final isPlaying = _playingEpisodeId == episode.id;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector(
-                  onTap: isPlaying
-                      ? null
-                      : () {
-                          _openEpisode(episode);
-                        },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.06),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(22),
+                    onTap: isPlaying ? null : () => _openEpisode(episode),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: _detailNeutral.withValues(alpha: 0.08),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            episode.coverImageUrl.isNotEmpty
-                                ? episode.coverImageUrl
-                                : bundle.show.coverImageUrl,
-                            width: 68,
-                            height: 68,
-                            fit: BoxFit.cover,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: SizedBox(
+                              width: 84,
+                              height: 84,
+                              child: _DetailImage(
+                                imageUrl: episode.coverImageUrl.isNotEmpty
+                                    ? episode.coverImageUrl
+                                    : bundle.show.coverImageUrl,
+                                fallbackColor: _detailSurfaceStrong,
+                                iconColor: _detailPrimary,
+                              ),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Tap ${episode.episodeNumber}',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.4,
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildChip(
+                                  'Tập ${episode.episodeNumber}',
+                                  backgroundColor: _detailSecondary.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                  foregroundColor: _detailNeutral,
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                episode.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
+                                const SizedBox(height: 8),
+                                Text(
+                                  episode.title,
+                                  style: GoogleFonts.newsreader(
+                                    color: _detailNeutral,
+                                    fontSize: 23,
+                                    height: 0.98,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                episode.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.58),
-                                  height: 1.45,
+                                const SizedBox(height: 8),
+                                Text(
+                                  episode.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.workSans(
+                                    color: _detailNeutral.withValues(
+                                      alpha: 0.72,
+                                    ),
+                                    fontSize: 13,
+                                    height: 1.45,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '${episode.formattedDuration} • ${episode.publishedAt.day}/${episode.publishedAt.month}/${episode.publishedAt.year}',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  fontSize: 12,
+                                const SizedBox(height: 10),
+                                Text(
+                                  '${episode.formattedDuration} • ${episode.publishedAt.day}/${episode.publishedAt.month}/${episode.publishedAt.year}',
+                                  style: GoogleFonts.workSans(
+                                    color: _detailNeutral.withValues(
+                                      alpha: 0.52,
+                                    ),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          isPlaying
-                              ? Icons.hourglass_bottom_rounded
-                              : Icons.play_circle_fill_rounded,
-                          color: Colors.white.withValues(alpha: 0.86),
-                          size: 30,
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: isPlaying
+                                  ? _detailSurfaceStrong
+                                  : _detailPrimary,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              isPlaying
+                                  ? Icons.hourglass_bottom_rounded
+                                  : Icons.play_arrow_rounded,
+                              color: isPlaying ? _detailNeutral : Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -466,17 +673,21 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
     );
   }
 
-  Widget _buildChip(String value) {
+  Widget _buildChip(
+    String value, {
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         value,
-        style: const TextStyle(
-          color: Colors.white70,
+        style: GoogleFonts.workSans(
+          color: foregroundColor,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -486,15 +697,15 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
 
   Widget _buildStatChip(String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
+        color: _detailPrimary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         value,
-        style: const TextStyle(
-          color: Colors.white,
+        style: GoogleFonts.workSans(
+          color: _detailNeutral,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -506,57 +717,68 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
     if (error is ApiException) {
       return error.message;
     }
-    return 'Khong the tai du lieu show luc nay.';
+    return 'Không thể tải dữ liệu show lúc này.';
   }
 
-  Show _mapShowToLegacy(
-    ContentShowDetail show,
-    List<ContentEpisodeSummary> episodes,
-  ) {
-    return Show(
-      id: show.id,
-      title: show.title,
-      hosts: [
-        for (final host in show.hosts)
-          Host(
-            id: host.id,
-            name: host.displayName,
-            avatarUrl: host.avatarUrl,
-            voiceId: host.voiceProfileId,
-            role: host.role,
+  String _initialFor(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'P';
+    }
+    return trimmed.characters.first.toUpperCase();
+  }
+}
+
+class _IconCircleButton extends StatelessWidget {
+  const _IconCircleButton({required this.icon, required this.onPressed});
+
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        shape: BoxShape.circle,
+        border: Border.all(color: _detailNeutral.withValues(alpha: 0.08)),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: _detailNeutral, size: 18),
+      ),
+    );
+  }
+}
+
+class _DetailImage extends StatelessWidget {
+  const _DetailImage({
+    required this.imageUrl,
+    required this.fallbackColor,
+    required this.iconColor,
+  });
+
+  final String imageUrl;
+  final Color fallbackColor;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return DecoratedBox(
+          decoration: BoxDecoration(color: fallbackColor),
+          child: Center(
+            child: Icon(
+              Icons.podcasts_rounded,
+              color: iconColor.withValues(alpha: 0.6),
+              size: 32,
+            ),
           ),
-      ],
-      category: show.primaryCategory,
-      imageUrl: show.coverImageUrl,
-      episodes: episodes.map(_mapEpisodeSummaryToLegacy).toList(),
-      subscriberCount: show.formattedSubscriberCount,
-      totalEpisodeCount: show.totalEpisodeCount,
-      authorId: show.owner.id,
-    );
-  }
-
-  Episode _mapEpisodeSummaryToLegacy(ContentEpisodeSummary episode) {
-    return Episode(
-      id: episode.id,
-      showId: episode.showId,
-      title: episode.title,
-      description: episode.description,
-      duration: Duration(seconds: episode.durationSeconds),
-      images: [episode.coverImageUrl],
-    );
-  }
-
-  Episode _mapEpisodeToLegacy(ContentEpisodeDetail episode) {
-    return Episode(
-      id: episode.id,
-      showId: episode.showId,
-      title: episode.title,
-      description: episode.description,
-      duration: Duration(seconds: episode.durationSeconds),
-      images: [episode.coverImageUrl],
-      tags: episode.tags,
-      likes: episode.likeCount,
-      comments: episode.commentCount,
+        );
+      },
     );
   }
 }
@@ -571,27 +793,56 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.podcasts_rounded,
-              size: 46,
-              color: Colors.white.withValues(alpha: 0.25),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: _detailSecondary.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: const Icon(
+                Icons.wifi_tethering_error_rounded,
+                color: _detailPrimary,
+                size: 34,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
+            Text(
+              'Không tải được show',
+              style: GoogleFonts.newsreader(
+                color: _detailNeutral,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, height: 1.5),
+              style: GoogleFonts.workSans(
+                color: _detailNeutral.withValues(alpha: 0.7),
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             FilledButton(
-              onPressed: () {
-                onRetry();
-              },
-              child: const Text('Thu lai'),
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                backgroundColor: _detailPrimary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Text(
+                'Thử lại',
+                style: GoogleFonts.workSans(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),

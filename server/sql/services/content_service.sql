@@ -163,6 +163,13 @@ CREATE TABLE IF NOT EXISTS episode_segments (
   CONSTRAINT ux_episode_segments_order UNIQUE (episode_id, segment_index)
 );
 
+CREATE TABLE IF NOT EXISTS episode_bookmarks (
+  user_id uuid NOT NULL,
+  episode_id uuid NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, episode_id)
+);
+
 CREATE TABLE IF NOT EXISTS episode_companion_blocks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   episode_id uuid NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
@@ -213,6 +220,9 @@ CREATE INDEX IF NOT EXISTS ix_episodes_status_published
 
 CREATE INDEX IF NOT EXISTS ix_episode_segments_episode_order
   ON episode_segments (episode_id, segment_index);
+
+CREATE INDEX IF NOT EXISTS ix_episode_bookmarks_user_created
+  ON episode_bookmarks (user_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS ix_outbox_events_status_available
   ON outbox_events (status, available_at);
