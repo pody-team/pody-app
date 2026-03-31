@@ -86,7 +86,7 @@ class EmbeddingRuntime:
                 "Embedding service started without any Gemini API key. Kafka consumer will stay stopped."
             )
             return
-        if not self._provider.probe():
+        if not self._wait_for_provider():
             self._runtime_state.update(
                 provider_ready=False,
                 last_error=self._provider.last_error or "Gemini embedding provider is not reachable",
@@ -215,6 +215,30 @@ class EmbeddingRuntime:
             failed_categories=0,
             last_error=None,
         )
+
+    def _wait_for_provider(self) -> bool:
+        deadline = time.monotonic() + self.settings.gemini.startup_timeout_seconds
+        attempt = 0
+        while True:
+            attempt += 1
+            if self._provider.probe():
+                self._runtime_state.update(provider_ready=True, last_error=None)
+                return True
+
+            self._runtime_state.update(
+                provider_ready=False,
+                last_error=self._provider.last_error or "Gemini embedding provider is not reachable",
+            )
+            if time.monotonic() >= deadline:
+                return False
+
+            self._logger.warning(
+                "Gemini provider is not ready yet (attempt %s). Retrying in %.1fs. Error: %s",
+                attempt,
+                self.settings.gemini.retry_delay_seconds,
+                self._provider.last_error or "Gemini embedding provider is not reachable",
+            )
+            time.sleep(self.settings.gemini.retry_delay_seconds)
 
     def _wait_for_category_source_database(self) -> None:
         if self.settings.category_bootstrap.source_database is None or self._category_catalog_repository is None:

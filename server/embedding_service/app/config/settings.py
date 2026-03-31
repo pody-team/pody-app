@@ -102,6 +102,8 @@ class GeminiSettings:
     output_dimensions: int
     batch_size: int
     quota_retry_delay_seconds: float
+    startup_timeout_seconds: int
+    retry_delay_seconds: float
 
 
 @dataclass(frozen=True)
@@ -232,6 +234,8 @@ def load_settings() -> AppSettings:
             output_dimensions=_int_env("EMBEDDING_OUTPUT_DIMENSIONS", PGVECTOR_DIMENSIONS),
             batch_size=_int_env("EMBEDDING_BATCH_SIZE", 16),
             quota_retry_delay_seconds=_float_env("EMBEDDING_GEMINI_QUOTA_RETRY_DELAY_SECONDS", 60.0),
+            startup_timeout_seconds=_int_env("EMBEDDING_PROVIDER_STARTUP_TIMEOUT_SECONDS", 120),
+            retry_delay_seconds=_float_env("EMBEDDING_PROVIDER_RETRY_DELAY_SECONDS", 2.0),
         ),
         article_chunking=ArticleChunkSettings(
             target_chars=_int_env("ARTICLE_CHUNK_TARGET_CHARS", 1400),
