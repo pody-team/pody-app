@@ -1,5 +1,8 @@
 .DS_Store
 
+# Root env files
+/.env
+
 # Server artifacts
 server/node_modules/
 server/dist/
