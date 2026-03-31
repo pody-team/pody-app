@@ -99,6 +99,22 @@ class SettingsTests(unittest.TestCase):
 
         self.assertEqual(settings.gemini.quota_retry_delay_seconds, 180.0)
 
+    def test_load_settings_reads_provider_startup_retry_settings(self):
+        with patch.dict(
+            os.environ,
+            {
+                "EMBEDDING_DATABASE_URL": "postgresql://postgres:postgres@embedding-postgres:5432/pody_embedding",
+                "ARTICLE_DATABASE_URL": "postgresql://postgres:postgres@article-postgres:5432/pody_article",
+                "EMBEDDING_PROVIDER_STARTUP_TIMEOUT_SECONDS": "45",
+                "EMBEDDING_PROVIDER_RETRY_DELAY_SECONDS": "3.5",
+            },
+            clear=True,
+        ):
+            settings = load_settings()
+
+        self.assertEqual(settings.gemini.startup_timeout_seconds, 45)
+        self.assertEqual(settings.gemini.retry_delay_seconds, 3.5)
+
     def test_load_settings_reads_category_source_database_override(self):
         with patch.dict(
             os.environ,

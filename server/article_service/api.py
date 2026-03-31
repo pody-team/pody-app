@@ -9,7 +9,13 @@ from dependencies import (
     get_optional_auth_user,
     resolve_user_id,
 )
-from schemas import AuthenticatedUser, CommentCreateRequest, MetricRequest, ReactionRequest
+from schemas import (
+    AuthenticatedUser,
+    CommentCreateRequest,
+    FavoriteCategoriesUpdateRequest,
+    MetricRequest,
+    ReactionRequest,
+)
 from services import ArticleEngagementService, ArticleQueryService
 
 
@@ -30,9 +36,16 @@ def create_api(logger) -> FastAPI:
         category: Optional[str] = Query(None, description="Filter by category"),
         q: Optional[str] = Query(None, description="Search keyword in title/summary"),
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
+        auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
         try:
-            return await article_query_service.list_articles(limit=limit, offset=offset, category=category, query=q)
+            return await article_query_service.list_articles(
+                limit=limit,
+                offset=offset,
+                category=category,
+                query=q,
+                current_user_id=auth_user.user_id if auth_user else None,
+            )
         except HTTPException:
             raise
         except Exception as exc:
@@ -53,6 +66,35 @@ def create_api(logger) -> FastAPI:
             raise
         except Exception as exc:
             logger.error(f"API Error fetching article categories: {str(exc)}")
+            raise HTTPException(status_code=500, detail="Internal server error") from exc
+
+    @api.get("/api/v1/article/me/preferences/categories")
+    async def list_favorite_categories(
+        article_query_service: ArticleQueryService = Depends(get_article_query_service),
+        auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
+    ):
+        try:
+            user_id = resolve_user_id(auth_user, None)
+            return await article_query_service.list_favorite_categories(user_id)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(f"API Error fetching favorite categories: {str(exc)}")
+            raise HTTPException(status_code=500, detail="Internal server error") from exc
+
+    @api.put("/api/v1/article/me/preferences/categories")
+    async def replace_favorite_categories(
+        req: FavoriteCategoriesUpdateRequest,
+        article_query_service: ArticleQueryService = Depends(get_article_query_service),
+        auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
+    ):
+        try:
+            user_id = resolve_user_id(auth_user, None)
+            return await article_query_service.replace_favorite_categories(user_id, req.category_ids)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error(f"API Error updating favorite categories: {str(exc)}")
             raise HTTPException(status_code=500, detail="Internal server error") from exc
 
     @api.get("/api/v1/article/{article_id}")

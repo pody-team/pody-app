@@ -1,9 +1,9 @@
 from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, delete, func, insert, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import Article, ArticleStat, Category, CategoryArticle
+from models import Article, ArticleStat, Category, CategoryArticle, CategoryUser
 from utils.category_slug import build_category_slug
 
 
@@ -26,6 +26,7 @@ class ArticleQueryRepository:
         offset: int = 0,
         category: Optional[str] = None,
         query: Optional[str] = None,
+        current_user_id: Optional[str] = None,
     ) -> List[Tuple[Article, Optional[str], int]]:
         primary_category_subquery = (
             select(
@@ -62,7 +63,6 @@ class ArticleQueryRepository:
                 ),
             )
             .outerjoin(ArticleStat, Article.id == ArticleStat.article_id)
-            .order_by(Article.published_at.desc())
         )
 
         if category:
@@ -91,6 +91,51 @@ class ArticleQueryRepository:
                     Article.summary.ilike(search_query),
                 )
             )
+
+        should_prioritize_favorites = bool(
+            current_user_id and current_user_id.strip() and not category and not query
+        )
+        if should_prioritize_favorites:
+            primary_favorite_match_exists = (
+                select(CategoryUser.id)
+                .join(Category, Category.id == CategoryUser.category_id)
+                .join(
+                    CategoryArticle,
+                    and_(
+                        CategoryArticle.category_id == CategoryUser.category_id,
+                        CategoryArticle.article_id == Article.id,
+                        CategoryArticle.is_primary.is_(True),
+                    ),
+                )
+                .where(
+                    CategoryUser.user_id == current_user_id.strip(),
+                    Category.is_active.is_(True),
+                )
+                .exists()
+            )
+            favorite_match_exists = (
+                select(CategoryUser.id)
+                .join(Category, Category.id == CategoryUser.category_id)
+                .join(
+                    CategoryArticle,
+                    and_(
+                        CategoryArticle.category_id == CategoryUser.category_id,
+                        CategoryArticle.article_id == Article.id,
+                    ),
+                )
+                .where(
+                    CategoryUser.user_id == current_user_id.strip(),
+                    Category.is_active.is_(True),
+                )
+                .exists()
+            )
+            stmt = stmt.order_by(
+                case((primary_favorite_match_exists, 0), else_=1).asc(),
+                case((favorite_match_exists, 0), else_=1).asc(),
+                Article.published_at.desc(),
+            )
+        else:
+            stmt = stmt.order_by(Article.published_at.desc())
 
         result = await self.session.execute(stmt.limit(limit).offset(offset))
         return [(row[0], row[1], row[2]) for row in result.all()]
@@ -142,3 +187,40 @@ class ArticleQueryRepository:
 
         result = await self.session.execute(stmt)
         return [(row[0], row.article_count) for row in result.all()]
+
+    async def list_favorite_categories(self, user_id: str) -> List[Category]:
+        stmt = (
+            select(Category)
+            .join(CategoryUser, CategoryUser.category_id == Category.id)
+            .where(
+                CategoryUser.user_id == user_id,
+                Category.is_active.is_(True),
+            )
+            .order_by(Category.name.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_active_categories_by_ids(self, category_ids: list[str]) -> List[Category]:
+        if not category_ids:
+            return []
+
+        stmt = (
+            select(Category)
+            .where(
+                Category.id.in_(category_ids),
+                Category.is_active.is_(True),
+            )
+            .order_by(Category.name.asc())
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def replace_favorite_categories(self, user_id: str, category_ids: list[str]) -> List[Category]:
+        await self.session.execute(delete(CategoryUser).where(CategoryUser.user_id == user_id))
+        if category_ids:
+            await self.session.execute(
+                insert(CategoryUser),
+                [{"user_id": user_id, "category_id": category_id} for category_id in category_ids],
+            )
+        return await self.list_favorite_categories(user_id)

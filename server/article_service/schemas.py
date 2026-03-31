@@ -43,3 +43,7 @@ class CommentResponse(BaseModel):
     content: str
     created_at: datetime
     updated_at: datetime
+
+
+class FavoriteCategoriesUpdateRequest(BaseModel):
+    category_ids: list[str] = Field(..., description="Active article category ids to save as favorites")

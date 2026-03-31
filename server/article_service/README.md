@@ -146,13 +146,18 @@ Chuc nang:
 
 - `list_articles_with_extra`
 - `get_article_detail`
+- `list_favorite_categories`
+- `replace_favorite_categories`
 
 Repo nay join `articles`, `category_articles`, `categories`, `article_stats` de tra ve du lieu cho list/detail.
 
 Contract hien tai:
 
 - `GET /api/v1/article` tra ve `category` la primary category.
+- `GET /api/v1/article` co the uu tien bai thuoc favorite categories cua user o feed mac dinh neu co `X-Auth-User-ID`.
 - `GET /api/v1/article/{id}` tra ve `categories` la day du danh sach category active cua bai bao.
+- `GET /api/v1/article/me/preferences/categories` tra ve danh sach the loai yeu thich da luu.
+- `PUT /api/v1/article/me/preferences/categories` replace toan bo danh sach the loai yeu thich cua user.
 
 ### [repositories/article_stats_repository.py](/D:/MyWorkSpace/pody/pody2/pody-app/server/article_service/repositories/article_stats_repository.py)
 
@@ -211,6 +216,8 @@ Chua business logic cho luong doc.
 Chuc nang:
 
 - `list_articles`
+- `list_favorite_categories`
+- `replace_favorite_categories`
 - `get_article_detail`
 - `get_reactions`
 - `list_comments`
@@ -270,6 +277,8 @@ Nhung endpoint hien co:
 - `GET /healthz`
 - `GET /api/v1/article`
 - `GET /api/v1/article/categories`
+- `GET /api/v1/article/me/preferences/categories`
+- `PUT /api/v1/article/me/preferences/categories`
 - `GET /api/v1/article/{article_id}`
 - `GET /api/v1/article/{article_id}/reactions`
 - `POST /api/v1/article/{article_id}/reactions`
@@ -294,6 +303,7 @@ GET /api/v1/article
 
 - `category`: loc theo ten hoac slug the loai.
 - `q`: tim kiem trong `title` va `summary`.
+- Neu khong co `category` va `q`, service co the day bai thuoc favorite categories len truoc neu request co `X-Auth-User-ID`.
 
 ### 1.1 Xem danh sach the loai
 
@@ -302,6 +312,22 @@ GET /api/v1/article/categories
   -> api.py
   -> ArticleQueryService.list_categories()
   -> ArticleQueryRepository.list_categories_with_counts()
+  -> PostgreSQL
+```
+
+### 1.2 Xem va cap nhat the loai yeu thich
+
+```text
+GET /api/v1/article/me/preferences/categories
+  -> api.py
+  -> ArticleQueryService.list_favorite_categories()
+  -> ArticleQueryRepository.list_favorite_categories()
+  -> PostgreSQL
+
+PUT /api/v1/article/me/preferences/categories
+  -> api.py
+  -> ArticleQueryService.replace_favorite_categories()
+  -> ArticleQueryRepository.replace_favorite_categories()
   -> PostgreSQL
 ```
 

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/screens/user/change_password_screen.dart';
 
+import 'favorite_news_categories_screen.dart';
+
 const _settingsCanvas = Color(0xFFF7F0E8);
 const _settingsPrimary = Color(0xFFBF5700);
 const _settingsNeutral = Color(0xFF3E2723);
@@ -257,6 +259,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
                   child: _SettingsCard(
                     children: [
+                      _SettingsTile(
+                        icon: Icons.interests_outlined,
+                        title: 'Thể loại báo yêu thích',
+                        subtitle:
+                            'Chọn tối đa 5 thể loại để ưu tiên bài viết trong mục Tất cả',
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  const FavoriteNewsCategoriesScreen(),
+                            ),
+                          );
+                        },
+                      ),
                       _SettingsTile(
                         icon: Icons.lock_outline_rounded,
                         title: 'Đổi mật khẩu',
