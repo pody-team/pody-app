@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/data/article_scope.dart';
 import 'package:pody/data/article_service.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
@@ -222,21 +223,7 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    _article.imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.white10,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: Colors.white38,
-                          size: 56,
-                        ),
-                      );
-                    },
-                  ),
+                  _ArticleHeroImage(imageUrl: _article.imageUrl),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -770,6 +757,118 @@ class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ArticleHeroImage extends StatelessWidget {
+  const _ArticleHeroImage({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedUrl = imageUrl.trim();
+    if (trimmedUrl.isEmpty) {
+      return const _ArticleHeroFallback();
+    }
+
+    return Image.network(
+      trimmedUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const _ArticleHeroFallback();
+      },
+    );
+  }
+}
+
+class _ArticleHeroFallback extends StatelessWidget {
+  const _ArticleHeroFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFF3E2723), Color(0xFFBF5700)],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            top: -40,
+            right: -24,
+            child: Container(
+              width: 160,
+              height: 160,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -56,
+            left: -16,
+            child: Container(
+              width: 190,
+              height: 190,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.auto_stories_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Pody News',
+                  style: GoogleFonts.newsreader(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    height: 0.95,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Tin tức tuyển chọn mỗi ngày',
+                  style: GoogleFonts.workSans(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

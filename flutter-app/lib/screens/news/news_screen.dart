@@ -762,21 +762,7 @@ class _NewsScreenState extends State<NewsScreen> {
               borderRadius: BorderRadius.circular(22),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Image.network(
-                  article.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: _newsSurfaceStrong,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.image_not_supported_outlined,
-                        color: _newsMuted,
-                        size: 40,
-                      ),
-                    );
-                  },
-                ),
+                child: _ArticleThumbnail(imageUrl: article.imageUrl),
               ),
             ),
             const SizedBox(height: 14),
@@ -875,23 +861,10 @@ class _NewsScreenState extends State<NewsScreen> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  article.imageUrl,
+                child: _ArticleThumbnail(
+                  imageUrl: article.imageUrl,
                   width: 82,
                   height: 82,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 82,
-                      height: 82,
-                      color: _newsSurfaceStrong,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.image_not_supported_outlined,
-                        color: _newsMuted,
-                      ),
-                    );
-                  },
                 ),
               ),
               const SizedBox(width: 14),
@@ -963,6 +936,131 @@ class _NewsScreenState extends State<NewsScreen> {
             fontWeight: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ArticleThumbnail extends StatelessWidget {
+  const _ArticleThumbnail({required this.imageUrl, this.width, this.height});
+
+  final String imageUrl;
+  final double? width;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedUrl = imageUrl.trim();
+    if (trimmedUrl.isEmpty) {
+      return _ArticleThumbnailFallback(width: width, height: height);
+    }
+
+    return Image.network(
+      trimmedUrl,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return _ArticleThumbnailFallback(width: width, height: height);
+      },
+    );
+  }
+}
+
+class _ArticleThumbnailFallback extends StatelessWidget {
+  const _ArticleThumbnailFallback({this.width, this.height});
+
+  final double? width;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFFFE0B8), Color(0xFFBF5700)],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            top: -16,
+            right: -10,
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -18,
+            left: -12,
+            child: Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.auto_stories_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Pody News',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.newsreader(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Bài viết nổi bật',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.workSans(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
