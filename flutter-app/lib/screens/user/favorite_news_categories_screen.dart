@@ -162,6 +162,12 @@ class _FavoriteNewsCategoriesScreenState
       appBar: AppBar(
         backgroundColor: _favoriteSurface,
         surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: 'Quay lại',
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          color: _favoriteNeutral,
+        ),
         title: Text(
           'Thể loại báo yêu thích',
           style: GoogleFonts.workSans(
