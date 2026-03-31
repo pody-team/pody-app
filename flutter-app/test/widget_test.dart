@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/data/article_service.dart';
 import 'package:pody/features/ai/data/ai_remote_data_source.dart';
 import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/auth/application/auth_controller.dart';
@@ -16,6 +17,7 @@ import 'package:pody/features/content/data/content_repository.dart';
 import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/notifications/data/notification_remote_data_source.dart';
 import 'package:pody/features/notifications/data/notification_repository.dart';
+import 'package:pody/models/news/news_article.dart';
 
 import 'package:pody/main.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
@@ -50,6 +52,7 @@ void main() {
           notificationRepository: NotificationRepository(
             NotificationRemoteDataSource(apiClient),
           ),
+          articleApiService: _FakeArticleApiService(apiClient),
         ),
       );
       await tester.pump();
@@ -108,6 +111,20 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
         ),
       ],
     );
+  }
+}
+
+class _FakeArticleApiService extends ArticleApiService {
+  _FakeArticleApiService(super.apiClient);
+
+  @override
+  Future<List<NewsArticle>> fetchArticles({
+    String? category,
+    String? query,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    return const <NewsArticle>[];
   }
 }
 

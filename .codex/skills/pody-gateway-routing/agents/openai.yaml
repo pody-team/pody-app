@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pody Gateway Routing"
+  short_description: "Keep Pody gateway routes aligned."
+  default_prompt: "Use $pody-gateway-routing to add or update API gateway routing, auth behavior, and docs links in the Pody repo."

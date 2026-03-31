@@ -13,6 +13,8 @@ import 'package:pody/widgets/mini_player.dart';
 import 'package:pody/theme/app_theme.dart';
 import 'package:pody/core/config/app_environment.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/data/article_service.dart';
+import 'package:pody/data/article_scope.dart';
 import 'package:pody/features/ai/data/ai_remote_data_source.dart';
 import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/ai/presentation/ai_scope.dart';
@@ -64,6 +66,7 @@ Future<void> main() async {
   final notificationRepository = NotificationRepository(
     NotificationRemoteDataSource(apiClient),
   );
+  final articleApiService = ArticleApiService(apiClient);
 
   runApp(
     PodyApp(
@@ -71,6 +74,7 @@ Future<void> main() async {
       aiRepository: aiRepository,
       contentRepository: contentRepository,
       notificationRepository: notificationRepository,
+      articleApiService: articleApiService,
     ),
   );
 }
@@ -81,6 +85,7 @@ class PodyApp extends StatelessWidget {
     required this.aiRepository,
     required this.contentRepository,
     required this.notificationRepository,
+    required this.articleApiService,
     super.key,
   }) : navigatorKey = GlobalKey<NavigatorState>();
 
@@ -88,24 +93,28 @@ class PodyApp extends StatelessWidget {
   final AIRepository aiRepository;
   final ContentRepository contentRepository;
   final NotificationRepository notificationRepository;
+  final ArticleApiService articleApiService;
   final GlobalKey<NavigatorState> navigatorKey;
 
   @override
   Widget build(BuildContext context) {
-    return AIScope(
-      repository: aiRepository,
-      child: ContentScope(
-        repository: contentRepository,
-        child: AuthScope(
-          controller: authController,
-          child: MaterialApp(
-            navigatorKey: navigatorKey,
-            title: 'Pody',
-            debugShowCheckedModeBanner: false,
-            theme: buildAppTheme(),
-            home: AppShell(
+    return ArticleScope(
+      service: articleApiService,
+      child: AIScope(
+        repository: aiRepository,
+        child: ContentScope(
+          repository: contentRepository,
+          child: AuthScope(
+            controller: authController,
+            child: MaterialApp(
               navigatorKey: navigatorKey,
-              notificationRepository: notificationRepository,
+              title: 'Pody',
+              debugShowCheckedModeBanner: false,
+              theme: buildAppTheme(),
+              home: AppShell(
+                navigatorKey: navigatorKey,
+                notificationRepository: notificationRepository,
+              ),
             ),
           ),
         ),

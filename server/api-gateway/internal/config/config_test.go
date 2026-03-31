@@ -87,6 +87,7 @@ func TestLoadOverridesValues(t *testing.T) {
 	foundSocial := false
 	foundContentPublic := false
 	foundContentProtected := false
+	foundArticlePublic := false
 	foundIdentityPublic := false
 	foundIdentityProtected := false
 	foundAIPublic := false
@@ -110,6 +111,13 @@ func TestLoadOverridesValues(t *testing.T) {
 			foundContentPublic = true
 			if route.TargetURL != "http://localhost:8082/api/v1/public/content" {
 				t.Fatalf("unexpected public content target %s", route.TargetURL)
+			}
+		}
+
+		if route.Name == "article-public" {
+			foundArticlePublic = true
+			if route.TargetURL != "http://localhost:8084/api/v1/article" {
+				t.Fatalf("unexpected public article target %s", route.TargetURL)
 			}
 		}
 
@@ -154,7 +162,11 @@ func TestLoadOverridesValues(t *testing.T) {
 		t.Fatal("content routes were not configured correctly")
 	}
 
-	if !foundAIPublic || !foundAIProtected {
+	if !foundArticlePublic {
+		t.Fatal("article public route was not configured correctly")
+	}
+
+	if !foundAIProtected {
 		t.Fatal("ai route was not configured correctly")
 	}
 }

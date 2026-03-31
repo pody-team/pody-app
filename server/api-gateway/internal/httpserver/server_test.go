@@ -112,10 +112,10 @@ func TestPublicContentHomeBypassesAuth(t *testing.T) {
 	}
 }
 
-func TestPublicAIOpenAPIBypassesAuth(t *testing.T) {
+func TestPublicArticleListBypassesAuth(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/public/ai/openapi.yaml" {
-			t.Fatalf("expected upstream ai openapi path, got %s", r.URL.Path)
+		if r.URL.Path != "/api/v1/article" {
+			t.Fatalf("expected upstream article path, got %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -126,17 +126,17 @@ func TestPublicAIOpenAPIBypassesAuth(t *testing.T) {
 		AllowedOrigins: []string{"*"},
 		JWTSecret:      "secret",
 		Routes: []config.ServiceRoute{
-			{Name: "ai-public", Prefix: "/api/v1/public/ai", TargetURL: upstream.URL + "/api/v1/public/ai"},
+			{Name: "article-public", Prefix: "/api/v1/public/article", TargetURL: upstream.URL + "/api/v1/article"},
 		},
 	}, newDiscardLogger())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/public/ai/openapi.yaml", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/public/article?limit=5", nil)
 	recorder := httptest.NewRecorder()
 
 	server.Handler.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusOK {
-		t.Fatalf("expected public ai route to bypass auth, got %d", recorder.Code)
+		t.Fatalf("expected public article route to bypass auth, got %d", recorder.Code)
 	}
 }
 

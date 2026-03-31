@@ -1,4 +1,20 @@
 services:
+  article-postgres:
+    image: postgres:16-alpine
+    container_name: pody-article-postgres
+    environment:
+      POSTGRES_DB: pody_article
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pody_article"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
   kafka:
     image: apache/kafka:4.0.0
     container_name: pody-kafka
@@ -35,7 +51,20 @@ services:
       NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL:?NOTIFICATION_DATABASE_URL is required}
       CONTENT_DATABASE_URL: ${CONTENT_DATABASE_URL:?CONTENT_DATABASE_URL is required}
       AI_DATABASE_URL: ${AI_DATABASE_URL:?AI_DATABASE_URL is required}
+      ARTICLE_DATABASE_URL: ${ARTICLE_DATABASE_URL:?ARTICLE_DATABASE_URL is required}
+      ENABLE_DEMO_SEED: ${ENABLE_DEMO_SEED:-false}
     restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    container_name: pody-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   identity-service:
     build:
@@ -205,7 +234,7 @@ services:
       IDENTITY_SERVICE_URL: http://identity-service:8081
       CONTENT_SERVICE_URL: http://content-service:8082
       SOCIAL_SERVICE_URL: http://social-service:8083
-      NEWS_SERVICE_URL: http://news-service:8084
+      ARTICLE_SERVICE_URL: http://article-service:8084
       AI_SERVICE_URL: http://ai-service:8085
       BILLING_SERVICE_URL: http://billing-service:8086
       NOTIFICATION_SERVICE_URL: http://notification-service:8087
@@ -220,9 +249,46 @@ services:
         condition: service_healthy
       ai-service:
         condition: service_healthy
+      article-service:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  article-service:
+    build:
+      context: ./server/article_service
+      dockerfile: Dockerfile
+    container_name: pody-article-service
+    environment:
+      DATABASE_URL: ${ARTICLE_DATABASE_URL:?ARTICLE_DATABASE_URL is required}
+      PORT: "8084"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      CRAWLER_INTERVAL_MINUTES: "30"
+      MAX_CONCURRENT_REQUESTS: ${MAX_CONCURRENT_REQUESTS:-5}
+      REQUEST_TIMEOUT_SECONDS: "60"
+      ENABLE_INITIAL_CRAWL: ${ARTICLE_ENABLE_INITIAL_CRAWL:-true}
+      INITIAL_CRAWL_DELAY_SECONDS: ${ARTICLE_INITIAL_CRAWL_DELAY_SECONDS:-20}
+      DB_USE_NULL_POOL: ${ARTICLE_DB_USE_NULL_POOL:-true}
+      DB_POOL_SIZE: ${ARTICLE_DB_POOL_SIZE:-8}
+      DB_MAX_OVERFLOW: ${ARTICLE_DB_MAX_OVERFLOW:-4}
+    ports:
+      - "8084:8084"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      article-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8084/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
