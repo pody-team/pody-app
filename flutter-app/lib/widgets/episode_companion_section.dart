@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:pody/episode_companion/models/episode_companion_block.dart';
 import 'package:pody/episode_companion/renderer/episode_companion_block_renderer.dart';
 import 'package:pody/models/models.dart';
+
+const Color _companionCanvas = Color(0xFFFFFBF6);
+const Color _companionSurfaceStrong = Color(0xFFF4E7D2);
+const Color _companionPrimary = Color(0xFFBF5700);
+const Color _companionNeutral = Color(0xFF3E2723);
+const Color _companionMuted = Color(0xFF7E665F);
+const Color _companionBorder = Color(0xFFE7D6C3);
 
 class EpisodeCompanionSection extends StatefulWidget {
   const EpisodeCompanionSection({
@@ -27,21 +35,21 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(18, 20, 18, 0),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
           child: Text(
             'Khám phá nội dung',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+            style: GoogleFonts.newsreader(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: _companionNeutral,
             ),
           ),
         ),
         const SizedBox(height: 14),
         ...blocks.map(
           (block) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => _openBlockSheet(context, block),
@@ -64,7 +72,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF111117),
+      backgroundColor: _companionCanvas,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -83,7 +91,7 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
                       width: 42,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.white24,
+                        color: _companionMuted.withValues(alpha: 0.28),
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -93,26 +101,34 @@ class _EpisodeCompanionSectionState extends State<EpisodeCompanionSection> {
                     children: [
                       Icon(
                         _iconForBlock(block.type),
-                        color: Colors.white70,
+                        color: _companionPrimary,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         _labelForBlock(block.type),
-                        style: const TextStyle(
+                        style: GoogleFonts.newsreader(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: _companionNeutral,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: EpisodeCompanionBlockRenderer(
-                        block: block,
-                        mode: EpisodeCompanionRendererMode.full,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _companionSurfaceStrong,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: _companionBorder),
+                      ),
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(14),
+                        child: EpisodeCompanionBlockRenderer(
+                          block: block,
+                          mode: EpisodeCompanionRendererMode.full,
+                        ),
                       ),
                     ),
                   ),

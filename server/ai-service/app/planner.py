@@ -9,6 +9,8 @@ from typing import Any, Callable, Protocol
 import httpx
 from google import genai
 from google.genai import types
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 from .config import Settings
 from .models import (
@@ -69,7 +71,6 @@ class AgentPlanState:
     mode: str = "default"
     edit_focus: str | None = None
     has_searched: bool = False
-    requires_plan: bool = False
     requested_host_count: int | None = None
     content: str | None = None
     output: PlannerOutput | None = None
@@ -77,7 +78,7 @@ class AgentPlanState:
     finalized_reply: str | None = None
 
 
-MAX_AGENT_ITERATIONS = 12
+MAX_AGENT_ITERATIONS = 20
 
 PLAN_SYSTEM_PROMPT = """Bạn là AI Producer Agent của Pody.
 
@@ -85,17 +86,15 @@ Mục tiêu của bạn là tạo production plan cho một podcast/show mới.
 
 Quy trình bắt buộc:
 1. Luôn gọi `brave_search` trước khi viết hoặc sửa production plan.
-2. Nếu cần, gọi `list_voice_profiles` để xem danh sách giọng hợp lệ.
-3. Gọi `write_plan` để viết plan JSON hoàn chỉnh.
-4. Nếu `write_plan` hoặc `edit_plan` trả về `plan_valid=false`, bạn BẮT BUỘC sửa tiếp cho đến khi `plan_valid=true`.
-5. Chỉ khi plan đã hợp lệ, bạn mới trả lời creator bằng một đoạn tiếng Việt ngắn, súc tích, tóm tắt concept vừa tạo.
+2. Gọi `write_plan` để viết plan JSON hoàn chỉnh.
+3. Nếu `write_plan` hoặc `edit_plan` trả về `plan_valid=false`, bạn BẮT BUỘC sửa tiếp cho đến khi `plan_valid=true`.
+4. Chỉ khi plan đã hợp lệ, bạn mới trả lời creator bằng một đoạn tiếng Việt ngắn, súc tích, tóm tắt concept vừa tạo.
 
 Quy tắc plan:
 - Host là thuộc tính ở cấp show (`hosts`), không lặp host theo từng episode.
 - `storytelling` phải có đúng 1 host kiểu `narrator` hoặc `host`.
-- `podcast` nên có từ 1 đến 3 host, tùy theo creator yêu cầu. Nếu creator không nói rõ và format là podcast, bạn có thể đề xuất 2 host để tạo cảm giác đối thoại.
-- `voice_profile_id` phải lấy từ danh sách voice được phép.
-- Luôn search trước rồi mới viết plan, kể cả khi creator đã mô tả khá rõ.
+- `podcast` nên có từ 2 host, tùy theo creator yêu cầu.
+- Luôn search nhiều lượt trước rồi mới viết plan, kể cả khi creator đã mô tả khá rõ.
 - Nếu creator nêu rõ số tập thì số episode phải khớp yêu cầu đó. Nếu creator không nêu rõ, bạn tự đề xuất số tập hợp lý cho concept đầu tiên.
 - `thread_title` ngắn gọn, rõ nghĩa.
 - `assistant_reply` là câu trả lời tiếng Việt ngắn gọn cho creator.
@@ -152,7 +151,6 @@ Trong mode này, bạn phải tự quyết định một trong hai cách hành x
 2. Gọi tool để tạo draft mới hoặc chuyển sang EDIT mode nếu creator muốn sửa draft hiện có.
 
 Nguyên tắc:
-- Không tự động tạo plan chỉ vì tin nhắn nhắc đến show/podcast.
 - Nếu creator chỉ muốn trò chuyện, bạn vẫn trả lời ngắn gọn, hữu ích bằng tiếng Việt, nhưng trước đó vẫn phải gọi `brave_search` để lấy thêm context mới nhất.
 - Trước khi kết thúc bất kỳ lượt nào, bạn phải gọi `brave_search` ít nhất một lần.
 - Nếu creator muốn tạo draft chính thức từ đầu, bạn có thể dùng `write_plan`.
@@ -160,7 +158,6 @@ Nguyên tắc:
 - Khi đã dùng `write_plan`, bạn PHẢI đảm bảo plan hợp lệ (`plan_valid=true`) trước khi kết thúc.
 - Bạn CHỈ được kết thúc lượt hiện tại bằng cách gọi tool `finalize_turn`.
 - Nếu cần research facts/trends, gọi `brave_search`.
-- Nếu cần biết voice hợp lệ, gọi `list_voice_profiles`.
 - Khi bạn không cần cập nhật draft, không được trả JSON.
 - Khi bạn cần tạo draft, bạn phải dùng tool thay vì chèn plan JSON thô vào câu trả lời.
 
@@ -181,13 +178,95 @@ Nguyên tắc:
 - Khi cần sửa draft, dùng `edit_plan`.
 - Nếu `edit_plan` trả về `plan_valid=false`, bạn BẮT BUỘC sửa tiếp cho tới khi `plan_valid=true`.
 - Luôn gọi `brave_search` ít nhất một lần trước khi chỉnh draft hoặc kết thúc lượt chỉnh draft.
-- Chỉ dùng `list_voice_profiles` khi việc chỉnh sửa liên quan đến host/voice.
 - Không trả plan JSON thô ra chat.
 - Bạn CHỈ được kết thúc lượt hiện tại bằng cách gọi tool `finalize_turn`.
 
 Khi kết thúc:
 - trả lời ngắn gọn, nói rõ bạn đã chỉnh gì trong draft hiện tại.
 """
+
+
+class CategoryCatalog(Protocol):
+    def list_show_categories(self) -> list[tuple[str, str]]: ...
+
+
+class PostgresCategoryCatalog:
+    def __init__(self, pool: ConnectionPool) -> None:
+        self._pool = pool
+
+    def list_show_categories(self) -> list[tuple[str, str]]:
+        with self._pool.connection() as conn:
+            conn.row_factory = dict_row
+            rows = conn.execute(
+                """
+                SELECT name, slug
+                FROM categories
+                WHERE is_active = true
+                  AND applies_to IN ('show', 'mixed')
+                ORDER BY sort_order ASC, name ASC
+                """
+            ).fetchall()
+        categories = [
+            (str(row["name"]).strip(), str(row["slug"]).strip())
+            for row in rows
+            if str(row["name"]).strip() and str(row["slug"]).strip()
+        ]
+        if not categories:
+            raise PlannerError("content category catalog is empty")
+        return categories
+
+
+def _build_allowed_categories_block(
+    categories: list[tuple[str, str]],
+) -> str:
+    lines = [
+        "Danh sach category show hop le. Ban phai dung chinh xac mot trong cac gia tri sau cho `primary_category` va `categories`:"
+    ]
+    for name, slug in categories:
+        lines.append(f'- "{name}" (slug: {slug})')
+    return "\n".join(lines)
+
+
+def _build_allowed_voices_block(voice_profiles: list[VoiceProfile]) -> str:
+    if not voice_profiles:
+        return "Khong co voice profile nao duoc phep hien tai."
+
+    lines = ["Danh sach voice profile duoc phep dung:"]
+    for voice in voice_profiles:
+        lines.append(
+            f'- "{voice.name}" | id={voice.id} | provider_voice_id={voice.provider_voice_id} | language={voice.language_code} | gender={voice.gender}'
+        )
+    return "\n".join(lines)
+
+
+def _build_plan_system_prompt(
+    *,
+    voice_profiles: list[VoiceProfile],
+    categories: list[tuple[str, str]],
+) -> str:
+    return (
+        f"{PLAN_SYSTEM_PROMPT.strip()}\n\n"
+        f"{_build_allowed_categories_block(categories)}\n\n"
+        f"{_build_allowed_voices_block(voice_profiles)}"
+    )
+
+
+def _build_create_agent_system_prompt_for_mode(
+    mode: str,
+    *,
+    voice_profiles: list[VoiceProfile],
+    categories: list[tuple[str, str]],
+) -> str:
+    base_prompt = (
+        CREATE_AGENT_EDIT_SYSTEM_PROMPT
+        if mode == "edit"
+        else CREATE_AGENT_DEFAULT_SYSTEM_PROMPT
+    )
+    return (
+        f"{base_prompt.strip()}\n\n"
+        f"{_build_allowed_categories_block(categories)}\n\n"
+        f"{_build_allowed_voices_block(voice_profiles)}"
+    )
 
 BASE_PLAN_FUNCTION_DECLARATIONS = [
     types.FunctionDeclaration(
@@ -220,14 +299,6 @@ BASE_PLAN_FUNCTION_DECLARATIONS = [
                     "description": "Optional section to focus on, such as show.title or episodes[1]",
                 }
             },
-        },
-    ),
-    types.FunctionDeclaration(
-        name="list_voice_profiles",
-        description="Read the list of allowed AI voice profiles for this show plan.",
-        parameters_json_schema={
-            "type": "object",
-            "properties": {},
         },
     ),
     types.FunctionDeclaration(
@@ -487,10 +558,12 @@ class GoogleGenAIPlanner:
         model: str,
         base_url: str | None = None,
         search_tool: SearchTool | None = None,
+        category_catalog: CategoryCatalog | None = None,
     ) -> None:
         self._client = _build_genai_client(api_key=api_key, base_url=base_url)
         self._model = model
         self._search_tool = search_tool or DisabledSearchTool()
+        self._category_catalog = category_catalog
 
     def generate(
         self,
@@ -501,6 +574,9 @@ class GoogleGenAIPlanner:
         conversation: list[str],
         current_plan_summary: str | None = None,
     ) -> PlannerOutput:
+        if self._category_catalog is None:
+            raise PlannerError("content category catalog is not configured")
+        categories = self._category_catalog.list_show_categories()
         contents = [
             types.Content(
                 role="user",
@@ -525,7 +601,10 @@ class GoogleGenAIPlanner:
                 contents=contents,
                 config=types.GenerateContentConfig(
                     temperature=0.7,
-                    system_instruction=PLAN_SYSTEM_PROMPT,
+                    system_instruction=_build_plan_system_prompt(
+                        voice_profiles=voice_profiles,
+                        categories=categories,
+                    ),
                     tools=PLANNER_TOOLS,
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
@@ -556,6 +635,7 @@ class GoogleGenAIPlanner:
                             args,
                             state=state,
                             voice_profiles=voice_profiles,
+                            categories=categories,
                             requested_episode_count=requested_episode_count,
                             search_tool=self._search_tool,
                         )
@@ -579,6 +659,7 @@ class GoogleGenAIPlanner:
                     validation = _validate_planner_content(
                         extracted,
                         voice_profiles=voice_profiles,
+                        categories=categories,
                         requested_episode_count=requested_episode_count,
                     )
                     state.validation = validation
@@ -620,29 +701,6 @@ class StubCreateAgent:
         emit_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ChatTurnResult:
         _ = emit_event
-        should_plan = _should_create_or_update_plan(
-            prompt=prompt,
-            conversation=conversation,
-            current_plan=current_plan,
-        )
-        if should_plan:
-            if emit_event is not None:
-                _emit_tool_status(emit_event, "write_plan")
-            output = StubPlanner().generate(
-                prompt=prompt,
-                requested_episode_count=requested_episode_count,
-                voice_profiles=voice_profiles,
-                conversation=conversation,
-                current_plan_summary=_current_plan_summary(current_plan),
-            )
-            if emit_event is not None:
-                _emit_plan_preview(emit_event, output)
-            return ChatTurnResult(
-                thread_title=output.thread_title.strip() or output.series_title,
-                assistant_reply=output.assistant_reply,
-                plan_output=output,
-            )
-
         return ChatTurnResult(
             thread_title=_derive_thread_title(prompt, current_thread_title),
             assistant_reply=_default_chat_reply(current_plan),
@@ -658,15 +716,18 @@ class GoogleGenAICreateAgent:
         model: str,
         base_url: str | None = None,
         search_tool: SearchTool | None = None,
+        category_catalog: CategoryCatalog | None = None,
     ) -> None:
         self._client = _build_genai_client(api_key=api_key, base_url=base_url)
         self._model = model
         self._search_tool = search_tool or DisabledSearchTool()
+        self._category_catalog = category_catalog
         self._planner_fallback = GoogleGenAIPlanner(
             api_key=api_key,
             model=model,
             base_url=base_url,
             search_tool=self._search_tool,
+            category_catalog=category_catalog,
         )
 
     def respond(
@@ -680,18 +741,16 @@ class GoogleGenAICreateAgent:
         current_plan: ProductionPlan | None,
         emit_event: Callable[[dict[str, Any]], None] | None = None,
     ) -> ChatTurnResult:
-        requires_plan = _should_create_or_update_plan(
-            prompt=prompt,
-            conversation=conversation,
-            current_plan=current_plan,
-        )
+        if self._category_catalog is None:
+            raise PlannerError("content category catalog is not configured")
+        categories = self._category_catalog.list_show_categories()
         requested_host_count = _infer_requested_host_count(prompt, voice_profiles)
         state = _seed_agent_state(
             current_plan=current_plan,
             voice_profiles=voice_profiles,
+            categories=categories,
             requested_episode_count=requested_episode_count,
             requested_host_count=requested_host_count,
-            requires_plan=requires_plan,
         )
         contents = [
             types.Content(
@@ -711,7 +770,11 @@ class GoogleGenAICreateAgent:
         ]
 
         for _ in range(MAX_AGENT_ITERATIONS):
-            system_prompt = _create_agent_system_prompt_for_mode(state.mode)
+            system_prompt = _build_create_agent_system_prompt_for_mode(
+                state.mode,
+                voice_profiles=voice_profiles,
+                categories=categories,
+            )
             mode_tools = _create_agent_tools_for_mode(state.mode)
             response = self._client.models.generate_content(
                 model=self._model,
@@ -749,6 +812,7 @@ class GoogleGenAICreateAgent:
                             args,
                             state=state,
                             voice_profiles=voice_profiles,
+                            categories=categories,
                             requested_episode_count=requested_episode_count,
                             search_tool=self._search_tool,
                             emit_event=emit_event,
@@ -794,24 +858,6 @@ class GoogleGenAICreateAgent:
                 )
 
             if text:
-                if requires_plan:
-                    if emit_event is not None:
-                        _emit_tool_status(emit_event, "write_plan")
-                    fallback_output = self._planner_fallback.generate(
-                        prompt=prompt,
-                        requested_episode_count=requested_episode_count,
-                        voice_profiles=voice_profiles,
-                        conversation=conversation,
-                        current_plan_summary=_current_plan_summary(current_plan),
-                    )
-                    if emit_event is not None:
-                        _emit_plan_preview(emit_event, fallback_output)
-                    return ChatTurnResult(
-                        thread_title=fallback_output.thread_title.strip()
-                        or fallback_output.series_title,
-                        assistant_reply=fallback_output.assistant_reply,
-                        plan_output=fallback_output,
-                    )
                 return ChatTurnResult(
                     thread_title=_derive_thread_title(prompt, current_thread_title),
                     assistant_reply=text,
@@ -832,7 +878,16 @@ class GoogleGenAICreateAgent:
         raise PlannerError("Agent reached max iterations without producing a reply")
 
 
-def build_planner(settings: Settings) -> Planner:
+def build_planner(
+    settings: Settings,
+    *,
+    content_pool: ConnectionPool | None = None,
+) -> Planner:
+    category_catalog = (
+        PostgresCategoryCatalog(content_pool)
+        if content_pool is not None
+        else None
+    )
     if settings.use_google_provider:
         api_key = settings.google_api_key or "proxy-placeholder"
         return GoogleGenAIPlanner(
@@ -840,11 +895,21 @@ def build_planner(settings: Settings) -> Planner:
             model=settings.google_model,
             base_url=settings.google_base_url,
             search_tool=build_search_tool(settings),
+            category_catalog=category_catalog,
         )
     return StubPlanner()
 
 
-def build_create_agent(settings: Settings) -> CreateAgent:
+def build_create_agent(
+    settings: Settings,
+    *,
+    content_pool: ConnectionPool | None = None,
+) -> CreateAgent:
+    category_catalog = (
+        PostgresCategoryCatalog(content_pool)
+        if content_pool is not None
+        else None
+    )
     if settings.use_google_provider:
         api_key = settings.google_api_key or "proxy-placeholder"
         return GoogleGenAICreateAgent(
@@ -852,6 +917,7 @@ def build_create_agent(settings: Settings) -> CreateAgent:
             model=settings.google_model,
             base_url=settings.google_base_url,
             search_tool=build_search_tool(settings),
+            category_catalog=category_catalog,
         )
     return StubCreateAgent()
 
@@ -988,13 +1054,12 @@ def _seed_agent_state(
     *,
     current_plan: ProductionPlan | None,
     voice_profiles: list[VoiceProfile],
+    categories: list[tuple[str, str]] | None = None,
     requested_episode_count: int | None,
     requested_host_count: int | None = None,
-    requires_plan: bool = False,
 ) -> AgentPlanState:
     if current_plan is None:
         return AgentPlanState(
-            requires_plan=requires_plan,
             requested_host_count=requested_host_count,
         )
 
@@ -1002,12 +1067,12 @@ def _seed_agent_state(
     validation = _validate_planner_content(
         json.dumps(output.model_dump(mode="json", exclude_none=True), ensure_ascii=False),
         voice_profiles=voice_profiles,
+        categories=categories,
         requested_episode_count=requested_episode_count,
         requested_host_count=requested_host_count,
     )
     return AgentPlanState(
         mode="default",
-        requires_plan=requires_plan,
         requested_host_count=requested_host_count,
         content=validation.normalized_json,
         output=validation.output or output,
@@ -1113,117 +1178,6 @@ def _slugify(value: str) -> str:
     return normalized or "new-show"
 
 
-_PLAN_ACTION_KEYWORDS = (
-    "tao",
-    "tạo",
-    "build",
-    "generate",
-    "draft",
-    "phac thao",
-    "phác thảo",
-    "len plan",
-    "lên plan",
-    "outline",
-    "dung",
-    "dựng",
-    "lap plan",
-    "lập plan",
-    "viet concept",
-    "viết concept",
-    "tao show",
-    "tạo show",
-)
-
-_PLAN_SUBJECT_KEYWORDS = (
-    "show",
-    "podcast",
-    "storytelling",
-    "series",
-    "title",
-    "tieu de",
-    "tiêu đề",
-    "description",
-    "mo ta",
-    "mô tả",
-    "tone",
-    "category",
-    "episode",
-    "tap",
-    "tập",
-    "host",
-    "co-host",
-    "co host",
-    "lineup",
-    "concept",
-    "format",
-    "season",
-)
-
-_PLAN_REVISE_KEYWORDS = (
-    "doi",
-    "đổi",
-    "sua",
-    "sửa",
-    "them",
-    "thêm",
-    "bot",
-    "bớt",
-    "refine",
-    "revise",
-    "adjust",
-    "cap nhat",
-    "cập nhật",
-    "rut gon",
-    "rút gọn",
-    "mo rong",
-    "mở rộng",
-)
-
-
-def _should_create_or_update_plan(
-    *,
-    prompt: str,
-    conversation: list[str],
-    current_plan: ProductionPlan | None,
-) -> bool:
-    normalized_prompt = re.sub(r"\s+", " ", (prompt or "").strip().lower())
-    has_plan_subject = any(keyword in normalized_prompt for keyword in _PLAN_SUBJECT_KEYWORDS)
-    has_plan_action = any(keyword in normalized_prompt for keyword in _PLAN_ACTION_KEYWORDS)
-    has_revise_action = any(keyword in normalized_prompt for keyword in _PLAN_REVISE_KEYWORDS)
-
-    if current_plan is not None and has_revise_action and (
-        has_plan_subject or "draft" in normalized_prompt or "plan" in normalized_prompt
-    ):
-        return True
-
-    if has_plan_action and has_plan_subject:
-        return True
-
-    if current_plan is not None and any(
-        phrase in normalized_prompt
-        for phrase in (
-            "lam luon",
-            "làm luôn",
-            "chot ban nay",
-            "chốt bản này",
-            "tao ban draft",
-            "tạo bản draft",
-        )
-    ):
-        return True
-
-    if not conversation and has_plan_subject and not has_plan_action:
-        return False
-
-    return False
-
-
-def _create_agent_system_prompt_for_mode(mode: str) -> str:
-    if mode == "edit":
-        return CREATE_AGENT_EDIT_SYSTEM_PROMPT
-    return CREATE_AGENT_DEFAULT_SYSTEM_PROMPT
-
-
 def _create_agent_tools_for_mode(mode: str) -> list[types.Tool]:
     if mode == "edit":
         return CREATE_AGENT_EDIT_TOOLS
@@ -1236,6 +1190,7 @@ def _execute_plan_tool(
     *,
     state: AgentPlanState,
     voice_profiles: list[VoiceProfile],
+    categories: list[tuple[str, str]] | None = None,
     requested_episode_count: int | None,
     search_tool: SearchTool,
     emit_event: Callable[[dict[str, Any]], None] | None = None,
@@ -1257,21 +1212,6 @@ def _execute_plan_tool(
 
         state.has_searched = True
         return result
-
-    if name == "list_voice_profiles":
-        _emit_tool_status(emit_event, name)
-        payload = [
-            {
-                "id": str(voice.id),
-                "name": voice.name,
-                "provider_voice_id": voice.provider_voice_id,
-                "language_code": voice.language_code,
-                "gender": voice.gender,
-                "avatar_url": _avatar_url(voice),
-            }
-            for voice in voice_profiles
-        ]
-        return json.dumps(payload, ensure_ascii=False, indent=2)
 
     if name == "begin_edit_session":
         _emit_tool_status(emit_event, name)
@@ -1303,19 +1243,12 @@ def _execute_plan_tool(
         )
 
     if name == "write_plan":
-        if not state.has_searched:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "You must call brave_search before writing the draft.",
-                },
-                ensure_ascii=False,
-            )
         _emit_tool_status(emit_event, name)
         content = str(args.get("content", ""))
         validation = _validate_planner_content(
             content,
             voice_profiles=voice_profiles,
+            categories=categories,
             requested_episode_count=requested_episode_count,
             requested_host_count=state.requested_host_count,
         )
@@ -1346,18 +1279,13 @@ def _execute_plan_tool(
         return state.content
 
     if name == "edit_plan":
-        if not state.has_searched:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "You must call brave_search before editing the draft.",
-                },
-                ensure_ascii=False,
-            )
         _emit_tool_status(emit_event, name)
         if not state.content:
             return json.dumps(
-                {"error": "No plan written yet. Use write_plan first."},
+                _tool_failure_payload(
+                    "No plan written yet. Use write_plan first.",
+                    plan_valid=False,
+                ),
                 ensure_ascii=False,
             )
 
@@ -1367,18 +1295,37 @@ def _execute_plan_tool(
             search = str(args.get("search", ""))
             replacement = str(args.get("replacement", ""))
             if not search:
-                raise PlannerError("search is required for replace")
+                return json.dumps(
+                    _tool_failure_payload(
+                        "search is required for replace",
+                        plan_valid=False,
+                    ),
+                    ensure_ascii=False,
+                )
             if search not in content:
-                raise PlannerError(f'Text not found: "{search[:80]}"')
+                return json.dumps(
+                    _tool_failure_payload(
+                        f'Text not found: "{search[:80]}"',
+                        plan_valid=False,
+                    ),
+                    ensure_ascii=False,
+                )
             content = content.replace(search, replacement)
         elif operation == "rewrite":
             content = str(args.get("content", ""))
         else:
-            raise PlannerError(f"Unknown edit_plan operation: {operation}")
+            return json.dumps(
+                _tool_failure_payload(
+                    f"Unknown edit_plan operation: {operation}",
+                    plan_valid=False,
+                ),
+                ensure_ascii=False,
+            )
 
         validation = _validate_planner_content(
             content,
             voice_profiles=voice_profiles,
+            categories=categories,
             requested_episode_count=requested_episode_count,
             requested_host_count=state.requested_host_count,
         )
@@ -1400,22 +1347,6 @@ def _execute_plan_tool(
         )
 
     if name == "finalize_turn":
-        if not state.has_searched:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "You must call brave_search before finalizing the turn.",
-                },
-                ensure_ascii=False,
-            )
-        if state.requires_plan and state.output is None:
-            return json.dumps(
-                {
-                    "success": False,
-                    "error": "You must create or update the draft before finalizing the turn.",
-                },
-                ensure_ascii=False,
-            )
         _emit_tool_status(emit_event, name)
         message = str(args.get("message", "")).strip()
         if not message:
@@ -1474,8 +1405,6 @@ def _tool_status_message(tool_name: str, *, query: str | None = None) -> str:
                 compact_query = f"{compact_query[:69].rstrip()}..."
             return f"Đang tìm kiếm thông tin về “{compact_query}”..."
         return "Đang tìm kiếm thông tin liên quan..."
-    if tool_name == "list_voice_profiles":
-        return "Đang rà các giọng AI phù hợp..."
     if tool_name == "begin_edit_session":
         return "Đang mở bản draft để chỉnh sửa..."
     if tool_name == "write_plan":
@@ -1501,10 +1430,21 @@ def _validation_payload(validation: PlanValidation) -> dict[str, Any]:
     return payload
 
 
+def _tool_failure_payload(error: str, *, plan_valid: bool | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "success": False,
+        "error": error,
+    }
+    if plan_valid is not None:
+        payload["plan_valid"] = plan_valid
+    return payload
+
+
 def _validate_planner_content(
     content: str,
     *,
     voice_profiles: list[VoiceProfile],
+    categories: list[tuple[str, str]] | None = None,
     requested_episode_count: int | None,
     requested_host_count: int | None = None,
 ) -> PlanValidation:
@@ -1547,6 +1487,13 @@ def _validate_planner_content(
         errors.append('Missing or empty "series_description"')
     if not output.primary_category.strip():
         errors.append('Missing or empty "primary_category"')
+    elif categories is not None and not _is_allowed_category_value(
+        output.primary_category,
+        categories,
+    ):
+        errors.append(
+            f'"primary_category" must match a category from content DB: {output.primary_category}'
+        )
     if not output.hosts:
         errors.append('Missing or empty "hosts"')
     if output.content_type == "storytelling" and len(output.hosts) != 1:
@@ -1593,6 +1540,31 @@ def _validate_planner_content(
             errors.append(f'Host {index + 1}: missing "display_name"')
         if not host.role.strip():
             errors.append(f'Host {index + 1}: missing "role"')
+        if host.voice_profile_id is None:
+            errors.append(f'Host {index + 1}: missing "voice_profile_id"')
+        elif not any(str(voice.id) == str(host.voice_profile_id) for voice in voice_profiles):
+            errors.append(
+                f'Host {index + 1}: "voice_profile_id" is not in allowed voice profiles'
+            )
+
+    if categories is not None:
+        for index, category in enumerate(output.categories):
+            if not _is_allowed_category_value(category, categories):
+                errors.append(
+                    f'Category {index + 1} must match a category from content DB: {category}'
+                )
+
+    seen_voice_ids: set[str] = set()
+    for index, host in enumerate(output.hosts):
+        if host.voice_profile_id is None:
+            continue
+        voice_id = str(host.voice_profile_id)
+        if voice_id in seen_voice_ids:
+            errors.append(
+                f'Host {index + 1}: duplicate "voice_profile_id" is not allowed'
+            )
+            continue
+        seen_voice_ids.add(voice_id)
 
     normalized_json = json.dumps(
         output.model_dump(mode="json", exclude_none=True),
@@ -1686,7 +1658,6 @@ def _normalize_output(output: PlannerOutput, voice_profiles: list[VoiceProfile])
         "nguoi ke chuyen": "narrator",
     }
     allowed_voice_ids = {str(voice.id): voice for voice in voice_profiles}
-    used_voice_ids: set[str] = set()
     normalized_hosts: list[AIHostDraft] = []
     default_role = "narrator" if output.content_type == "storytelling" else "host"
 
@@ -1694,39 +1665,14 @@ def _normalize_output(output: PlannerOutput, voice_profiles: list[VoiceProfile])
         role = (host.role or "").strip().lower()
         normalized_role = role_map.get(role, default_role if index == 0 else "co_host")
 
+        host.role = normalized_role
         voice_profile = None
         if host.voice_profile_id is not None:
             voice_profile = allowed_voice_ids.get(str(host.voice_profile_id))
-        if voice_profile is None:
-            for candidate in voice_profiles:
-                candidate_id = str(candidate.id)
-                if candidate_id not in used_voice_ids:
-                    voice_profile = candidate
-                    break
-        if voice_profile is None and voice_profiles:
-            voice_profile = voice_profiles[min(index, len(voice_profiles) - 1)]
-
-        host.role = normalized_role
         if voice_profile is not None:
-            host.voice_profile_id = voice_profile.id
-            used_voice_ids.add(str(voice_profile.id))
             if not host.avatar_url:
                 host.avatar_url = _avatar_url(voice_profile)
-            if not host.display_name.strip():
-                host.display_name = voice_profile.name
         normalized_hosts.append(host)
-
-    if not normalized_hosts and voice_profiles:
-        fallback_voice = voice_profiles[0]
-        normalized_hosts = [
-            AIHostDraft(
-                display_name=fallback_voice.name,
-                avatar_url=_avatar_url(fallback_voice),
-                voice_profile_id=fallback_voice.id,
-                role=default_role,
-                bio="AI host generated from fallback voice profile.",
-            )
-        ]
 
     output.hosts = normalized_hosts
 
@@ -1734,3 +1680,22 @@ def _normalize_output(output: PlannerOutput, voice_profiles: list[VoiceProfile])
         output.categories = [output.primary_category]
 
     return output
+
+
+def _is_allowed_category_value(
+    value: str,
+    categories: list[tuple[str, str]],
+) -> bool:
+    normalized_value = value.strip()
+    if not normalized_value:
+        return False
+
+    allowed: set[str] = set()
+    for name, slug in categories:
+        if name.strip():
+            allowed.add(name.strip())
+            allowed.add(_slugify(name))
+        if slug.strip():
+            allowed.add(slug.strip())
+
+    return normalized_value in allowed or _slugify(normalized_value) in allowed

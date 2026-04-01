@@ -6,6 +6,18 @@ class AppEnvironment {
 
   static const _defaultApiBaseUrl = 'http://192.168.100.206:8080';
   static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const _configuredGoogleClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+  );
+  static const _configuredGoogleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+  );
+  static const _configuredGoogleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+  );
+  static const _configuredGoogleMacosClientId = String.fromEnvironment(
+    'GOOGLE_MACOS_CLIENT_ID',
+  );
   static const _configuredGoogleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
   );
@@ -36,9 +48,42 @@ class AppEnvironment {
 
   static String get identityBase => '$apiBaseUrl/api/v1/identity';
 
-  static String get googleServerClientId {
-    if (_configuredGoogleServerClientId.isNotEmpty) {
-      return _configuredGoogleServerClientId;
+  static String? get googleClientId {
+    if (kIsWeb) {
+      return _firstNonEmpty([
+        _configuredGoogleWebClientId,
+        _configuredGoogleClientId,
+        googleServerClientId,
+      ]);
+    }
+
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.iOS => _firstNonEmpty([
+        _configuredGoogleIosClientId,
+        _configuredGoogleClientId,
+      ]),
+      TargetPlatform.macOS => _firstNonEmpty([
+        _configuredGoogleMacosClientId,
+        _configuredGoogleIosClientId,
+        _configuredGoogleClientId,
+      ]),
+      _ => _firstNonEmpty([_configuredGoogleClientId]),
+    };
+  }
+
+  static String? get googleServerClientId {
+    return _firstNonEmpty([
+      _configuredGoogleServerClientId,
+      _defaultGoogleServerClientId,
+    ]);
+  }
+
+  static String? _firstNonEmpty(List<String?> values) {
+    for (final value in values) {
+      final normalized = value?.trim() ?? '';
+      if (normalized.isNotEmpty) {
+        return normalized;
+      }
     }
 
     final envServerClientId =

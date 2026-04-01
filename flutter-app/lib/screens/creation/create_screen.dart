@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/ai/domain/ai_models.dart';
 import 'package:pody/features/ai/presentation/ai_scope.dart';
@@ -12,16 +13,17 @@ import 'package:pody/screens/auth/sign_in_screen.dart';
 import 'package:pody/screens/auth/sign_up_screen.dart';
 import 'package:pody/screens/creation/edit_plan_screen.dart';
 
-const _createBg = Color(0xFFF7F7F8);
-const _createSurface = Colors.white;
-const _createSurfaceSoft = Color(0xFFF3F4F6);
-const _createBorder = Color(0xFFE5E7EB);
-const _createBorderSoft = Color(0xFFEAECF0);
-const _createTextPrimary = Color(0xFF111827);
-const _createTextSecondary = Color(0xFF6B7280);
-const _createTextMuted = Color(0xFF9CA3AF);
-const _createAccent = Color(0xFF0F172A);
-const _createAccentSoft = Color(0xFFF0F4F8);
+const _createBg = Color(0xFFFFFBF6);
+const _createSurface = Color(0xFFFFFEFC);
+const _createSurfaceSoft = Color(0xFFF4E7D8);
+const _createBorder = Color(0xFFE6D4C2);
+const _createBorderSoft = Color(0xFFEEDFD0);
+const _createTextPrimary = Color(0xFF3E2723);
+const _createTextSecondary = Color(0xFF7A6156);
+const _createTextMuted = Color(0xFFB09486);
+const _createAccent = Color(0xFFBF5700);
+const _createAccentSoft = Color(0xFFFFF0E0);
+const _createAccentOlive = Color(0xFF566931);
 const _createDanger = Color(0xFFD14343);
 
 enum _CreateSidebarSection { chats, drafts }
@@ -108,7 +110,9 @@ class _CreateScreenState extends State<CreateScreen> {
     _streamingPlanPreview = null;
     _statusPulseTick = 0;
     _sidebarSection = _CreateSidebarSection.chats;
-    _threadHistoryFuture = userId == null ? null : AIScope.of(context).listThreads();
+    _threadHistoryFuture = userId == null
+        ? null
+        : AIScope.of(context).listThreads();
     _draftListFuture = userId == null ? null : AIScope.of(context).listDrafts();
     _attachedFiles.clear();
     _messageController.clear();
@@ -446,7 +450,9 @@ class _CreateScreenState extends State<CreateScreen> {
       case AIChatStreamEventType.status:
         _statusClearTimer?.cancel();
         _statusClearTimer = null;
-        final normalizedStatus = _normalizedStatusText(event.message ?? '').trim();
+        final normalizedStatus = _normalizedStatusText(
+          event.message ?? '',
+        ).trim();
         if (normalizedStatus.isEmpty) {
           break;
         }
@@ -523,7 +529,8 @@ class _CreateScreenState extends State<CreateScreen> {
         }
         break;
       case AIChatStreamEventType.error:
-        if (_pendingUserMessage != null && _messageController.text.trim().isEmpty) {
+        if (_pendingUserMessage != null &&
+            _messageController.text.trim().isEmpty) {
           _messageController.text = _pendingUserMessage!;
           _messageController.selection = TextSelection.fromPosition(
             TextPosition(offset: _messageController.text.length),
@@ -558,10 +565,7 @@ class _CreateScreenState extends State<CreateScreen> {
         _streamingStatusHistory.last == normalized) {
       return;
     }
-    _streamingStatusHistory = <String>[
-      ..._streamingStatusHistory,
-      normalized,
-    ];
+    _streamingStatusHistory = <String>[..._streamingStatusHistory, normalized];
   }
 
   void _pushDebugEvent(String? label) {
@@ -573,9 +577,7 @@ class _CreateScreenState extends State<CreateScreen> {
       return;
     }
     final next = <String>[..._streamDebugTrail, normalized];
-    _streamDebugTrail = next.length <= 8
-        ? next
-        : next.sublist(next.length - 8);
+    _streamDebugTrail = next.length <= 8 ? next : next.sublist(next.length - 8);
   }
 
   void _restoreInputIfNeeded(String previousText, bool shouldRestore) {
@@ -696,35 +698,31 @@ class _CreateScreenState extends State<CreateScreen> {
     );
 
     final widgets = <Widget>[
-      ...thread.messages
-          .asMap()
-          .entries
-          .map((entry) {
-          final index = entry.key;
-          final message = entry.value;
+      ...thread.messages.asMap().entries.map((entry) {
+        final index = entry.key;
+        final message = entry.value;
 
-          if (message.isUser) {
-            return Column(
-              children: [
-                _buildUserBubble(context, message.text),
-                const SizedBox(height: 32),
-              ],
-            );
-          }
-
+        if (message.isUser) {
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildAssistantMarkdown(message.text),
-              if (index == lastAssistantIndex &&
-                  thread.currentPlan != null) ...[
-                const SizedBox(height: 16),
-                _buildPlanCard(thread.currentPlan!),
-              ],
+              _buildUserBubble(context, message.text),
               const SizedBox(height: 32),
             ],
           );
-          }),
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAssistantMarkdown(message.text),
+            if (index == lastAssistantIndex && thread.currentPlan != null) ...[
+              const SizedBox(height: 16),
+              _buildPlanCard(thread.currentPlan!),
+            ],
+            const SizedBox(height: 32),
+          ],
+        );
+      }),
     ];
 
     if (_pendingUserMessage != null) {
@@ -750,20 +748,20 @@ class _CreateScreenState extends State<CreateScreen> {
 
   List<Widget> _buildEmptyConversation() {
     return [
-      const Text(
+      Text(
         'Hôm nay bạn muốn tạo show gì?',
-        style: TextStyle(
+        style: GoogleFonts.newsreader(
           color: _createTextPrimary,
-          fontSize: 38,
-          fontWeight: FontWeight.w500,
+          fontSize: 42,
+          fontWeight: FontWeight.w700,
           height: 1.08,
           letterSpacing: -1.1,
         ),
       ),
       const SizedBox(height: 14),
-      const Text(
+      Text(
         'Mô tả ngắn chủ đề, format hoặc khán giả mục tiêu. AI sẽ lên concept show, dàn host và lineup tập đầu tiên.',
-        style: TextStyle(
+        style: GoogleFonts.workSans(
           color: _createTextSecondary,
           fontSize: 15,
           height: 1.55,
@@ -781,19 +779,19 @@ class _CreateScreenState extends State<CreateScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
                 color: _createSurface,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: _createBorderSoft),
                 boxShadow: const [
                   BoxShadow(
-                    color: Color(0x080F172A),
-                    blurRadius: 18,
+                    color: Color(0x0A3E2723),
+                    blurRadius: 16,
                     offset: Offset(0, 6),
                   ),
                 ],
               ),
               child: Text(
                 prompt,
-                style: const TextStyle(
+                style: GoogleFonts.workSans(
                   color: _createTextSecondary,
                   fontSize: 14,
                   height: 1.45,
@@ -845,16 +843,16 @@ class _CreateScreenState extends State<CreateScreen> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: _createSurface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: _createBorderSoft),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: _createBorder),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x120F172A),
-                  blurRadius: 24,
-                  offset: Offset(0, 10),
+                  color: Color(0x123E2723),
+                  blurRadius: 26,
+                  offset: Offset(0, 12),
                 ),
               ],
             ),
@@ -864,11 +862,7 @@ class _CreateScreenState extends State<CreateScreen> {
               children: [
                 if (_attachedFiles.isNotEmpty) ...[
                   Padding(
-                    padding: const EdgeInsets.only(
-                      left: 12,
-                      top: 4,
-                      bottom: 8,
-                    ),
+                    padding: const EdgeInsets.only(left: 12, top: 4, bottom: 8),
                     child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -879,9 +873,9 @@ class _CreateScreenState extends State<CreateScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: _createSurfaceSoft,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _createBorderSoft),
+                            color: _createAccentSoft,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _createBorder),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -892,15 +886,16 @@ class _CreateScreenState extends State<CreateScreen> {
                                     : file.endsWith('.png')
                                     ? Icons.image
                                     : Icons.audiotrack,
-                                color: _createTextSecondary,
+                                color: _createAccent,
                                 size: 14,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 file,
-                                style: const TextStyle(
+                                style: GoogleFonts.workSans(
                                   fontSize: 12,
                                   color: _createTextPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -947,17 +942,17 @@ class _CreateScreenState extends State<CreateScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
-                      decoration: const BoxDecoration(
-                        color: _createSurfaceSoft,
-                        shape: BoxShape.circle,
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: _createAccentSoft,
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: IconButton(
                         icon: const Icon(
                           Icons.add,
-                          color: _createTextPrimary,
-                          size: 18,
+                          color: _createAccent,
+                          size: 20,
                         ),
                         onPressed: _showAttachmentOptions,
                         padding: EdgeInsets.zero,
@@ -968,14 +963,15 @@ class _CreateScreenState extends State<CreateScreen> {
                         controller: _messageController,
                         enabled: !_isSending,
                         onSubmitted: (_) => _sendPrompt(),
-                        style: const TextStyle(
+                        style: GoogleFonts.workSans(
                           color: _createTextPrimary,
                           fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
-                        decoration: const InputDecoration(
-                          hintText: 'Message Assistant...',
+                        decoration: InputDecoration(
+                          hintText: 'Nhắn AI để tạo show...',
                           filled: false,
-                          hintStyle: TextStyle(
+                          hintStyle: GoogleFonts.workSans(
                             color: _createTextMuted,
                             fontSize: 16,
                           ),
@@ -991,8 +987,8 @@ class _CreateScreenState extends State<CreateScreen> {
                       ),
                     ),
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 40,
+                      height: 40,
                       decoration: const BoxDecoration(
                         color: _createAccent,
                         shape: BoxShape.circle,
@@ -1077,16 +1073,28 @@ class _CreateScreenState extends State<CreateScreen> {
                 draftsFuture: _draftListFuture,
                 currentThreadId: _thread?.id,
                 section: _sidebarSection,
-                onSelectThread: (threadId) {
+                onSelectThread: (threadId) async {
                   Navigator.of(context).pop();
-                  _selectThread(threadId);
+                  await Future<void>.delayed(const Duration(milliseconds: 180));
+                  if (!mounted) {
+                    return;
+                  }
+                  await _selectThread(threadId);
                 },
-                onOpenDraft: (draftId) {
+                onOpenDraft: (draftId) async {
                   Navigator.of(context).pop();
-                  _openDraft(draftId);
+                  await Future<void>.delayed(const Duration(milliseconds: 180));
+                  if (!mounted) {
+                    return;
+                  }
+                  await _openDraft(draftId);
                 },
-                onNewChat: () {
+                onNewChat: () async {
                   Navigator.of(context).pop();
+                  await Future<void>.delayed(const Duration(milliseconds: 180));
+                  if (!mounted) {
+                    return;
+                  }
                   _resetThread();
                 },
                 onShowChats: _showChatsSection,
@@ -1142,16 +1150,16 @@ class _CreateScreenState extends State<CreateScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _createSurfaceSoft,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _createBorderSoft),
+        color: _createAccentSoft,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _createBorder),
       ),
       child: Text(
         text,
-        style: const TextStyle(
+        style: GoogleFonts.workSans(
           fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: _createTextSecondary,
+          fontWeight: FontWeight.w700,
+          color: _createAccent,
         ),
       ),
     );
@@ -1166,16 +1174,23 @@ class _CreateScreenState extends State<CreateScreen> {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: _createAccentSoft,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _createBorder),
+          color: _createAccent,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1ABF5700),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
         child: Text(
           text,
-          style: const TextStyle(
-            color: _createTextPrimary,
+          style: GoogleFonts.workSans(
+            color: Colors.white,
             fontSize: 15,
             height: 1.4,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -1229,10 +1244,10 @@ class _CreateScreenState extends State<CreateScreen> {
                         ),
                         child: Text(
                           status,
-                          style: const TextStyle(
+                          style: GoogleFonts.workSans(
                             color: _createTextSecondary,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -1249,7 +1264,7 @@ class _CreateScreenState extends State<CreateScreen> {
               ),
               child: RichText(
                 text: TextSpan(
-                  style: const TextStyle(
+                  style: GoogleFonts.workSans(
                     color: _createTextSecondary,
                     fontSize: 14,
                     height: 1.4,
@@ -1277,72 +1292,91 @@ class _CreateScreenState extends State<CreateScreen> {
   }
 
   Widget _buildAssistantMarkdown(String content) {
-    return MarkdownBody(
-      data: content,
-      shrinkWrap: true,
-      selectable: false,
-      softLineBreak: true,
-      styleSheet: MarkdownStyleSheet(
-        p: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 15,
-          height: 1.5,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        decoration: BoxDecoration(
+          color: _createSurface,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: _createBorder),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A3E2723),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
         ),
-        strong: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 15,
-          height: 1.5,
-          fontWeight: FontWeight.w700,
-        ),
-        em: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 15,
-          height: 1.5,
-          fontStyle: FontStyle.italic,
-        ),
-        code: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 14,
-          height: 1.4,
-          fontFamily: 'monospace',
-        ),
-        codeblockDecoration: BoxDecoration(
-          color: _createSurfaceSoft,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _createBorderSoft),
-        ),
-        blockquote: const TextStyle(
-          color: _createTextSecondary,
-          fontSize: 15,
-          height: 1.5,
-        ),
-        blockquoteDecoration: BoxDecoration(
-          color: _createSurfaceSoft,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _createBorderSoft),
-        ),
-        listBullet: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 15,
-          height: 1.5,
-        ),
-        h1: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 24,
-          height: 1.25,
-          fontWeight: FontWeight.w700,
-        ),
-        h2: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 20,
-          height: 1.3,
-          fontWeight: FontWeight.w700,
-        ),
-        h3: const TextStyle(
-          color: _createTextPrimary,
-          fontSize: 18,
-          height: 1.35,
-          fontWeight: FontWeight.w700,
+        child: MarkdownBody(
+          data: content,
+          shrinkWrap: true,
+          selectable: false,
+          softLineBreak: true,
+          styleSheet: MarkdownStyleSheet(
+            p: GoogleFonts.workSans(
+              color: _createTextPrimary,
+              fontSize: 15,
+              height: 1.6,
+            ),
+            strong: GoogleFonts.workSans(
+              color: _createTextPrimary,
+              fontSize: 15,
+              height: 1.6,
+              fontWeight: FontWeight.w700,
+            ),
+            em: GoogleFonts.workSans(
+              color: _createTextPrimary,
+              fontSize: 15,
+              height: 1.6,
+              fontStyle: FontStyle.italic,
+            ),
+            code: const TextStyle(
+              color: _createTextPrimary,
+              fontSize: 14,
+              height: 1.4,
+              fontFamily: 'monospace',
+            ),
+            codeblockDecoration: BoxDecoration(
+              color: _createSurfaceSoft,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _createBorderSoft),
+            ),
+            blockquote: GoogleFonts.workSans(
+              color: _createTextSecondary,
+              fontSize: 15,
+              height: 1.6,
+            ),
+            blockquoteDecoration: BoxDecoration(
+              color: _createAccentSoft,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _createBorder),
+            ),
+            listBullet: GoogleFonts.workSans(
+              color: _createTextPrimary,
+              fontSize: 15,
+              height: 1.6,
+            ),
+            h1: GoogleFonts.newsreader(
+              color: _createTextPrimary,
+              fontSize: 28,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+            h2: GoogleFonts.newsreader(
+              color: _createTextPrimary,
+              fontSize: 22,
+              height: 1.24,
+              fontWeight: FontWeight.w700,
+            ),
+            h3: GoogleFonts.newsreader(
+              color: _createTextPrimary,
+              fontSize: 19,
+              height: 1.3,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ),
     );
@@ -1354,17 +1388,17 @@ class _CreateScreenState extends State<CreateScreen> {
       children: [
         Text(
           '$num.',
-          style: const TextStyle(
-            color: _createTextSecondary,
+          style: GoogleFonts.workSans(
+            color: _createAccent,
             fontSize: 14,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
+            style: GoogleFonts.workSans(
               fontWeight: FontWeight.w600,
               color: _createTextPrimary,
               fontSize: 14,
@@ -1383,18 +1417,18 @@ class _CreateScreenState extends State<CreateScreen> {
     final hostLabel = plan.showDraft.hostNames;
     final isCreating = _creatingPlanIds.contains(plan.id);
     final summaryLabel =
-        '${plan.showDraft.primaryCategory} • $hostLabel • ${plan.episodes.length} episodes';
+        '${plan.showDraft.primaryCategory} • $hostLabel • ${plan.episodes.length} tập';
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: _createSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _createBorderSoft),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _createBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x080F172A),
-            blurRadius: 20,
+            color: Color(0x0A3E2723),
+            blurRadius: 24,
             offset: Offset(0, 8),
           ),
         ],
@@ -1414,18 +1448,20 @@ class _CreateScreenState extends State<CreateScreen> {
                     children: [
                       Text(
                         plan.seriesTitle,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        style: GoogleFonts.newsreader(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
                           color: _createTextPrimary,
+                          height: 1.1,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         summaryLabel,
-                        style: TextStyle(
+                        style: GoogleFonts.workSans(
                           fontSize: 13,
                           color: _createTextSecondary,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1435,22 +1471,28 @@ class _CreateScreenState extends State<CreateScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
+                      style: IconButton.styleFrom(
+                        backgroundColor: _createAccentSoft,
+                        foregroundColor: _createAccent,
+                      ),
                       icon: Icon(
                         isCreating
                             ? Icons.hourglass_top_rounded
                             : Icons.auto_awesome_rounded,
-                        color: _createTextSecondary,
-                        size: 24,
+                        size: 20,
                       ),
-                      onPressed: isCreating ? null : () => _createShowFromPlan(plan),
+                      onPressed: isCreating
+                          ? null
+                          : () => _createShowFromPlan(plan),
                       tooltip: 'Tạo show',
                     ),
+                    const SizedBox(width: 6),
                     IconButton(
-                      icon: const Icon(
-                        Icons.edit_note,
-                        color: _createTextSecondary,
-                        size: 24,
+                      style: IconButton.styleFrom(
+                        backgroundColor: _createSurfaceSoft,
+                        foregroundColor: _createTextSecondary,
                       ),
+                      icon: const Icon(Icons.edit_note, size: 20),
                       onPressed: () => _openPlanDetail(plan),
                       tooltip: 'Edit Plan',
                     ),
@@ -1468,19 +1510,34 @@ class _CreateScreenState extends State<CreateScreen> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 ...tags.take(4).map(_buildTag),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.group, color: _createTextMuted, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      hostLabel,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: _createTextSecondary,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _createSurfaceSoft,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.group,
+                        color: _createAccentOlive,
+                        size: 16,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        hostLabel,
+                        style: GoogleFonts.workSans(
+                          fontSize: 13,
+                          color: _createTextSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1499,11 +1556,11 @@ class _CreateScreenState extends State<CreateScreen> {
                 ),
                 if (remaining > 0)
                   Text(
-                    '+ $remaining more episode${remaining > 1 ? 's' : ''}',
-                    style: TextStyle(
+                    '+ $remaining tập nữa',
+                    style: GoogleFonts.workSans(
                       color: _createTextMuted,
                       fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
               ],
@@ -1514,10 +1571,10 @@ class _CreateScreenState extends State<CreateScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Text(
               plan.seriesDescription,
-              style: TextStyle(
+              style: GoogleFonts.workSans(
                 color: _createTextSecondary,
                 fontSize: 13,
-                height: 1.45,
+                height: 1.55,
               ),
             ),
           ),
@@ -1537,7 +1594,7 @@ class _HistoryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final backgroundColor = enabled ? _createSurface : const Color(0xFFF8FAFC);
     final borderColor = enabled ? _createBorder : _createBorderSoft;
-    final foregroundColor = enabled ? _createTextPrimary : _createTextSecondary;
+    final foregroundColor = enabled ? _createAccent : _createTextSecondary;
 
     return Tooltip(
       message: 'Lịch sử chat',
@@ -1555,17 +1612,13 @@ class _HistoryButton extends StatelessWidget {
               border: Border.all(color: borderColor),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x120F172A),
+                  color: Color(0x123E2723),
                   blurRadius: 14,
                   offset: Offset(0, 6),
                 ),
               ],
             ),
-            child: Icon(
-              CupertinoIcons.time,
-              size: 18,
-              color: foregroundColor,
-            ),
+            child: Icon(CupertinoIcons.time, size: 18, color: foregroundColor),
           ),
         ),
       ),
@@ -1583,7 +1636,7 @@ class _NewChatButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final backgroundColor = enabled ? _createSurface : const Color(0xFFF8FAFC);
     final borderColor = enabled ? _createBorder : _createBorderSoft;
-    final foregroundColor = enabled ? _createTextPrimary : _createTextSecondary;
+    final foregroundColor = enabled ? _createAccent : _createTextSecondary;
 
     return Tooltip(
       message: 'New chat',
@@ -1601,7 +1654,7 @@ class _NewChatButton extends StatelessWidget {
               border: Border.all(color: borderColor),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x120F172A),
+                  color: Color(0x123E2723),
                   blurRadius: 14,
                   offset: Offset(0, 6),
                 ),
@@ -1645,8 +1698,8 @@ class _ThreadHistoryPanel extends StatelessWidget {
     final isDraftSection = section == _CreateSidebarSection.drafts;
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: _createBg,
-        border: Border(right: BorderSide(color: _createBorderSoft)),
+        color: _createSurface,
+        border: Border(right: BorderSide(color: _createBorder)),
       ),
       child: SafeArea(
         child: Padding(
@@ -1654,6 +1707,38 @@ class _ThreadHistoryPanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                decoration: BoxDecoration(
+                  color: _createAccentSoft,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: _createBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Create',
+                      style: GoogleFonts.newsreader(
+                        color: _createTextPrimary,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Quản lý cuộc trò chuyện với AI và các bản draft đã lưu.',
+                      style: GoogleFonts.workSans(
+                        color: _createTextSecondary,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
               _SidebarActionButton(
                 label: 'New chat',
                 selected: !isDraftSection && currentThreadId == null,
@@ -1676,10 +1761,10 @@ class _ThreadHistoryPanel extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
                   isDraftSection ? 'Tất cả draft' : 'Gần đây',
-                  style: const TextStyle(
+                  style: GoogleFonts.workSans(
                     color: _createTextMuted,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -1690,8 +1775,10 @@ class _ThreadHistoryPanel extends StatelessWidget {
                         future: draftsFuture,
                         builder: (context, snapshot) {
                           final drafts =
-                              snapshot.data ?? const <AIProductionPlanSummary>[];
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                              snapshot.data ??
+                              const <AIProductionPlanSummary>[];
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Center(
                               child: CircularProgressIndicator(),
                             );
@@ -1739,8 +1826,11 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(14),
+                                      color: _createBg,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: _createBorderSoft,
+                                      ),
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -1753,10 +1843,10 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                                 draft.seriesTitle,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
+                                                style: GoogleFonts.workSans(
                                                   color: _createTextPrimary,
                                                   fontSize: 14,
-                                                  fontWeight: FontWeight.w500,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                               ),
                                             ),
@@ -1765,7 +1855,7 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                               _formatThreadTimestamp(
                                                 draft.updatedAt,
                                               ),
-                                              style: const TextStyle(
+                                              style: GoogleFonts.workSans(
                                                 color: _createTextMuted,
                                                 fontSize: 12,
                                               ),
@@ -1777,9 +1867,10 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                           '${draft.contentType} • ${draft.episodeCount} tập',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: GoogleFonts.workSans(
                                             color: _createTextSecondary,
                                             fontSize: 12,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ],
@@ -1796,7 +1887,8 @@ class _ThreadHistoryPanel extends StatelessWidget {
                         builder: (context, snapshot) {
                           final threads =
                               snapshot.data ?? const <AIChatThreadSummary>[];
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Center(
                               child: CircularProgressIndicator(),
                             );
@@ -1850,8 +1942,13 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       color: isCurrent
                                           ? _createAccentSoft
-                                          : Colors.transparent,
-                                      borderRadius: BorderRadius.circular(14),
+                                          : _createBg,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isCurrent
+                                            ? _createBorder
+                                            : _createBorderSoft,
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
@@ -1860,10 +1957,10 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                             thread.title,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: GoogleFonts.workSans(
                                               color: _createTextPrimary,
                                               fontSize: 14,
-                                              fontWeight: FontWeight.w500,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ),
@@ -1872,7 +1969,7 @@ class _ThreadHistoryPanel extends StatelessWidget {
                                           _formatThreadTimestamp(
                                             thread.updatedAt,
                                           ),
-                                          style: const TextStyle(
+                                          style: GoogleFonts.workSans(
                                             color: _createTextMuted,
                                             fontSize: 12,
                                           ),
@@ -1917,15 +2014,18 @@ class _SidebarActionButton extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? _createAccentSoft : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
+            color: selected ? _createAccentSoft : _createBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? _createBorder : _createBorderSoft,
+            ),
           ),
           child: Text(
             label,
-            style: TextStyle(
-              color: _createTextPrimary,
+            style: GoogleFonts.workSans(
+              color: selected ? _createAccent : _createTextPrimary,
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
@@ -1972,11 +2072,12 @@ class _GuestCreateView extends StatelessWidget {
                   width: 84,
                   height: 84,
                   decoration: BoxDecoration(
-                    color: _createSurface,
+                    color: _createAccentSoft,
                     borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: _createBorder),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x140F172A),
+                        color: Color(0x143E2723),
                         blurRadius: 30,
                         offset: Offset(0, 14),
                       ),
@@ -1989,20 +2090,24 @@ class _GuestCreateView extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Dang nhap de tao show bang AI',
+                Text(
+                  'Đăng nhập để tạo show bằng AI',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.newsreader(
                     color: _createTextPrimary,
-                    fontSize: 24,
+                    fontSize: 32,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Sau khi dang nhap, ban se giu duoc flow create hien tai va AI se chi thay the phan du lieu mock bang plan that.',
+                Text(
+                  'Sau khi đăng nhập, bạn có thể trò chuyện với AI để lên concept show, chỉnh plan và tạo nội dung hoàn chỉnh.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: _createTextSecondary, height: 1.5),
+                  style: GoogleFonts.workSans(
+                    color: _createTextSecondary,
+                    height: 1.6,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -2010,8 +2115,18 @@ class _GuestCreateView extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: _createAccent,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                   ),
-                  child: const Text('Dang nhap'),
+                  child: Text(
+                    'Đăng nhập',
+                    style: GoogleFonts.workSans(fontWeight: FontWeight.w700),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
@@ -2020,8 +2135,18 @@ class _GuestCreateView extends StatelessWidget {
                     backgroundColor: _createSurface,
                     foregroundColor: _createTextPrimary,
                     side: const BorderSide(color: _createBorder),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                   ),
-                  child: const Text('Tao tai khoan'),
+                  child: Text(
+                    'Tạo tài khoản',
+                    style: GoogleFonts.workSans(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),

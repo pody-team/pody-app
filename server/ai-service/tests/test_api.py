@@ -243,6 +243,7 @@ def test_public_openapi_yaml_endpoint() -> None:
     assert "X-Auth-User-ID" in response.text
     assert "type: 'null'" not in response.text
     assert "\n  /healthz:\n" not in response.text
+    assert "http://localhost:8080" not in response.text
 
 
 def test_public_swagger_ui_endpoint() -> None:

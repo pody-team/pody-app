@@ -74,6 +74,14 @@ double resolveTranscriptBubbleProgress({
   return rawProgress.clamp(0.0, 1.0);
 }
 
+bool shouldShowReturnToCurrentTranscriptButton({
+  required double currentOffset,
+  required double targetOffset,
+  double threshold = 72,
+}) {
+  return (currentOffset - targetOffset).abs() > threshold;
+}
+
 int resolveTranscriptWordIndex({
   required ChatBubble bubble,
   required double currentSeconds,
