@@ -8,6 +8,7 @@ import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
+import 'package:pody/screens/user/favorite_news_categories_screen.dart';
 
 const Color _newsCanvas = Color(0xFFFFFBF6);
 const Color _newsSurface = Color(0xFFFFFEFC);
@@ -305,6 +306,24 @@ class _NewsScreenState extends State<NewsScreen> {
     });
   }
 
+  Future<void> _openFavoriteCategories() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const FavoriteNewsCategoriesScreen(),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _fetchCategories();
+    if ((_selectedCategorySlug?.isNotEmpty ?? false) ||
+        _searchQuery.isNotEmpty) {
+      return;
+    }
+    await _fetchArticles(reset: true);
+  }
+
   String get _heroTitle {
     if (_searchQuery.isNotEmpty) {
       return 'Kết quả theo từ khóa';
@@ -359,13 +378,30 @@ class _NewsScreenState extends State<NewsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                  child: Text(
-                    'Danh mục',
-                    style: GoogleFonts.newsreader(
-                      color: _newsNeutral,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Danh mục',
+                          style: GoogleFonts.newsreader(
+                            color: _newsNeutral,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton.filledTonal(
+                        onPressed: _openFavoriteCategories,
+                        tooltip: 'Chon the loai yeu thich',
+                        style: IconButton.styleFrom(
+                          backgroundColor: _newsSurface,
+                          foregroundColor: _newsPrimary,
+                          minimumSize: const Size(40, 40),
+                          padding: EdgeInsets.zero,
+                        ),
+                        icon: const Icon(Icons.tune_rounded, size: 20),
+                      ),
+                    ],
                   ),
                 ),
               ),

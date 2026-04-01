@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,9 +30,13 @@ var (
 	ErrInvalidChangePassword    = errors.New("current password and a new password with at least 8 characters are required")
 	ErrInvalidCurrentPassword   = errors.New("current password is incorrect")
 	ErrPasswordAuthUnavailable  = errors.New("password sign-in is not available for this account")
+	ErrInvalidProfileUpdate     = errors.New("display name, username, bio, or avatar url is invalid")
+	ErrUsernameAlreadyExists    = errors.New("username already exists")
 )
 
 const passwordResetOTPLength = 6
+
+var usernamePattern = regexp.MustCompile(`^[a-z0-9._]+$`)
 
 type Service struct {
 	repo                store.Repository
@@ -91,6 +96,13 @@ type VerifyResetOTPInput struct {
 type ChangePasswordInput struct {
 	CurrentPassword string
 	NewPassword     string
+}
+
+type UpdateProfileInput struct {
+	DisplayName *string
+	Username    *string
+	Bio         *string
+	AvatarURL   *string
 }
 
 func (s Service) SignUp(ctx context.Context, input SignUpInput) (domain.VerificationChallenge, error) {
@@ -312,13 +324,8 @@ func (s Service) SignOut(ctx context.Context, refreshToken string) error {
 }
 
 func (s Service) Me(ctx context.Context, accessToken string) (domain.User, error) {
-	claims, err := s.tokenManager.Parse(accessToken)
+	userID, err := s.userIDFromAccessToken(accessToken)
 	if err != nil {
-		return domain.User{}, ErrInvalidCredentials
-	}
-
-	userID, _ := claims["sub"].(string)
-	if strings.TrimSpace(userID) == "" {
 		return domain.User{}, ErrInvalidCredentials
 	}
 
@@ -326,13 +333,10 @@ func (s Service) Me(ctx context.Context, accessToken string) (domain.User, error
 }
 
 func (s Service) ChangePassword(ctx context.Context, accessToken string, input ChangePasswordInput) error {
-	claims, err := s.tokenManager.Parse(accessToken)
+	userID, err := s.userIDFromAccessToken(accessToken)
 	if err != nil {
 		return ErrInvalidCredentials
 	}
-
-	userID, _ := claims["sub"].(string)
-	userID = strings.TrimSpace(userID)
 	currentPassword := strings.TrimSpace(input.CurrentPassword)
 	newPassword := strings.TrimSpace(input.NewPassword)
 	if userID == "" || currentPassword == "" || len(newPassword) < 8 {
@@ -368,6 +372,92 @@ func (s Service) ChangePassword(ctx context.Context, accessToken string, input C
 	}
 
 	return nil
+}
+
+func (s Service) UpdateProfile(ctx context.Context, accessToken string, input UpdateProfileInput) (domain.User, error) {
+	userID, err := s.userIDFromAccessToken(accessToken)
+	if err != nil {
+		return domain.User{}, ErrInvalidCredentials
+	}
+
+	user, err := s.repo.FindUserByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return domain.User{}, ErrInvalidCredentials
+		}
+		return domain.User{}, err
+	}
+
+	displayName := user.DisplayName
+	if input.DisplayName != nil {
+		displayName = strings.TrimSpace(*input.DisplayName)
+	}
+	if displayName == "" || len(displayName) > 120 {
+		return domain.User{}, ErrInvalidProfileUpdate
+	}
+
+	username := strings.TrimSpace(user.Username)
+	if input.Username != nil {
+		username = strings.ToLower(strings.TrimSpace(*input.Username))
+	}
+	if username == "" || len(username) > 120 || !usernamePattern.MatchString(username) {
+		return domain.User{}, ErrInvalidProfileUpdate
+	}
+
+	bio := user.Bio
+	if input.Bio != nil {
+		bio = strings.TrimSpace(*input.Bio)
+	}
+	if len(bio) > 150 {
+		return domain.User{}, ErrInvalidProfileUpdate
+	}
+
+	avatarURL := strings.TrimSpace(user.AvatarURL)
+	if input.AvatarURL != nil {
+		avatarURL = strings.TrimSpace(*input.AvatarURL)
+	}
+	if avatarURL != "" {
+		parsed, err := url.Parse(avatarURL)
+		if err != nil || parsed == nil || strings.TrimSpace(parsed.Host) == "" {
+			return domain.User{}, ErrInvalidProfileUpdate
+		}
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return domain.User{}, ErrInvalidProfileUpdate
+		}
+	}
+
+	event := notification.NewUserProfileUpdatedEvent(notification.DefaultUserProfileTopic, notification.UserProfileUpdatedMessage{
+		UserID:      userID,
+		DisplayName: displayName,
+		Username:    username,
+		AvatarURL:   avatarURL,
+		Bio:         bio,
+		UpdatedAt:   time.Now().UTC(),
+	})
+
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	updatedUser, err := s.repo.UpdateUserProfileWithOutbox(ctx, userID, displayName, username, bio, avatarURL, store.CreateOutboxEventInput{
+		AggregateType:  "user",
+		AggregateID:    userID,
+		EventType:      event.EventType,
+		PayloadVersion: 1,
+		Payload:        payload,
+	})
+	if err != nil {
+		if errors.Is(err, store.ErrConflict) {
+			return domain.User{}, ErrUsernameAlreadyExists
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			return domain.User{}, ErrInvalidCredentials
+		}
+		return domain.User{}, err
+	}
+
+	return updatedUser, nil
 }
 
 func (s Service) issueSession(ctx context.Context, user domain.User) (domain.AuthResponse, error) {
@@ -535,4 +625,19 @@ func buildURLWithToken(envName, baseURL, token string) (string, error) {
 	query.Set("token", token)
 	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
+}
+
+func (s Service) userIDFromAccessToken(accessToken string) (string, error) {
+	claims, err := s.tokenManager.Parse(accessToken)
+	if err != nil {
+		return "", err
+	}
+
+	userID, _ := claims["sub"].(string)
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return "", ErrInvalidCredentials
+	}
+
+	return userID, nil
 }

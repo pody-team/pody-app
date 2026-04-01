@@ -27,6 +27,7 @@ Go service for user identity in Pody, with:
 - `POST /api/v1/public/identity/verify-reset-otp`
 - `POST /api/v1/public/identity/reset-password`
 - `GET /api/v1/identity/me`
+- `PATCH /api/v1/identity/me`
 - `POST /api/v1/identity/change-password`
 
 ## Run locally
