@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/network/api_client.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
@@ -119,6 +121,22 @@ class AuthRemoteDataSource {
     return AuthUser.fromJson(
       response['user'] as Map<String, dynamic>? ?? const {},
     );
+  }
+
+  Future<String> uploadAvatar({
+    required Uint8List bytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    final response = await _apiClient.postMultipart(
+      '/api/v1/identity/me/avatar',
+      bytes: bytes,
+      fileName: fileName,
+      contentType: contentType,
+      requiresAuth: true,
+    );
+
+    return response['avatar_url'] as String? ?? '';
   }
 
   Future<AuthUser> me() async {

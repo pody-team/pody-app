@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppEnvironment {
   AppEnvironment._();
 
-  // static const _defaultApiBaseUrl = 'http://laihieu2714.ddns.net:8080';
   static const _defaultApiBaseUrl = 'http://192.168.100.206:8080';
   static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const _configuredGoogleServerClientId = String.fromEnvironment(
@@ -15,6 +15,11 @@ class AppEnvironment {
   static String get apiBaseUrl {
     if (_configuredBaseUrl.isNotEmpty) {
       return _configuredBaseUrl;
+    }
+
+    final envBaseUrl = dotenv.env['API_BASE_URL']?.trim() ?? '';
+    if (envBaseUrl.isNotEmpty) {
+      return envBaseUrl;
     }
 
     if (kIsWeb) {
@@ -34,6 +39,12 @@ class AppEnvironment {
   static String get googleServerClientId {
     if (_configuredGoogleServerClientId.isNotEmpty) {
       return _configuredGoogleServerClientId;
+    }
+
+    final envServerClientId =
+        dotenv.env['GOOGLE_SERVER_CLIENT_ID']?.trim() ?? '';
+    if (envServerClientId.isNotEmpty) {
+      return envServerClientId;
     }
 
     return _defaultGoogleServerClientId;

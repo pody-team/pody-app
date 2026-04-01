@@ -15,7 +15,7 @@ import (
 func TestOpenAPIYAMLEndpoint(t *testing.T) {
 	server := New(config.Config{
 		Port: "8081",
-	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{})
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{}, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/identity/openapi.yaml", nil)
 	recorder := httptest.NewRecorder()
@@ -36,7 +36,7 @@ func TestOpenAPIYAMLEndpoint(t *testing.T) {
 func TestSwaggerUIDocsEndpoint(t *testing.T) {
 	server := New(config.Config{
 		Port: "8081",
-	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{})
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{}, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/api/v1/public/identity/docs", nil)
 	recorder := httptest.NewRecorder()
@@ -54,7 +54,7 @@ func TestSwaggerUIDocsEndpoint(t *testing.T) {
 func TestHealthz(t *testing.T) {
 	server := New(config.Config{
 		Port: "8081",
-	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{})
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{}, nil)
 
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	recorder := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestHealthz(t *testing.T) {
 func TestPatchMeRequiresBearerToken(t *testing.T) {
 	server := New(config.Config{
 		Port: "8081",
-	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{})
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{}, nil)
 
 	request := httptest.NewRequest(http.MethodPatch, "/api/v1/identity/me", strings.NewReader(`{}`))
 	request.Header.Set("Content-Type", "application/json")

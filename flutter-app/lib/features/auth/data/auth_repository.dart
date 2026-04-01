@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../../../core/network/api_exception.dart';
 import '../domain/auth_session.dart';
 import '../domain/password_reset_challenge.dart';
@@ -143,6 +145,26 @@ class AuthRepository {
     final refreshedSession = session.copyWith(user: user);
     await _localDataSource.saveSession(refreshedSession);
     return refreshedSession;
+  }
+
+  Future<String> uploadAvatar({
+    required Uint8List bytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    final session = await _getUsableSession();
+    if (session == null || session.accessToken.isEmpty) {
+      throw ApiException(
+        'Phien dang nhap da het han. Hay dang nhap lai de tiep tuc.',
+        statusCode: 401,
+      );
+    }
+
+    return _remoteDataSource.uploadAvatar(
+      bytes: bytes,
+      fileName: fileName,
+      contentType: contentType,
+    );
   }
 
   Future<String?> getValidAccessToken() async {

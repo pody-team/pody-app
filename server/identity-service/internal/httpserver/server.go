@@ -1,9 +1,12 @@
 package httpserver
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -11,17 +14,22 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/promex04/pody/server/identity-service/internal/auth"
 	"github.com/promex04/pody/server/identity-service/internal/config"
+	"github.com/promex04/pody/server/identity-service/internal/media"
 )
 
 type Server struct {
-	authService auth.Service
-	logger      *slog.Logger
+	authService    auth.Service
+	logger         *slog.Logger
+	avatarStore    media.AvatarStorage
+	maxAvatarBytes int64
 }
 
-func New(cfg config.Config, logger *slog.Logger, authService auth.Service) *http.Server {
+func New(cfg config.Config, logger *slog.Logger, authService auth.Service, avatarStore media.AvatarStorage) *http.Server {
 	s := &Server{
-		authService: authService,
-		logger:      logger,
+		authService:    authService,
+		logger:         logger,
+		avatarStore:    avatarStore,
+		maxAvatarBytes: cfg.MaxAvatarBytes,
 	}
 
 	router := chi.NewRouter()
@@ -53,6 +61,7 @@ func New(cfg config.Config, logger *slog.Logger, authService auth.Service) *http
 
 	router.Route("/api/v1/identity", func(r chi.Router) {
 		r.Get("/me", s.handleMe)
+		r.Post("/me/avatar", s.handleUploadAvatar)
 		r.Patch("/me", s.handleUpdateProfile)
 		r.Post("/change-password", s.handleChangePassword)
 	})
@@ -361,6 +370,73 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"user": user})
 }
 
+func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
+	token := bearerToken(r.Header.Get("Authorization"))
+	if token == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("missing bearer token"))
+		return
+	}
+
+	if s.avatarStore == nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("avatar upload is not configured"))
+		return
+	}
+
+	user, err := s.authService.Me(r.Context(), token)
+	if err != nil {
+		s.writeAuthError(w, err)
+		return
+	}
+
+	maxAvatarBytes := s.maxAvatarBytes
+	if maxAvatarBytes <= 0 {
+		maxAvatarBytes = 5 << 20
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarBytes+(1<<20))
+	if err := r.ParseMultipartForm(maxAvatarBytes + (1 << 20)); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid multipart form"))
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("avatar file is required"))
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := readAvatarPayload(file, maxAvatarBytes)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	uploadCtx, cancel := media.UploadTimeoutContext(r.Context())
+	defer cancel()
+
+	avatarURL, err := s.avatarStore.UploadAvatar(
+		uploadCtx,
+		user.ID,
+		header.Filename,
+		header.Header.Get("Content-Type"),
+		bytes.NewReader(fileBytes),
+		int64(len(fileBytes)),
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, media.ErrAvatarTooLarge), errors.Is(err, media.ErrAvatarContentType):
+			writeError(w, http.StatusBadRequest, err)
+		default:
+			s.logger.Error("avatar upload failed", "user_id", user.ID, "error", err)
+			writeError(w, http.StatusBadGateway, errors.New("failed to upload avatar"))
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]string{"avatar_url": avatarURL})
+}
+
 func (s *Server) writeAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, auth.ErrUserExists):
@@ -409,6 +485,23 @@ func bearerToken(header string) string {
 	}
 
 	return strings.TrimSpace(strings.TrimPrefix(header, prefix))
+}
+
+func readAvatarPayload(file multipart.File, maxReadBytes int64) ([]byte, error) {
+	if maxReadBytes <= 0 {
+		maxReadBytes = 5 << 20
+	}
+	payload, err := io.ReadAll(io.LimitReader(file, maxReadBytes+1))
+	if err != nil {
+		return nil, errors.New("failed to read avatar file")
+	}
+	if len(payload) == 0 {
+		return nil, errors.New("avatar file is empty")
+	}
+	if int64(len(payload)) > maxReadBytes {
+		return nil, media.ErrAvatarTooLarge
+	}
+	return payload, nil
 }
 
 func (s *Server) withRequestLog(next http.Handler) http.Handler {

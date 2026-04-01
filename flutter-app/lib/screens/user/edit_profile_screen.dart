@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/auth/domain/auth_user.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
@@ -28,6 +29,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _bioController;
   late final TextEditingController _avatarUrlController;
   bool _isSaving = false;
+  bool _isUploadingAvatar = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -131,6 +134,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    if (_isSaving || _isUploadingAvatar) {
+      return;
+    }
+    final authController = AuthScope.of(context);
+
+    try {
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+        maxWidth: 1600,
+      );
+      if (pickedFile == null) {
+        return;
+      }
+
+      setState(() => _isUploadingAvatar = true);
+      final bytes = await pickedFile.readAsBytes();
+      final avatarUrl = await authController.uploadAvatar(
+        bytes: bytes,
+        fileName: pickedFile.name,
+        contentType: pickedFile.mimeType,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      _avatarUrlController.text = avatarUrl;
+      setState(() {});
+      _showMessage('Da tai avatar len server.');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage(_humanizeError(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
   String _humanizeError(Object error) {
     if (error is ApiException) {
       if (error.statusCode == 409) {
@@ -161,7 +206,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         surfaceTintColor: _editCanvas,
         elevation: 0,
         leading: IconButton(
-          onPressed: _isSaving ? null : () => Navigator.pop(context),
+          onPressed: (_isSaving || _isUploadingAvatar)
+              ? null
+              : () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_new, color: _editNeutral),
         ),
         title: Text(
@@ -174,7 +221,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: _isSaving ? null : _saveProfile,
+            onPressed: (_isSaving || _isUploadingAvatar) ? null : _saveProfile,
             child: _isSaving
                 ? const SizedBox(
                     width: 18,
@@ -209,7 +256,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Avatar v1 duoc cap nhat bang URL anh. Ban co the doi URL moi hoac xoa avatar hien tai.',
+                  'Chon anh tu may cua ban, app se tai len identity-service va luu link public tren MinIO vao profile.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.workSans(
                     fontSize: 12,
@@ -218,18 +265,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: (_isSaving || _isUploadingAvatar)
+                        ? null
+                        : _pickAndUploadAvatar,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _editPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    icon: _isUploadingAvatar
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.file_upload_outlined),
+                    label: Text(
+                      _isUploadingAvatar
+                          ? 'Dang tai avatar...'
+                          : 'Tai anh tu may',
+                      style: GoogleFonts.workSans(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 _FormField(
                   controller: _avatarUrlController,
                   label: 'Avatar URL',
-                  hintText: 'https://example.com/avatar.png',
+                  hintText: 'URL se duoc dien sau khi tai len',
                   keyboardType: TextInputType.url,
-                  onChanged: (_) => setState(() {}),
+                  readOnly: true,
                 ),
                 const SizedBox(height: 10),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton.icon(
-                    onPressed: _isSaving
+                    onPressed: (_isSaving || _isUploadingAvatar)
                         ? null
                         : () {
                             _avatarUrlController.clear();
@@ -439,6 +519,7 @@ class _FormField extends StatelessWidget {
     this.onChanged,
     this.hintText,
     this.keyboardType,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
@@ -450,6 +531,7 @@ class _FormField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final String? hintText;
   final TextInputType? keyboardType;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -470,6 +552,7 @@ class _FormField extends StatelessWidget {
           maxLines: maxLines,
           maxLength: maxLength,
           onChanged: onChanged,
+          readOnly: readOnly,
           keyboardType: keyboardType,
           style: GoogleFonts.workSans(
             color: _editNeutral,

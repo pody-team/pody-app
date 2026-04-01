@@ -29,6 +29,14 @@ type Config struct {
 	PasswordResetTopic     string
 	OutboxBatchSize        int
 	OutboxCleanupBatchSize int
+	MinIOEndpoint          string
+	MinIOAccessKey         string
+	MinIOSecretKey         string
+	MinIOBucketName        string
+	MinIORegion            string
+	MinIOPublicBaseURL     string
+	MinIOUseSSL            bool
+	MaxAvatarBytes         int64
 }
 
 func Load() (Config, error) {
@@ -98,6 +106,14 @@ func Load() (Config, error) {
 		PasswordResetTopic:     stringFromEnv("PASSWORD_RESET_EVENTS_TOPIC", "identity.password.reset.requested"),
 		OutboxBatchSize:        intFromEnv("OUTBOX_BATCH_SIZE", 20),
 		OutboxCleanupBatchSize: intFromEnv("OUTBOX_CLEANUP_BATCH_SIZE", 200),
+		MinIOEndpoint:          stringFromEnv("MINIO_ENDPOINT", ""),
+		MinIOAccessKey:         stringFromEnv("MINIO_ROOT_USER", ""),
+		MinIOSecretKey:         stringFromEnv("MINIO_ROOT_PASSWORD", ""),
+		MinIOBucketName:        stringFromEnv("MINIO_AVATAR_BUCKET", "identity-avatars"),
+		MinIORegion:            stringFromEnv("MINIO_REGION", "us-east-1"),
+		MinIOPublicBaseURL:     stringFromEnv("MINIO_PUBLIC_BASE_URL", ""),
+		MinIOUseSSL:            boolFromEnv("MINIO_USE_SSL", false),
+		MaxAvatarBytes:         int64FromEnv("IDENTITY_MAX_AVATAR_BYTES", 5<<20),
 	}
 
 	if strings.TrimSpace(cfg.DatabaseURL) == "" {
@@ -176,4 +192,34 @@ func intFromEnv(key string, fallback int) int {
 	}
 
 	return result
+}
+
+func int64FromEnv(key string, fallback int64) int64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+
+	result, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || result <= 0 {
+		return fallback
+	}
+
+	return result
+}
+
+func boolFromEnv(key string, fallback bool) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if value == "" {
+		return fallback
+	}
+
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
 }
