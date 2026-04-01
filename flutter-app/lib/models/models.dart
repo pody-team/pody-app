@@ -16,4 +16,5 @@ export 'social/app_notification.dart';
 
 // News domain
 export 'news/news_article.dart';
+export 'news/article_podcast_job.dart';
 export 'news/news_category.dart';

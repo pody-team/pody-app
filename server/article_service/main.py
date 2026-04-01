@@ -12,6 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import text
 
+from ai_podcast.dependencies import initialize_ai_podcast_runtime, shutdown_ai_podcast_runtime
 from api import create_api
 from config import load_article_category_sync_consumer_settings
 from config.database import DatabaseManager
@@ -119,6 +120,7 @@ class NewscrawlerApplication:
 
             @self.api.on_event("startup")
             async def on_startup():
+                await initialize_ai_podcast_runtime()
                 asyncio.create_task(self.run_initial_crawl())
 
             server = uvicorn.Server(
@@ -141,6 +143,7 @@ class NewscrawlerApplication:
     async def shutdown(self):
         self.logger.info("Shutting down application...")
         try:
+            await shutdown_ai_podcast_runtime()
             self.category_sync_consumer.stop()
             if self.scheduler.running:
                 self.scheduler.shutdown(wait=True)
