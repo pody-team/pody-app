@@ -643,22 +643,18 @@ class ContentCreationStore:
                 primary_category,
             )
             slug = _ensure_unique_show_slug(conn, _slugify(title))
-            cover_image_url = (
-                (plan.show_draft.cover_image_url or "").strip()
-                or _fallback_show_cover_url(slug)
-            )
+            cover_image_url = (plan.show_draft.cover_image_url or "").strip()
             content_type = _sanitize_content_type(plan.show_draft.content_type)
             language_code = _sanitize_language_code(plan.target_language_code)
             resolved_hosts = _normalize_hosts(
                 content_type=content_type,
                 hosts=plan.show_draft.hosts,
-                slug=slug,
             )
             owner_name = (
                 (owner_display_name or "").strip()
-                or _fallback_owner_display_name(owner_email or "")
+                or (owner_email or "").strip()
             )
-            owner_avatar_url = _fallback_owner_avatar_url(str(owner_user_id))
+            owner_avatar_url = ""
 
             show_row = conn.execute(
                 """
@@ -671,19 +667,10 @@ class ContentCreationStore:
                   description,
                   content_type,
                   language_code,
-                  cover_image_url,
-                  publish_status,
-                  visibility,
-                  monetization_type,
-                  credit_cost,
-                  subscriber_count,
-                  episode_count,
-                  total_listen_count,
-                  published_at
+                  cover_image_url
                 )
                 VALUES (
-                  %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                  'published', 'public', 'free', 0, 0, 0, 0, now()
+                  %s, %s, %s, %s, %s, %s, %s, %s, NULLIF(%s, '')
                 )
                 RETURNING id::text
                 """,
@@ -693,10 +680,10 @@ class ContentCreationStore:
                     owner_avatar_url,
                     title,
                     slug,
-                    description,
-                    content_type,
-                    language_code,
-                    cover_image_url,
+                  description,
+                  content_type,
+                  language_code,
+                  cover_image_url,
                 ),
             ).fetchone()
 
@@ -789,10 +776,7 @@ class ContentCreationStore:
                   audio_storage_key,
                   cover_image_url,
                   duration_seconds,
-                  publish_status,
-                  visibility,
-                  is_ai_generated,
-                  published_at
+                  is_ai_generated
                 )
                 VALUES (
                   %s::uuid,
@@ -805,10 +789,7 @@ class ContentCreationStore:
                   NULLIF(%s, ''),
                   NULLIF(%s, ''),
                   %s,
-                  'published',
-                  'public',
-                  true,
-                  now()
+                  true
                 )
                 RETURNING id::text
                 """,
@@ -1192,7 +1173,9 @@ def _build_speech_config(
     language_code = _speech_language_code(plan.target_language_code)
     speaker_voices = _resolve_speaker_voices(hosts, voice_profiles)
     if len(speaker_voices) <= 1:
-        voice_name = speaker_voices[0][1] if speaker_voices else "Kore"
+        if not speaker_voices:
+            raise ValueError("no configured tts voice is available")
+        voice_name = speaker_voices[0][1]
         return types.SpeechConfig(
             language_code=language_code,
             voice_config=types.VoiceConfig(
@@ -1227,23 +1210,24 @@ def _resolve_speaker_voices(
     used: set[str] = set()
     resolved: list[tuple[str, str]] = []
     for index, host in enumerate(hosts):
+        _ = index
         speaker = host.display_name.strip()
         if not speaker:
             continue
         voice_name = _resolve_voice_name(host, voice_profiles)
-        unique_voice = _ensure_unique_voice_name(voice_name, used, index)
+        unique_voice = _ensure_unique_voice_name(voice_name, used)
         used.add(unique_voice)
         resolved.append((speaker, unique_voice))
     return resolved
 
 
-def _ensure_unique_voice_name(voice_name: str, used: set[str], index: int) -> str:
+def _ensure_unique_voice_name(
+    voice_name: str,
+    used: set[str],
+) -> str:
     if voice_name not in used:
         return voice_name
-    for fallback in _TTS_FALLBACK_VOICES:
-        if fallback not in used:
-            return fallback
-    return _TTS_FALLBACK_VOICES[index % len(_TTS_FALLBACK_VOICES)]
+    raise ValueError("duplicate tts voice is not allowed for multi-speaker synthesis")
 
 
 def _build_episode_segments(
@@ -1307,23 +1291,32 @@ def _resolve_voice_name(
     primary_host: AIHostDraft | None,
     voice_profiles: list[VoiceProfile],
 ) -> str:
-    if primary_host is not None and primary_host.voice_profile_id:
-        for voice in voice_profiles:
-            if str(voice.id) != str(primary_host.voice_profile_id):
-                continue
-            metadata = voice.metadata or {}
-            configured = metadata.get("tts_voice_name")
-            if isinstance(configured, str) and configured.strip():
-                return configured.strip()
-            provider_voice_id = voice.provider_voice_id.strip().lower()
-            if provider_voice_id == "gemini-atlas-vi-001":
-                return "Puck"
-            if provider_voice_id == "gemini-minh-tra-vi-001":
-                return "Charon"
-            if provider_voice_id == "gemini-lumi-vi-001":
-                return "Sulafat"
-            return "Kore"
-    return "Kore"
+    if primary_host is None:
+        raise ValueError("host is required to resolve tts voice")
+    if primary_host.voice_profile_id is None:
+        raise ValueError(f'host "{primary_host.display_name}" is missing voice_profile_id')
+
+    for voice in voice_profiles:
+        if str(voice.id) != str(primary_host.voice_profile_id):
+            continue
+        configured = _voice_profile_tts_voice_name(voice)
+        if configured is not None:
+            return configured
+        raise ValueError(
+            f'voice profile "{voice.name}" is missing metadata.tts_voice_name'
+        )
+
+    raise ValueError(
+        f'voice profile "{primary_host.voice_profile_id}" was not found in the allowed voice profiles'
+    )
+
+
+def _voice_profile_tts_voice_name(voice: VoiceProfile) -> str | None:
+    metadata = voice.metadata or {}
+    configured = metadata.get("tts_voice_name")
+    if isinstance(configured, str) and configured.strip():
+        return configured.strip()
+    return None
 
 
 def _speech_language_code(language_code: str) -> str:
@@ -1369,34 +1362,38 @@ def _extract_audio_bytes(response: Any) -> bytes:
 
 def _resolve_category(conn: Any, value: str) -> tuple[str, str]:
     normalized_value = value.strip()
-    candidates = [
-        normalized_value,
-        _slugify(normalized_value),
-    ]
-    alias_slug = _CATEGORY_SLUG_ALIASES.get(normalized_value.strip().lower())
-    if alias_slug:
-        candidates.append(alias_slug)
+    if not normalized_value:
+        raise ValueError("primary category was not found")
+
+    rows = conn.execute(
+        """
+        SELECT id::text, slug, name
+        FROM categories
+        WHERE is_active = true
+          AND applies_to IN ('show', 'mixed')
+        ORDER BY sort_order ASC, name ASC
+        """
+    ).fetchall()
+
+    rows_by_key: dict[str, tuple[str, str]] = {}
+    for row in rows:
+        resolved = (row["name"], row["id"])
+        for key in {row["slug"], row["name"], _slugify(row["name"])}:
+            normalized_key = _slugify(key)
+            if normalized_key:
+                rows_by_key.setdefault(normalized_key, resolved)
+
+    candidate_keys = [normalized_value, _slugify(normalized_value)]
 
     seen: set[str] = set()
-    for candidate in candidates:
-        candidate_value = candidate.strip()
-        if not candidate_value or candidate_value in seen:
+    for candidate in candidate_keys:
+        normalized_key = _slugify(candidate)
+        if not normalized_key or normalized_key in seen:
             continue
-        seen.add(candidate_value)
-        row = conn.execute(
-            """
-            SELECT id::text, name
-            FROM categories
-            WHERE is_active = true
-              AND applies_to IN ('show', 'mixed')
-              AND (slug = %s OR lower(name) = lower(%s))
-            ORDER BY sort_order ASC, name ASC
-            LIMIT 1
-            """,
-            (candidate_value, candidate_value),
-        ).fetchone()
-        if row is not None:
-            return row["name"], row["id"]
+        seen.add(normalized_key)
+        resolved = rows_by_key.get(normalized_key)
+        if resolved is not None:
+            return resolved
 
     raise ValueError("primary category was not found")
 
@@ -1439,7 +1436,6 @@ def _normalize_hosts(
     *,
     content_type: str,
     hosts: list[AIHostDraft],
-    slug: str,
 ) -> list[AIHostDraft]:
     if not hosts:
         raise ValueError("at least one host is required")
@@ -1457,8 +1453,7 @@ def _normalize_hosts(
             AIHostDraft(
                 display_name=display_name,
                 role=_sanitize_host_role(content_type, host.role, index),
-                avatar_url=(host.avatar_url or "").strip()
-                or _fallback_host_avatar_url(f"{slug}-{index + 1}"),
+                avatar_url=(host.avatar_url or "").strip() or None,
                 voice_profile_id=host.voice_profile_id,
                 bio=(host.bio or host.persona_summary or "").strip(),
                 persona_summary=host.persona_summary,
@@ -1506,51 +1501,3 @@ def _slugify(value: str) -> str:
             previous_dash = True
     slug = "".join(pieces).strip("-")
     return slug or "show"
-
-
-def _fallback_show_cover_url(seed: str) -> str:
-    return f"https://picsum.photos/seed/show-{seed}/800/800"
-
-
-def _fallback_host_avatar_url(seed: str) -> str:
-    return f"https://picsum.photos/seed/host-{seed}/200/200"
-
-
-def _fallback_owner_avatar_url(seed: str) -> str:
-    return f"https://picsum.photos/seed/owner-{seed}/200/200"
-
-
-def _fallback_owner_display_name(email: str) -> str:
-    normalized = email.strip().lower()
-    if not normalized:
-        return "Creator"
-    if "@" in normalized:
-        return normalized.split("@", 1)[0]
-    return normalized
-
-
-_TTS_FALLBACK_VOICES = (
-    "Kore",
-    "Puck",
-    "Charon",
-    "Sulafat",
-    "Zephyr",
-    "Fenrir",
-    "Aoede",
-)
-
-
-_CATEGORY_SLUG_ALIASES = {
-    "technology": "cong-nghe",
-    "tech": "cong-nghe",
-    "business": "cong-nghe",
-    "investigation": "dieu-tra",
-    "self care": "cham-soc-ban-than",
-    "self-care": "cham-soc-ban-than",
-    "explainer": "giai-thich-de-hieu",
-    "explainers": "giai-thich-de-hieu",
-    "storytelling": "chuyen-ke",
-    "stories": "chuyen-ke",
-    "parable": "ngu-ngon",
-    "parables": "ngu-ngon",
-}

@@ -486,14 +486,11 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 	id := fmt.Sprintf("show-%d", now.UnixNano())
 	slug := strings.ToLower(strings.ReplaceAll(title, " ", "-"))
 	coverImageURL := strings.TrimSpace(input.CoverImageURL)
-	if coverImageURL == "" {
-		coverImageURL = fallbackShowCoverURL(slug)
-	}
-	hosts, err := normalizeCreateHosts(contentType, input.Hosts, slug)
+	hosts, err := normalizeCreateHosts(contentType, input.Hosts)
 	if err != nil {
 		return domain.ShowDetail{}, err
 	}
-	ownerAvatarURL := fallbackOwnerAvatarURL(ownerUserID)
+	ownerAvatarURL := ""
 
 	show := domain.ShowDetail{
 		ID:            id,
@@ -516,7 +513,7 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 		ContentType:       contentType,
 		Visibility:        "public",
 		MonetizationType:  "free",
-		PublishedAt:       now,
+		PublishedAt:       time.Time{},
 	}
 	for index := range show.Hosts {
 		show.Hosts[index].ID = fmt.Sprintf("host-%d-%d", now.UnixNano(), index+1)
@@ -537,11 +534,6 @@ func (s *demoStore) CreateShow(_ context.Context, input domain.CreateShowInput) 
 		PublishedAt:       show.PublishedAt,
 	}
 	s.myShows = append([]domain.ShowSummary{summary}, s.myShows...)
-	s.homeFeed.Shows = append([]domain.HomeShowCard{{
-		Show:            summary,
-		PreviewEpisodes: nil,
-	}}, s.homeFeed.Shows...)
-
 	categoryExists := false
 	for _, existing := range s.homeFeed.Categories {
 		if strings.EqualFold(strings.TrimSpace(existing), category) {

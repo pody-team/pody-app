@@ -50,6 +50,7 @@ Future<void> main() async {
     remoteDataSource: authRemoteDataSource,
     localDataSource: authLocalDataSource,
     googleAuthDataSource: GoogleSignInDataSource(
+      clientId: AppEnvironment.googleClientId,
       serverClientId: AppEnvironment.googleServerClientId,
     ),
   );

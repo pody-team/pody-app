@@ -26,40 +26,11 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
   late bool _autoGenerateImages;
   late bool _autoGenerateIntroMusic;
   late final List<_EditableHost> _hosts;
+  List<AIVoiceProfile> _availableVoices = const <AIVoiceProfile>[];
+  bool _isLoadingVoices = true;
+  String? _voiceLoadError;
+  bool _hasRequestedVoiceProfiles = false;
   bool _isCreatingShow = false;
-
-  static const List<Map<String, String>> _availableVoices = [
-    {
-      'id': 'v_male_deep',
-      'name': 'Nam trầm',
-      'desc': 'Giọng nam trầm ấm, phù hợp tin tức',
-    },
-    {
-      'id': 'v_male_young',
-      'name': 'Nam trẻ',
-      'desc': 'Giọng nam trẻ năng động',
-    },
-    {
-      'id': 'v_female_warm',
-      'name': 'Nữ ấm',
-      'desc': 'Giọng nữ ấm áp, thân thiện',
-    },
-    {
-      'id': 'v_female_pro',
-      'name': 'Nữ chuyên nghiệp',
-      'desc': 'Giọng nữ rõ ràng, chuyên nghiệp',
-    },
-    {
-      'id': 'v_neutral',
-      'name': 'Trung tính',
-      'desc': 'Giọng trung tính, đa năng',
-    },
-    {
-      'id': 'v_narrator',
-      'name': 'Narrator',
-      'desc': 'Giọng kể chuyện điềm đạm',
-    },
-  ];
 
   @override
   void initState() {
@@ -77,7 +48,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     _autoGenerateIntroMusic = false;
     final draftHosts = widget.plan.showDraft.hosts;
     _hosts = draftHosts.isEmpty
-        ? [_EditableHost(name: 'Nova', voiceId: 'v_neutral', bio: '')]
+        ? [_EditableHost(name: 'Host 1', voiceId: null, bio: '')]
         : draftHosts
               .map(
                 (host) => _EditableHost(
@@ -93,6 +64,16 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_hasRequestedVoiceProfiles) {
+      return;
+    }
+    _hasRequestedVoiceProfiles = true;
+    _loadVoiceProfiles();
+  }
+
+  @override
   void dispose() {
     _seriesTitleController.dispose();
     _seriesDescriptionController.dispose();
@@ -100,29 +81,96 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
     super.dispose();
   }
 
-  String _normalizeVoiceId(String? rawVoiceId) {
+  Future<void> _loadVoiceProfiles() async {
+    setState(() {
+      _isLoadingVoices = true;
+      _voiceLoadError = null;
+    });
+    try {
+      final voices = await AIScope.of(context).listVoiceProfiles();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _availableVoices = voices;
+        _isLoadingVoices = false;
+        _voiceLoadError = voices.isEmpty
+            ? 'Chưa có giọng AI nào khả dụng từ hệ thống.'
+            : null;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isLoadingVoices = false;
+        _voiceLoadError =
+            'Không tải được danh sách giọng AI. Thử lại sau ít phút nữa.';
+      });
+    }
+  }
+
+  String? _normalizeVoiceId(String? rawVoiceId) {
+    final normalized = rawVoiceId?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    return normalized;
+  }
+
+  AIVoiceProfile? _voiceProfileById(String? voiceId) {
+    if (voiceId == null || voiceId.isEmpty) {
+      return null;
+    }
     for (final voice in _availableVoices) {
-      if (voice['id'] == rawVoiceId) {
-        return rawVoiceId!;
+      if (voice.id == voiceId) {
+        return voice;
       }
     }
-    return 'v_neutral';
+    return null;
   }
 
   String _voiceLabel(String? voiceId) {
-    for (final voice in _availableVoices) {
-      if (voice['id'] == voiceId) {
-        return voice['name']!;
-      }
+    if (_isLoadingVoices) {
+      return 'Đang tải giọng...';
     }
-    return 'AI Voice';
+    if (voiceId == null || voiceId.isEmpty) {
+      return 'Chưa chọn giọng';
+    }
+    final voice = _voiceProfileById(voiceId);
+    if (voice != null) {
+      return voice.name;
+    }
+    return 'Giọng không còn khả dụng';
+  }
+
+  String _voiceDescription(AIVoiceProfile voice) {
+    final segments = <String>[
+      voice.languageCode.toUpperCase(),
+      _genderLabel(voice.gender),
+      voice.provider,
+    ];
+    return segments.where((value) => value.trim().isNotEmpty).join(' • ');
+  }
+
+  String _genderLabel(String value) {
+    switch (value.trim().toLowerCase()) {
+      case 'male':
+        return 'Nam';
+      case 'female':
+        return 'Nữ';
+      case 'neutral':
+        return 'Trung tính';
+      default:
+        return value.trim().isEmpty ? 'Không rõ' : value;
+    }
   }
 
   void _openHostEditor(int hostIndex) {
     final host = _hosts[hostIndex];
     final nameController = TextEditingController(text: host.name);
     final bioController = TextEditingController(text: host.bio);
-    String selectedVoice = host.voiceId;
+    String? selectedVoice = host.voiceId;
 
     showModalBottomSheet(
       context: context,
@@ -187,88 +235,133 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ...List.generate(_availableVoices.length, (i) {
-                      final voice = _availableVoices[i];
-                      final isSelected = selectedVoice == voice['id'];
-                      return GestureDetector(
-                        onTap: () {
-                          setModalState(() => selectedVoice = voice['id']!);
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? _planPrimary.withValues(alpha: 0.10)
-                                : _planSurfaceStrong,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
+                    if (_isLoadingVoices)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_voiceLoadError != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: _planSurfaceStrong,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _voiceLoadError!,
+                              style: GoogleFonts.workSans(
+                                color: _planNeutral,
+                                fontSize: 13,
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _loadVoiceProfiles();
+                              },
+                              child: const Text('Tải lại'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ...List.generate(_availableVoices.length, (i) {
+                        final voice = _availableVoices[i];
+                        final isSelected = selectedVoice == voice.id;
+                        return GestureDetector(
+                          onTap: () {
+                            setModalState(() => selectedVoice = voice.id);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
                               color: isSelected
-                                  ? _planPrimary
-                                  : _planNeutral.withValues(alpha: 0.08),
-                              width: isSelected ? 1.4 : 1,
+                                  ? _planPrimary.withValues(alpha: 0.10)
+                                  : _planSurfaceStrong,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? _planPrimary
+                                    : _planNeutral.withValues(alpha: 0.08),
+                                width: isSelected ? 1.4 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? _planPrimary.withValues(alpha: 0.14)
+                                        : _planSurface,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.graphic_eq,
+                                    color: isSelected
+                                        ? _planPrimary
+                                        : _planMuted,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        voice.name,
+                                        style: GoogleFonts.workSans(
+                                          color: _planNeutral,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _voiceDescription(voice),
+                                        style: GoogleFonts.workSans(
+                                          color: _planMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle
+                                      : Icons.play_circle_outline,
+                                  color: isSelected
+                                      ? _planPrimary
+                                      : _planMuted,
+                                  size: 22,
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? _planPrimary.withValues(alpha: 0.14)
-                                      : _planSurface,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.graphic_eq,
-                                  color: isSelected ? _planPrimary : _planMuted,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      voice['name']!,
-                                      style: GoogleFonts.workSans(
-                                        color: _planNeutral,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      voice['desc']!,
-                                      style: GoogleFonts.workSans(
-                                        color: _planMuted,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                isSelected
-                                    ? Icons.check_circle
-                                    : Icons.play_circle_outline,
-                                color: isSelected ? _planPrimary : _planMuted,
-                                size: 22,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
+                        );
+                      }),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: FilledButton(
-                        onPressed: () {
+                        onPressed: (_isLoadingVoices ||
+                                (_availableVoices.isNotEmpty &&
+                                    selectedVoice == null))
+                            ? null
+                            : () {
                           setState(() {
                             _hosts[hostIndex] = _EditableHost(
                               name: nameController.text.trim().isNotEmpty
@@ -882,7 +975,7 @@ class _EditableHost {
   });
 
   final String name;
-  final String voiceId;
+  final String? voiceId;
   final String bio;
   final String role;
 }

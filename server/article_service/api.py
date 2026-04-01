@@ -140,7 +140,7 @@ def create_api(logger) -> FastAPI:
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
         try:
-            user_id = resolve_user_id(auth_user, req.user_id)
+            user_id = resolve_user_id(auth_user)
             return await article_engagement_service.add_reaction(article_id, user_id, req.type)
         except HTTPException:
             raise
@@ -156,7 +156,7 @@ def create_api(logger) -> FastAPI:
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
         try:
-            user_id = resolve_user_id(auth_user, req.user_id)
+            user_id = resolve_user_id(auth_user)
             return await article_engagement_service.track_metric(article_id, user_id, req.reading_time_seconds)
         except HTTPException:
             raise
@@ -187,7 +187,7 @@ def create_api(logger) -> FastAPI:
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
         try:
-            user_id = resolve_user_id(auth_user, req.user_id)
+            user_id = resolve_user_id(auth_user)
             return await article_engagement_service.create_comment(
                 article_id=article_id,
                 user_id=user_id,

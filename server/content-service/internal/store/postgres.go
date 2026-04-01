@@ -58,62 +58,44 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 	if err != nil {
 		return domain.ShowDetail{}, err
 	}
-	if coverImageURL == "" {
-		coverImageURL = fallbackShowCoverURL(slug)
-	}
-	ownerAvatarURL := fallbackOwnerAvatarURL(ownerUserID)
-	hosts, err := normalizeCreateHosts(contentType, input.Hosts, slug)
+	ownerAvatarURL := ""
+	hosts, err := normalizeCreateHosts(contentType, input.Hosts)
 	if err != nil {
 		return domain.ShowDetail{}, err
 	}
 
-	now := time.Now().UTC()
 	var (
-		showID      string
-		publishedAt time.Time
+		showID           string
+		publishedAt      sql.NullTime
+		visibility       string
+		monetizationType string
 	)
 
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO shows (
-			owner_user_id,
+        INSERT INTO shows (
+            owner_user_id,
 			owner_display_name_snapshot,
 			owner_avatar_url_snapshot,
-			title,
-			slug,
-			description,
-			content_type,
-			language_code,
-			cover_image_url,
-			publish_status,
-			visibility,
-			monetization_type,
-			credit_cost,
-			subscriber_count,
-			episode_count,
-			total_listen_count,
-			published_at
-		)
-		VALUES (
-			$1::uuid,
-			$2,
-			$3,
+            title,
+            slug,
+            description,
+            content_type,
+            language_code,
+            cover_image_url
+        )
+        VALUES (
+            $1::uuid,
+            $2,
+            $3,
 			$4,
 			$5,
-			$6,
-			$7,
-			$8,
-			NULLIF($9, ''),
-			'published',
-			'public',
-			'free',
-			0,
-			0,
-			0,
-			0,
-			$10
-		)
-		RETURNING id::text, published_at
-	`, ownerUserID, ownerDisplayName, ownerAvatarURL, title, slug, description, contentType, languageCode, coverImageURL, now).Scan(&showID, &publishedAt)
+            $6,
+            $7,
+            $8,
+            NULLIF($9, '')
+        )
+        RETURNING id::text, published_at, visibility, monetization_type
+    `, ownerUserID, ownerDisplayName, ownerAvatarURL, title, slug, description, contentType, languageCode, coverImageURL).Scan(&showID, &publishedAt, &visibility, &monetizationType)
 	if err != nil {
 		return domain.ShowDetail{}, err
 	}
@@ -185,9 +167,9 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 		TotalListenCount:  0,
 		LanguageCode:      languageCode,
 		ContentType:       contentType,
-		Visibility:        "public",
-		MonetizationType:  "free",
-		PublishedAt:       publishedAt,
+		Visibility:        visibility,
+		MonetizationType:  monetizationType,
+		PublishedAt:       publishedAt.Time,
 	}, nil
 }
 
@@ -1105,7 +1087,7 @@ func (s *PostgresStore) listShowHosts(ctx context.Context, showID string) ([]dom
 	return hosts, rows.Err()
 }
 
-func normalizeCreateHosts(contentType string, inputs []domain.CreateHostInput, slug string) ([]domain.Host, error) {
+func normalizeCreateHosts(contentType string, inputs []domain.CreateHostInput) ([]domain.Host, error) {
 	if len(inputs) == 0 {
 		return nil, errors.New("at least one host is required")
 	}
@@ -1123,9 +1105,6 @@ func normalizeCreateHosts(contentType string, inputs []domain.CreateHostInput, s
 			return nil, errors.New("each host must have a display name")
 		}
 		avatarURL := strings.TrimSpace(input.AvatarURL)
-		if avatarURL == "" {
-			avatarURL = fallbackHostAvatarURL(fmt.Sprintf("%s-%d", slug, index+1))
-		}
 		role := sanitizeHostRole(contentType, strings.TrimSpace(input.Role), index)
 		hosts = append(hosts, domain.Host{
 			DisplayName:    displayName,
@@ -1247,16 +1226,4 @@ func sanitizeHostRole(contentType string, role string, index int) string {
 		return "host"
 	}
 	return "co_host"
-}
-
-func fallbackShowCoverURL(seed string) string {
-	return fmt.Sprintf("https://picsum.photos/seed/show-%s/800/800", seed)
-}
-
-func fallbackHostAvatarURL(seed string) string {
-	return fmt.Sprintf("https://picsum.photos/seed/host-%s/200/200", seed)
-}
-
-func fallbackOwnerAvatarURL(seed string) string {
-	return fmt.Sprintf("https://picsum.photos/seed/owner-%s/200/200", seed)
 }

@@ -8,6 +8,8 @@ from app.models import VoiceProfile
 from app.planner import (
     AgentPlanState,
     DisabledSearchTool,
+    _build_create_agent_system_prompt_for_mode,
+    _build_plan_system_prompt,
     _execute_plan_tool,
     _validate_planner_content,
 )
@@ -45,14 +47,36 @@ def _voice_profile() -> VoiceProfile:
     )
 
 
-def test_validate_planner_content_normalizes_role_and_voice() -> None:
+def _voice_profile_two() -> VoiceProfile:
+    now = datetime.now(timezone.utc)
+    return VoiceProfile(
+        id=UUID("71000000-0000-0000-0000-000000000002"),
+        name="Atlas",
+        provider="google",
+        provider_voice_id="gemini-atlas-vi-001",
+        language_code="vi",
+        gender="male",
+        metadata={"avatar_url": "https://example.com/atlas.png"},
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def _categories() -> list[tuple[str, str]]:
+    return [
+        ("Công nghệ", "cong-nghe"),
+        ("Giải thích dễ hiểu", "giai-thich-de-hieu"),
+    ]
+
+
+def test_validate_planner_content_requires_voice_ids_from_allowed_profiles() -> None:
     content = json.dumps(
         {
             "thread_title": "AI Builder Lab",
             "assistant_reply": "",
             "series_title": "AI Builder Lab",
             "series_description": "Show for builders",
-            "primary_category": "Cong nghe",
+            "primary_category": "Công nghệ",
             "categories": [],
             "language_code": "vi",
             "content_type": "podcast",
@@ -61,11 +85,13 @@ def test_validate_planner_content_normalizes_role_and_voice() -> None:
             "hosts": [
                 {
                     "display_name": "Nova",
+                    "voice_profile_id": str(_voice_profile().id),
                     "role": "Nguoi dan chuong trinh",
                     "bio": "AI host",
                 },
                 {
                     "display_name": "Atlas",
+                    "voice_profile_id": str(_voice_profile_two().id),
                     "role": "Dong host",
                     "bio": "Co-host",
                 },
@@ -92,7 +118,8 @@ def test_validate_planner_content_normalizes_role_and_voice() -> None:
 
     validation = _validate_planner_content(
         content,
-        voice_profiles=[_voice_profile()],
+        voice_profiles=[_voice_profile(), _voice_profile_two()],
+        categories=_categories(),
         requested_episode_count=None,
     )
 
@@ -101,10 +128,133 @@ def test_validate_planner_content_normalizes_role_and_voice() -> None:
     assert validation.output.hosts[0].role == "host"
     assert validation.output.hosts[1].role == "co_host"
     assert str(validation.output.hosts[0].voice_profile_id) == str(_voice_profile().id)
-    assert validation.output.categories == ["Cong nghe"]
+    assert str(validation.output.hosts[1].voice_profile_id) == str(_voice_profile_two().id)
+    assert validation.output.categories == ["Công nghệ"]
     assert validation.output.assistant_reply
     assert "2 host" in validation.output.assistant_reply
     assert "Nova, Atlas" in validation.output.assistant_reply
+
+
+def test_validate_planner_content_rejects_missing_or_invalid_voice_ids() -> None:
+    content = json.dumps(
+        {
+            "thread_title": "AI Builder Lab",
+            "assistant_reply": "",
+            "series_title": "AI Builder Lab",
+            "series_description": "Show for builders",
+            "primary_category": "Công nghệ",
+            "categories": ["Công nghệ"],
+            "language_code": "vi",
+            "content_type": "podcast",
+            "tone_style": "sharp",
+            "tags": ["ai"],
+            "hosts": [
+                {
+                    "display_name": "Nova",
+                    "role": "host",
+                    "bio": "AI host",
+                },
+                {
+                    "display_name": "Atlas",
+                    "voice_profile_id": "00000000-0000-0000-0000-000000000099",
+                    "role": "co_host",
+                    "bio": "Co-host",
+                },
+            ],
+            "episodes": [
+                {
+                    "episode_number": 1,
+                    "title": "Tap 1",
+                    "description": "desc 1",
+                    "estimated_duration_seconds": 900,
+                    "status": "draft",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    validation = _validate_planner_content(
+        content,
+        voice_profiles=[_voice_profile()],
+        categories=_categories(),
+        requested_episode_count=None,
+    )
+
+    assert validation.valid is False
+    assert any('missing "voice_profile_id"' in error for error in validation.errors)
+    assert any('is not in allowed voice profiles' in error for error in validation.errors)
+
+
+def test_validate_planner_content_rejects_category_outside_content_db() -> None:
+    content = json.dumps(
+        {
+            "thread_title": "AI Builder Lab",
+            "assistant_reply": "",
+            "series_title": "AI Builder Lab",
+            "series_description": "Show for builders",
+            "primary_category": "Kinh doanh",
+            "categories": ["Kinh doanh"],
+            "language_code": "vi",
+            "content_type": "podcast",
+            "tone_style": "sharp",
+            "tags": ["ai"],
+            "hosts": [
+                {
+                    "display_name": "Nova",
+                    "voice_profile_id": str(_voice_profile().id),
+                    "role": "host",
+                    "bio": "AI host",
+                }
+            ],
+            "episodes": [
+                {
+                    "episode_number": 1,
+                    "title": "Tap 1",
+                    "description": "desc 1",
+                    "estimated_duration_seconds": 900,
+                    "status": "draft",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    validation = _validate_planner_content(
+        content,
+        voice_profiles=[_voice_profile()],
+        categories=_categories(),
+        requested_episode_count=None,
+    )
+
+    assert validation.valid is False
+    assert any('"primary_category" must match a category from content DB' in error for error in validation.errors)
+
+
+def test_plan_system_prompt_injects_allowed_categories_and_voices() -> None:
+    prompt = _build_plan_system_prompt(
+        voice_profiles=[_voice_profile()],
+        categories=_categories(),
+    )
+
+    assert 'Danh sach category show hop le' in prompt
+    assert '"Công nghệ" (slug: cong-nghe)' in prompt
+    assert 'Danh sach voice profile duoc phep dung' in prompt
+    assert str(_voice_profile().id) in prompt
+    assert _voice_profile().provider_voice_id in prompt
+
+
+def test_create_agent_system_prompt_injects_allowed_categories_and_voices() -> None:
+    prompt = _build_create_agent_system_prompt_for_mode(
+        "edit",
+        voice_profiles=[_voice_profile()],
+        categories=_categories(),
+    )
+
+    assert 'Danh sach category show hop le' in prompt
+    assert '"Giải thích dễ hiểu" (slug: giai-thich-de-hieu)' in prompt
+    assert 'Danh sach voice profile duoc phep dung' in prompt
+    assert _voice_profile().name in prompt
 
 
 def test_validate_planner_content_rejects_wrong_requested_episode_count() -> None:
@@ -291,7 +441,7 @@ def test_brave_search_tool_emits_tool_specific_status() -> None:
     assert state.has_searched is False
 
 
-def test_write_plan_requires_search_first() -> None:
+def test_write_plan_validates_without_requiring_search_first() -> None:
     state = AgentPlanState()
 
     result = _execute_plan_tool(
@@ -304,8 +454,69 @@ def test_write_plan_requires_search_first() -> None:
     )
 
     payload = json.loads(result)
+    assert payload["success"] is True
+    assert payload["plan_valid"] is False
+    assert payload["plan_errors"]
+
+
+def test_edit_plan_validates_without_requiring_search_first() -> None:
+    state = AgentPlanState(content='{"series_title":"AI Builder Lab"}')
+
+    result = _execute_plan_tool(
+        "edit_plan",
+        {"operation": "rewrite", "content": "{}"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["success"] is True
+    assert payload["plan_valid"] is False
+    assert payload["plan_errors"]
+
+
+def test_edit_plan_returns_plan_valid_false_when_replace_search_missing() -> None:
+    state = AgentPlanState(
+        has_searched=True,
+        content='{"series_title":"AI Builder Lab"}',
+    )
+
+    result = _execute_plan_tool(
+        "edit_plan",
+        {"operation": "replace", "replacement": "Go Builder Lab"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
     assert payload["success"] is False
-    assert "brave_search" in payload["error"]
+    assert payload["plan_valid"] is False
+    assert "search is required" in payload["error"]
+
+
+def test_edit_plan_returns_plan_valid_false_for_unknown_operation() -> None:
+    state = AgentPlanState(
+        has_searched=True,
+        content='{"series_title":"AI Builder Lab"}',
+    )
+
+    result = _execute_plan_tool(
+        "edit_plan",
+        {"operation": "append"},
+        state=state,
+        voice_profiles=[_voice_profile()],
+        requested_episode_count=None,
+        search_tool=DisabledSearchTool(),
+    )
+
+    payload = json.loads(result)
+    assert payload["success"] is False
+    assert payload["plan_valid"] is False
+    assert "Unknown edit_plan operation" in payload["error"]
 
 
 def test_validate_planner_content_accepts_agent_decided_episode_count() -> None:
@@ -460,7 +671,7 @@ def test_finalize_turn_emits_reply_status() -> None:
     assert "Đang hoàn thiện phản hồi" in events[0]["data"]["message"]
 
 
-def test_finalize_turn_requires_search_first() -> None:
+def test_finalize_turn_does_not_require_search_first() -> None:
     state = AgentPlanState()
 
     result = _execute_plan_tool(
@@ -473,12 +684,12 @@ def test_finalize_turn_requires_search_first() -> None:
     )
 
     payload = json.loads(result)
-    assert payload["success"] is False
-    assert "brave_search" in payload["error"]
+    assert payload["success"] is True
+    assert payload["finalized"] is True
 
 
-def test_finalize_turn_requires_draft_when_turn_is_plan_mode() -> None:
-    state = AgentPlanState(has_searched=True, requires_plan=True)
+def test_finalize_turn_does_not_require_draft() -> None:
+    state = AgentPlanState()
 
     result = _execute_plan_tool(
         "finalize_turn",
@@ -490,5 +701,5 @@ def test_finalize_turn_requires_draft_when_turn_is_plan_mode() -> None:
     )
 
     payload = json.loads(result)
-    assert payload["success"] is False
-    assert "create or update the draft" in payload["error"]
+    assert payload["success"] is True
+    assert payload["finalized"] is True
