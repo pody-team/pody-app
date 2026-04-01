@@ -14,6 +14,7 @@ import (
 const (
 	DefaultVerificationTopic  = "identity.email.verification.requested"
 	DefaultPasswordResetTopic = "identity.password.reset.requested"
+	DefaultUserProfileTopic   = "identity.user.profile.updated"
 )
 
 type VerificationMessage struct {
@@ -58,6 +59,30 @@ type PasswordResetRequestedEvent struct {
 	ToDisplayName  string    `json:"to_display_name"`
 	ResetOTP       string    `json:"reset_otp"`
 	ExpiresAt      time.Time `json:"expires_at"`
+}
+
+type UserProfileUpdatedMessage struct {
+	EventID        string    `json:"event_id,omitempty"`
+	IdempotencyKey string    `json:"idempotency_key,omitempty"`
+	UserID         string    `json:"user_id"`
+	DisplayName    string    `json:"display_name"`
+	Username       string    `json:"username"`
+	AvatarURL      string    `json:"avatar_url"`
+	Bio            string    `json:"bio"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type UserProfileUpdatedEvent struct {
+	EventID        string    `json:"event_id"`
+	IdempotencyKey string    `json:"idempotency_key"`
+	EventType      string    `json:"event_type"`
+	OccurredAt     time.Time `json:"occurred_at"`
+	UserID         string    `json:"user_id"`
+	DisplayName    string    `json:"display_name"`
+	Username       string    `json:"username"`
+	AvatarURL      string    `json:"avatar_url"`
+	Bio            string    `json:"bio"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type messageWriter interface {
@@ -209,6 +234,35 @@ func NewPasswordResetEvent(topic string, message PasswordResetMessage) PasswordR
 		ToDisplayName:  message.ToDisplayName,
 		ResetOTP:       message.ResetOTP,
 		ExpiresAt:      message.ExpiresAt.UTC(),
+	}
+}
+
+func NewUserProfileUpdatedEvent(topic string, message UserProfileUpdatedMessage) UserProfileUpdatedEvent {
+	eventID := strings.TrimSpace(message.EventID)
+	if eventID == "" {
+		eventID = uuid.NewString()
+	}
+
+	idempotencyKey := strings.TrimSpace(message.IdempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = eventID
+	}
+
+	if strings.TrimSpace(topic) == "" {
+		topic = DefaultUserProfileTopic
+	}
+
+	return UserProfileUpdatedEvent{
+		EventID:        eventID,
+		IdempotencyKey: idempotencyKey,
+		EventType:      strings.TrimSpace(topic) + ".v1",
+		OccurredAt:     time.Now().UTC(),
+		UserID:         strings.TrimSpace(message.UserID),
+		DisplayName:    strings.TrimSpace(message.DisplayName),
+		Username:       strings.TrimSpace(message.Username),
+		AvatarURL:      strings.TrimSpace(message.AvatarURL),
+		Bio:            message.Bio,
+		UpdatedAt:      message.UpdatedAt.UTC(),
 	}
 }
 

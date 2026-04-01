@@ -91,6 +91,22 @@ class AuthController extends ChangeNotifier {
     );
   }
 
+  Future<void> updateProfile({
+    required String displayName,
+    required String username,
+    required String bio,
+    required String avatarUrl,
+  }) async {
+    _session = await _repository.updateProfile(
+      displayName: displayName,
+      username: username,
+      bio: bio,
+      avatarUrl: avatarUrl,
+    );
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     final currentSession = _session;
     _session = null;

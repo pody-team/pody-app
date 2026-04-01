@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/promex04/pody/server/identity-service/internal/domain"
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrConflict = errors.New("conflict")
 
 type UserRecord struct {
 	User         domain.User
@@ -30,6 +32,7 @@ type CreateOutboxEventInput struct {
 
 type OutboxEvent struct {
 	ID        string
+	Key       string
 	EventType string
 	Payload   []byte
 	Attempts  int
@@ -46,6 +49,7 @@ type Repository interface {
 	ConsumeEmailVerification(ctx context.Context, token string) (domain.User, error)
 	VerifyPasswordReset(ctx context.Context, email, token string) error
 	ConsumePasswordReset(ctx context.Context, email, token, passwordHash string) (domain.User, error)
+	UpdateUserProfileWithOutbox(ctx context.Context, userID, displayName, username, bio, avatarURL string, event CreateOutboxEventInput) (domain.User, error)
 	UpdatePasswordAndRevokeSessions(ctx context.Context, userID, passwordHash string) error
 	CreateSession(ctx context.Context, userID, refreshToken string, expiresAt time.Time) error
 	FindSessionByRefreshToken(ctx context.Context, refreshToken string) (string, time.Time, bool, error)
@@ -519,6 +523,88 @@ func (r *PostgresRepository) ConsumePasswordReset(ctx context.Context, email, to
 	return r.FindUserByID(ctx, userID)
 }
 
+func (r *PostgresRepository) UpdateUserProfileWithOutbox(
+	ctx context.Context,
+	userID,
+	displayName,
+	username,
+	bio,
+	avatarURL string,
+	event CreateOutboxEventInput,
+) (domain.User, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer tx.Rollback()
+
+	var user domain.User
+	var emailVerifiedAt sql.NullTime
+	err = tx.QueryRowContext(ctx, `
+		UPDATE users
+		SET display_name = $2,
+		    username = $3,
+		    bio = $4,
+		    avatar_url = $5
+		WHERE id = $1
+		  AND status <> 'deleted'
+		RETURNING id, email, display_name, COALESCE(username, ''), COALESCE(avatar_url, ''), bio, account_type, status, locale, timezone, email_verified_at, created_at, updated_at
+	`, userID, displayName, nullableString(username), bio, nullableString(avatarURL)).Scan(
+		&user.ID,
+		&user.Email,
+		&user.DisplayName,
+		&user.Username,
+		&user.AvatarURL,
+		&user.Bio,
+		&user.AccountType,
+		&user.Status,
+		&user.Locale,
+		&user.Timezone,
+		&emailVerifiedAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return domain.User{}, ErrNotFound
+	}
+	if err != nil {
+		if isUniqueViolation(err) {
+			return domain.User{}, ErrConflict
+		}
+		return domain.User{}, err
+	}
+
+	payloadVersion := event.PayloadVersion
+	if payloadVersion <= 0 {
+		payloadVersion = 1
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO outbox_events (
+			aggregate_type,
+			aggregate_id,
+			event_type,
+			payload_version,
+			payload
+		)
+		VALUES ($1, $2, $3, $4, $5::jsonb)
+	`, event.AggregateType, event.AggregateID, event.EventType, payloadVersion, string(event.Payload))
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return domain.User{}, err
+	}
+
+	if emailVerifiedAt.Valid {
+		verifiedAt := emailVerifiedAt.Time
+		user.EmailVerifiedAt = &verifiedAt
+	}
+
+	return user, nil
+}
+
 func (r *PostgresRepository) UpdatePasswordAndRevokeSessions(ctx context.Context, userID, passwordHash string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -610,7 +696,7 @@ func (r *PostgresRepository) ListPublishableOutboxEvents(ctx context.Context, li
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, event_type, payload::text, attempts
+		SELECT id, aggregate_id::text, event_type, payload::text, attempts
 		FROM outbox_events
 		WHERE status IN ('pending', 'failed')
 		  AND available_at <= now()
@@ -626,7 +712,7 @@ func (r *PostgresRepository) ListPublishableOutboxEvents(ctx context.Context, li
 	for rows.Next() {
 		var event OutboxEvent
 		var payload string
-		if err := rows.Scan(&event.ID, &event.EventType, &payload, &event.Attempts); err != nil {
+		if err := rows.Scan(&event.ID, &event.Key, &event.EventType, &payload, &event.Attempts); err != nil {
 			return nil, err
 		}
 		event.Payload = []byte(payload)
@@ -708,4 +794,12 @@ func nullableString(value string) interface{} {
 	}
 
 	return value
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505"
+	}
+	return false
 }

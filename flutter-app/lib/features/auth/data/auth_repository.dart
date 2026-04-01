@@ -120,6 +120,31 @@ class AuthRepository {
     );
   }
 
+  Future<AuthSession> updateProfile({
+    required String displayName,
+    required String username,
+    required String bio,
+    required String avatarUrl,
+  }) async {
+    final session = await _getUsableSession();
+    if (session == null || session.accessToken.isEmpty) {
+      throw ApiException(
+        'Phien dang nhap da het han. Hay dang nhap lai de tiep tuc.',
+        statusCode: 401,
+      );
+    }
+
+    final user = await _remoteDataSource.updateProfile(
+      displayName: displayName,
+      username: username,
+      bio: bio,
+      avatarUrl: avatarUrl,
+    );
+    final refreshedSession = session.copyWith(user: user);
+    await _localDataSource.saveSession(refreshedSession);
+    return refreshedSession;
+  }
+
   Future<String?> getValidAccessToken() async {
     final session = await _getUsableSession();
     return session?.accessToken;

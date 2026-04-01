@@ -99,6 +99,28 @@ class AuthRemoteDataSource {
     return response['message'] as String? ?? 'password changed successfully';
   }
 
+  Future<AuthUser> updateProfile({
+    required String displayName,
+    required String username,
+    required String bio,
+    required String avatarUrl,
+  }) async {
+    final response = await _apiClient.patch(
+      '/api/v1/identity/me',
+      requiresAuth: true,
+      body: {
+        'display_name': displayName,
+        'username': username,
+        'bio': bio,
+        'avatar_url': avatarUrl,
+      },
+    );
+
+    return AuthUser.fromJson(
+      response['user'] as Map<String, dynamic>? ?? const {},
+    );
+  }
+
   Future<AuthUser> me() async {
     final response = await _apiClient.get(
       '/api/v1/identity/me',

@@ -25,6 +25,34 @@ class AuthUser {
   final String timezone;
   final DateTime? emailVerifiedAt;
 
+  AuthUser copyWith({
+    String? id,
+    String? email,
+    String? displayName,
+    String? username,
+    String? avatarUrl,
+    String? bio,
+    String? accountType,
+    String? status,
+    String? locale,
+    String? timezone,
+    DateTime? emailVerifiedAt,
+  }) {
+    return AuthUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      displayName: displayName ?? this.displayName,
+      status: status ?? this.status,
+      username: username ?? this.username,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      bio: bio ?? this.bio,
+      accountType: accountType ?? this.accountType,
+      locale: locale ?? this.locale,
+      timezone: timezone ?? this.timezone,
+      emailVerifiedAt: emailVerifiedAt ?? this.emailVerifiedAt,
+    );
+  }
+
   String get handle {
     final value = username?.trim();
     if (value != null && value.isNotEmpty) {

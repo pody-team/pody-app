@@ -65,3 +65,19 @@ func TestHealthz(t *testing.T) {
 		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
 }
+
+func TestPatchMeRequiresBearerToken(t *testing.T) {
+	server := New(config.Config{
+		Port: "8081",
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)), auth.Service{})
+
+	request := httptest.NewRequest(http.MethodPatch, "/api/v1/identity/me", strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
