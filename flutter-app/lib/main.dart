@@ -44,8 +44,12 @@ Future<void> main() async {
   );
 
   final apiClient = ApiClient(baseUrl: AppEnvironment.apiBaseUrl);
+  final publicAuthApiClient = ApiClient(baseUrl: AppEnvironment.apiBaseUrl);
   final authLocalDataSource = AuthLocalDataSource();
-  final authRemoteDataSource = AuthRemoteDataSource(apiClient);
+  final authRemoteDataSource = AuthRemoteDataSource(
+    apiClient,
+    publicApiClient: publicAuthApiClient,
+  );
   final authRepository = AuthRepository(
     remoteDataSource: authRemoteDataSource,
     localDataSource: authLocalDataSource,
@@ -71,6 +75,7 @@ Future<void> main() async {
 
   runApp(
     PodyApp(
+      apiClient: apiClient,
       authController: authController,
       aiRepository: aiRepository,
       contentRepository: contentRepository,
@@ -82,6 +87,7 @@ Future<void> main() async {
 
 class PodyApp extends StatelessWidget {
   PodyApp({
+    required this.apiClient,
     required this.authController,
     required this.aiRepository,
     required this.contentRepository,
@@ -90,6 +96,7 @@ class PodyApp extends StatelessWidget {
     super.key,
   }) : navigatorKey = GlobalKey<NavigatorState>();
 
+  final ApiClient apiClient;
   final AuthController authController;
   final AIRepository aiRepository;
   final ContentRepository contentRepository;
@@ -113,6 +120,7 @@ class PodyApp extends StatelessWidget {
               debugShowCheckedModeBanner: false,
               theme: buildAppTheme(),
               home: AppShell(
+                apiClient: apiClient,
                 navigatorKey: navigatorKey,
                 notificationRepository: notificationRepository,
               ),
@@ -126,11 +134,13 @@ class PodyApp extends StatelessWidget {
 
 class AppShell extends StatefulWidget {
   const AppShell({
+    required this.apiClient,
     required this.navigatorKey,
     required this.notificationRepository,
     super.key,
   });
 
+  final ApiClient apiClient;
   final GlobalKey<NavigatorState> navigatorKey;
   final NotificationRepository notificationRepository;
 
@@ -138,7 +148,7 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final AppLinks _appLinks = AppLinks();
   StreamSubscription<Uri>? _deepLinkSubscription;
   String? _lastHandledNoticeKey;
@@ -147,13 +157,22 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_initializeDeepLinks());
   }
 
   @override
   void dispose() {
     _deepLinkSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.apiClient.resetTransport();
+    }
   }
 
   Future<void> _initializeDeepLinks() async {

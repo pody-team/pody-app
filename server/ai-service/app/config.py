@@ -24,10 +24,8 @@ class Settings:
     database_url: str
     content_database_url: str
     port: int
-    google_api_key: str | None
     google_model: str
     google_tts_model: str
-    google_base_url: str | None
     google_cloud_project: str | None
     google_cloud_location: str
     google_cloud_storage_bucket: str | None
@@ -46,7 +44,7 @@ class Settings:
             return True
         if self.provider_mode == "stub":
             return False
-        return bool(self.google_api_key or self.google_base_url)
+        return bool(self.google_cloud_project)
 
 
 def load_settings() -> Settings:
@@ -54,16 +52,14 @@ def load_settings() -> Settings:
     if provider_mode not in {"auto", "google", "stub"}:
         raise ValueError("AI_PROVIDER_MODE must be one of auto, google, stub")
 
-    return Settings(
+    settings = Settings(
         database_url=_required_env("DATABASE_URL"),
         content_database_url=_required_env("CONTENT_DATABASE_URL"),
         port=int(os.getenv("PORT", "8085")),
-        google_api_key=_optional_env("GOOGLE_API_KEY", "GEMINI_API_KEY"),
         google_model=os.getenv("GOOGLE_GENAI_MODEL", "gemini-3-flash-preview").strip() or "gemini-3-flash-preview",
         google_tts_model=os.getenv("GOOGLE_TTS_MODEL", "gemini-2.5-flash-tts").strip() or "gemini-2.5-flash-tts",
-        google_base_url=_optional_env("GOOGLE_GENAI_BASE_URL"),
         google_cloud_project=_optional_env("GOOGLE_CLOUD_PROJECT"),
-        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1").strip() or "us-central1",
+        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip() or "global",
         google_cloud_storage_bucket=_optional_env("GOOGLE_CLOUD_STORAGE_BUCKET"),
         google_cloud_storage_public_base_url=_optional_env("GOOGLE_CLOUD_STORAGE_PUBLIC_BASE_URL"),
         notification_service_url=_optional_env("NOTIFICATION_SERVICE_URL"),
@@ -78,3 +74,8 @@ def load_settings() -> Settings:
         transcript_timeout_seconds=int(os.getenv("TRANSCRIPT_TIMEOUT_SECONDS", "900")),
         provider_mode=provider_mode,
     )
+
+    if settings.provider_mode == "google" and not settings.google_cloud_project:
+        raise ValueError("GOOGLE_CLOUD_PROJECT is required when AI_PROVIDER_MODE=google")
+
+    return settings

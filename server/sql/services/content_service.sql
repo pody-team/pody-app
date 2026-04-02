@@ -251,4 +251,22 @@ BEFORE UPDATE ON episode_companion_blocks
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
+-- V1 creator flows open newly created shows and episodes through the public
+-- content APIs immediately, so publish any legacy draft rows created before the
+-- explicit insert-level status fix shipped.
+UPDATE shows
+SET publish_status = 'published',
+    visibility = 'public',
+    published_at = COALESCE(published_at, created_at)
+WHERE deleted_at IS NULL
+  AND publish_status = 'draft';
+
+UPDATE episodes
+SET publish_status = 'published',
+    visibility = 'public',
+    published_at = COALESCE(published_at, created_at)
+WHERE deleted_at IS NULL
+  AND publish_status = 'draft'
+  AND (is_ai_generated = true OR COALESCE(audio_url, '') <> '');
+
 COMMIT;

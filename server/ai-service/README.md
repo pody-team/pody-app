@@ -31,13 +31,13 @@
 
 - The service persists chat threads, production plans, and jobs in the database configured by `DATABASE_URL`.
 - The relational schema lives in [ai_service.sql](/Users/promex04/Documents/Pody/Pody/server/sql/services/ai_service.sql).
-- Voice profiles are seeded through [ai_service_demo_seed.sql](/Users/promex04/Documents/Pody/Pody/server/sql/services/ai_service_demo_seed.sql).
-- Set `GOOGLE_API_KEY` or `GEMINI_API_KEY` to use Google GenAI live.
-- If you are routing through a local Gemini proxy, set `GOOGLE_GENAI_BASE_URL` such as `http://host.docker.internal:3030`. In that mode the service will still use the Google SDK, but send traffic to your proxy instead of Google directly.
-- If neither a Google key nor a proxy base URL is configured, the service falls back to a deterministic local planner so the stack still runs in dev.
+- Voice profiles are managed in the AI database and are no longer populated by demo seed migrations.
+- Creator chat, planning, dialogue generation, and TTS all call Vertex AI directly through `google-genai`.
+- The current default text model is `gemini-3-flash-preview`. On Vertex AI this model is served on the `global` endpoint, so set `GOOGLE_CLOUD_LOCATION=global` unless you intentionally move to a different model.
+- Configure `GOOGLE_CLOUD_PROJECT`, and optionally `GOOGLE_CLOUD_LOCATION` / `GOOGLE_TTS_MODEL`, to enable live AI flows.
+- If `GOOGLE_CLOUD_PROJECT` is not configured, the service falls back to a deterministic local planner so the stack still runs in dev.
 - `POST /api/v1/ai/production-plans/{plan_id}/create-show` returns `202 Accepted` and queues a background `show_creation` job.
 - The show creation worker needs `CONTENT_DATABASE_URL` so it can write shows and episodes into the content database.
-- Live speech synthesis uses Vertex AI via `gemini-2.5-flash-tts`; configure `GOOGLE_CLOUD_PROJECT` and optionally `GOOGLE_CLOUD_LOCATION` / `GOOGLE_TTS_MODEL`.
 - Episode audio is uploaded to Google Cloud Storage; configure `GOOGLE_CLOUD_STORAGE_BUCKET` and optionally `GOOGLE_CLOUD_STORAGE_PUBLIC_BASE_URL`.
 - Transcript alignment uses Meta MMS forced alignment via `torchaudio.pipelines.MMS_FA`; the Docker image installs CPU-only `torch` + `torchaudio`.
 - Set `TRANSCRIPT_ALIGNMENT_MODE=mms` to require MMS alignment, or `auto` only if you explicitly want proportional fallback in dev.

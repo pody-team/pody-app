@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -41,6 +43,9 @@ class PlayerState extends ChangeNotifier {
   double _playbackSpeed = 1.0;
   List<Episode> _queue = const [];
   int _queueIndex = -1;
+  String? _activePreviewId;
+  _PreviewPlaybackSnapshot? _previewSnapshot;
+  bool _isRestoringPreview = false;
 
   Episode? get episode => _episode;
   Show? get show => _show;
@@ -64,12 +69,17 @@ class PlayerState extends ChangeNotifier {
   bool get hasNext => _queueIndex >= 0 && _queueIndex < _queue.length - 1;
   List<Episode> get queue => List.unmodifiable(_queue);
   int get currentQueueIndex => _queueIndex;
+  String? get activePreviewId => _activePreviewId;
+  bool get isPreviewPlaying => _activePreviewId != null && _isPlaying;
+  bool get isPreviewBuffering => _activePreviewId != null && _isBuffering;
+  bool get isPreviewActive => _activePreviewId != null;
 
   Future<void> play({
     required Show show,
     required Episode episode,
     bool autoplay = true,
   }) async {
+    await _finishPreviewIfNeeded(restorePlayback: false);
     final previousEpisodeId = _episode?.id;
     _show = show;
     _episode = episode;
@@ -108,21 +118,7 @@ class PlayerState extends ChangeNotifier {
         await player.setAudioSources(
           [
             for (final queueEpisode in _queue)
-              AudioSource.uri(
-                Uri.parse(_normalizeAudioUrl(queueEpisode.audioUrl!.trim())),
-                tag: MediaItem(
-                  id: queueEpisode.id,
-                  album: show.title,
-                  title: queueEpisode.title,
-                  artist: show.hostsLabel,
-                  artUri: Uri.tryParse(
-                    queueEpisode.images.isNotEmpty
-                        ? queueEpisode.images.first
-                        : show.imageUrl,
-                  ),
-                  duration: queueEpisode.duration,
-                ),
-              ),
+              _buildEpisodeAudioSource(show: show, episode: queueEpisode),
           ],
           initialIndex: _queueIndex,
           initialPosition: Duration.zero,
@@ -185,6 +181,32 @@ class PlayerState extends ChangeNotifier {
     await player.seek(Duration(milliseconds: targetMillis));
   }
 
+  Future<void> seekToPosition(Duration position) async {
+    var player = _audioPlayer;
+    if (player == null) {
+      final show = _show;
+      final episode = _episode;
+      if (show == null || episode == null) {
+        return;
+      }
+      await play(show: show, episode: episode, autoplay: false);
+      player = _audioPlayer;
+      if (player == null) {
+        return;
+      }
+    }
+
+    final totalDuration = _duration.inMilliseconds > 0
+        ? _duration
+        : _episode?.duration ?? Duration.zero;
+    final clamped = position < Duration.zero
+        ? Duration.zero
+        : position > totalDuration
+        ? totalDuration
+        : position;
+    await player.seek(clamped);
+  }
+
   Future<void> seekRelative(Duration offset) async {
     final player = _audioPlayer;
     if (player == null) {
@@ -237,6 +259,54 @@ class PlayerState extends ChangeNotifier {
     await player.seek(Duration.zero, index: index);
   }
 
+  Future<void> playPreview({
+    required String previewId,
+    required String title,
+    required String audioUrl,
+  }) async {
+    final player = _ensureAudioPlayer();
+    final normalizedAudioUrl = _normalizeAudioUrl(audioUrl);
+    final isSamePreview =
+        _activePreviewId == previewId && _loadedAudioUrl == normalizedAudioUrl;
+
+    if (_activePreviewId == null) {
+      _previewSnapshot = _capturePreviewSnapshot();
+    }
+
+    _activePreviewId = previewId;
+    _errorMessage = null;
+    _show = null;
+    _episode = null;
+    _queue = const [];
+    _queueIndex = -1;
+    _loadedEpisodeId = null;
+    _loadedAudioUrl = normalizedAudioUrl;
+    _position = Duration.zero;
+    _duration = Duration.zero;
+    _isBuffering = true;
+    notifyListeners();
+
+    if (!isSamePreview) {
+      await player.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(normalizedAudioUrl),
+          tag: MediaItem(
+            id: 'voice-preview-$previewId',
+            title: 'Nghe thử: $title',
+            artist: 'Pody AI Voice',
+          ),
+        ),
+      );
+    }
+
+    await player.seek(Duration.zero);
+    await player.play();
+  }
+
+  Future<void> stopPreview() async {
+    await _finishPreviewIfNeeded(restorePlayback: true);
+  }
+
   AudioPlayer _ensureAudioPlayer() {
     final existing = _audioPlayer;
     if (existing != null) {
@@ -259,6 +329,9 @@ class PlayerState extends ChangeNotifier {
           value.processingState == ProcessingState.buffering;
       if (value.processingState == ProcessingState.completed) {
         _isPlaying = false;
+        if (_activePreviewId != null) {
+          unawaited(_finishPreviewIfNeeded(restorePlayback: true));
+        }
       }
       notifyListeners();
     });
@@ -310,6 +383,104 @@ class PlayerState extends ChangeNotifier {
       currentIndex: currentIndex < 0 ? 0 : currentIndex,
     );
   }
+
+  AudioSource _buildEpisodeAudioSource({
+    required Show show,
+    required Episode episode,
+  }) {
+    return AudioSource.uri(
+      Uri.parse(_normalizeAudioUrl(episode.audioUrl!.trim())),
+      tag: MediaItem(
+        id: episode.id,
+        album: show.title,
+        title: episode.title,
+        artist: show.hostsLabel,
+        artUri: Uri.tryParse(
+          episode.images.isNotEmpty ? episode.images.first : show.imageUrl,
+        ),
+        duration: episode.duration,
+      ),
+    );
+  }
+
+  _PreviewPlaybackSnapshot? _capturePreviewSnapshot() {
+    final show = _show;
+    final episode = _episode;
+    if (show == null || episode == null || _audioPlayer == null) {
+      return null;
+    }
+    return _PreviewPlaybackSnapshot(
+      show: show,
+      episode: episode,
+      queue: List<Episode>.from(_queue),
+      queueIndex: _queueIndex,
+      position: _position,
+      wasPlaying: _isPlaying,
+    );
+  }
+
+  Future<void> _finishPreviewIfNeeded({required bool restorePlayback}) async {
+    if (_activePreviewId == null || _isRestoringPreview) {
+      return;
+    }
+
+    _isRestoringPreview = true;
+    final player = _audioPlayer;
+    final snapshot = _previewSnapshot;
+    _activePreviewId = null;
+    _previewSnapshot = null;
+
+    try {
+      if (player != null) {
+        await player.pause();
+      }
+
+      if (!restorePlayback || snapshot == null) {
+        _show = null;
+        _episode = null;
+        _queue = const [];
+        _queueIndex = -1;
+        _loadedAudioUrl = null;
+        _loadedEpisodeId = null;
+        _position = Duration.zero;
+        _duration = Duration.zero;
+        _isPlaying = false;
+        _isBuffering = false;
+        notifyListeners();
+        return;
+      }
+
+      _show = snapshot.show;
+      _episode = snapshot.episode;
+      _queue = snapshot.queue;
+      _queueIndex = snapshot.queueIndex;
+      _loadedEpisodeId = snapshot.episode.id;
+      _loadedAudioUrl = snapshot.episode.audioUrl?.trim();
+      _position = snapshot.position;
+      _duration = snapshot.episode.duration;
+      _isBuffering = true;
+      notifyListeners();
+
+      if (player != null) {
+        await player.setAudioSources(
+          [
+            for (final queueEpisode in snapshot.queue)
+              _buildEpisodeAudioSource(show: snapshot.show, episode: queueEpisode),
+          ],
+          initialIndex: snapshot.queueIndex,
+          initialPosition: snapshot.position,
+        );
+        if (snapshot.wasPlaying) {
+          await player.play();
+        }
+      }
+
+      _isBuffering = false;
+      notifyListeners();
+    } finally {
+      _isRestoringPreview = false;
+    }
+  }
 }
 
 class _PlayerQueue {
@@ -317,4 +488,22 @@ class _PlayerQueue {
 
   final List<Episode> episodes;
   final int currentIndex;
+}
+
+class _PreviewPlaybackSnapshot {
+  const _PreviewPlaybackSnapshot({
+    required this.show,
+    required this.episode,
+    required this.queue,
+    required this.queueIndex,
+    required this.position,
+    required this.wasPlaying,
+  });
+
+  final Show show;
+  final Episode episode;
+  final List<Episode> queue;
+  final int queueIndex;
+  final Duration position;
+  final bool wasPlaying;
 }

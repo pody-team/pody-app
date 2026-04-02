@@ -11,6 +11,8 @@ from app.planner import (
     _build_create_agent_system_prompt_for_mode,
     _build_plan_system_prompt,
     _execute_plan_tool,
+    _reference_date_context,
+    _tool_status_message,
     _validate_planner_content,
 )
 
@@ -237,6 +239,7 @@ def test_plan_system_prompt_injects_allowed_categories_and_voices() -> None:
         categories=_categories(),
     )
 
+    assert _reference_date_context() in prompt
     assert 'Danh sach category show hop le' in prompt
     assert '"Công nghệ" (slug: cong-nghe)' in prompt
     assert 'Danh sach voice profile duoc phep dung' in prompt
@@ -251,10 +254,21 @@ def test_create_agent_system_prompt_injects_allowed_categories_and_voices() -> N
         categories=_categories(),
     )
 
+    assert _reference_date_context() in prompt
     assert 'Danh sach category show hop le' in prompt
     assert '"Giải thích dễ hiểu" (slug: giai-thich-de-hieu)' in prompt
     assert 'Danh sach voice profile duoc phep dung' in prompt
     assert _voice_profile().name in prompt
+
+
+def test_brave_search_status_message_stays_generic() -> None:
+    message = _tool_status_message(
+        "brave_search",
+        query="tin cong nghe cho founder o dong nam a nam 2026",
+    )
+
+    assert message == "Đang tìm kiếm thông tin liên quan..."
+    assert "founder" not in message
 
 
 def test_validate_planner_content_rejects_wrong_requested_episode_count() -> None:
@@ -264,8 +278,8 @@ def test_validate_planner_content_rejects_wrong_requested_episode_count() -> Non
             "assistant_reply": "done",
             "series_title": "AI Builder Lab",
             "series_description": "Show for builders",
-            "primary_category": "Cong nghe",
-            "categories": ["Cong nghe"],
+            "primary_category": "Công nghệ",
+            "categories": ["Công nghệ"],
             "language_code": "vi",
             "content_type": "podcast",
             "tone_style": "sharp",
@@ -309,8 +323,8 @@ def test_validate_planner_content_rejects_storytelling_with_multiple_hosts() -> 
             "assistant_reply": "done",
             "series_title": "Midnight Reset",
             "series_description": "Calm night stories",
-            "primary_category": "Cham soc ban than",
-            "categories": ["Cham soc ban than"],
+            "primary_category": "Chăm sóc bản thân",
+            "categories": ["Chăm sóc bản thân"],
             "language_code": "vi",
             "content_type": "storytelling",
             "tone_style": "calm",
@@ -349,8 +363,8 @@ def test_validate_planner_content_rejects_when_prompt_requires_two_hosts() -> No
             "assistant_reply": "Atlas va Lumi se dong hanh cung ban.",
             "series_title": "Go Builder Lab",
             "series_description": "Hoc Go co he thong",
-            "primary_category": "Cong nghe",
-            "categories": ["Cong nghe"],
+            "primary_category": "Công nghệ",
+            "categories": ["Công nghệ"],
             "language_code": "vi",
             "content_type": "podcast",
             "tone_style": "practical",
@@ -526,8 +540,8 @@ def test_validate_planner_content_accepts_agent_decided_episode_count() -> None:
             "assistant_reply": "done",
             "series_title": "Ban Tin De Hieu",
             "series_description": "Show tin tuc giai thich ngan gon",
-            "primary_category": "Cong nghe",
-            "categories": ["Cong nghe"],
+            "primary_category": "Công nghệ",
+            "categories": ["Công nghệ"],
             "language_code": "vi",
             "content_type": "podcast",
             "tone_style": "clear",
@@ -592,8 +606,8 @@ def test_begin_edit_session_switches_state_and_returns_plan() -> None:
             "assistant_reply": "done",
             "series_title": "AI Builder Lab",
             "series_description": "Show for builders",
-            "primary_category": "Cong nghe",
-            "categories": ["Cong nghe"],
+            "primary_category": "Công nghệ",
+            "categories": ["Công nghệ"],
             "language_code": "vi",
             "content_type": "podcast",
             "tone_style": "sharp",

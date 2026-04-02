@@ -10,16 +10,25 @@ typedef AccessTokenRefresher = Future<String?> Function();
 typedef SessionInvalidator = Future<void> Function();
 
 class ApiClient {
-  ApiClient({required this.baseUrl})
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 60),
-          sendTimeout: const Duration(seconds: 30),
-          headers: const {'Accept': 'application/json'},
-        ),
-      ) {
+  ApiClient({
+    required this.baseUrl,
+    HttpClientAdapter Function()? httpClientAdapterFactory,
+    Duration transportIdleResetThreshold = const Duration(minutes: 1),
+    DateTime Function()? nowProvider,
+  }) : _httpClientAdapterFactory =
+           httpClientAdapterFactory ?? (() => HttpClientAdapter()),
+       _transportIdleResetThreshold = transportIdleResetThreshold,
+       _nowProvider = nowProvider ?? DateTime.now,
+       _dio = Dio(
+         BaseOptions(
+           baseUrl: baseUrl,
+           connectTimeout: const Duration(seconds: 10),
+           receiveTimeout: const Duration(seconds: 60),
+           sendTimeout: const Duration(seconds: 30),
+           headers: const {'Accept': 'application/json'},
+         ),
+       ) {
+    _dio.httpClientAdapter = _httpClientAdapterFactory();
     _dio.interceptors.add(
       QueuedInterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -61,6 +70,17 @@ class ApiClient {
             }
           }
 
+          final didRescueNetwork = request.extra[_networkRescueKey] == true;
+
+          if (_isRecoverableNetworkDrop(error) && !didRescueNetwork) {
+            try {
+              final response = await _retryRequestWithFreshTransport(request);
+              return handler.resolve(response);
+            } catch (_) {
+              // Fall through and let the original error bubble up.
+            }
+          }
+
           handler.next(error);
         },
       ),
@@ -69,9 +89,13 @@ class ApiClient {
 
   static const _requiresAuthKey = 'requiresAuth';
   static const _retryKey = 'retriedAfterRefresh';
+  static const _networkRescueKey = 'rescuedNetworkDrop';
 
   final String baseUrl;
   final Dio _dio;
+  final HttpClientAdapter Function() _httpClientAdapterFactory;
+  final Duration _transportIdleResetThreshold;
+  final DateTime Function() _nowProvider;
 
   Dio get dio => _dio;
 
@@ -79,6 +103,7 @@ class ApiClient {
   AccessTokenRefresher? _refreshAccessToken;
   SessionInvalidator? _clearSession;
   Future<String?>? _ongoingRefresh;
+  DateTime? _lastTransportActivityAt;
 
   void attachAuthenticator({
     required AccessTokenProvider getValidAccessToken,
@@ -204,6 +229,7 @@ class ApiClient {
     bool expectResponseBody = true,
   }) async {
     try {
+      _prepareTransportForRequest();
       final response = await _dio.request<dynamic>(
         path,
         data: body,
@@ -249,6 +275,7 @@ class ApiClient {
     bool requiresAuth = false,
   }) async {
     try {
+      _prepareTransportForRequest();
       final response = await _dio.request<ResponseBody>(
         path,
         data: body,
@@ -311,6 +338,52 @@ class ApiClient {
         extra: {...request.extra, _requiresAuthKey: true, _retryKey: true},
       ),
     );
+  }
+
+  Future<Response<dynamic>> _retryRequestWithFreshTransport(
+    RequestOptions request,
+  ) async {
+    resetTransport();
+
+    final rescuedRequest = request.copyWith(
+      headers: {...request.headers, 'Connection': 'close'},
+      persistentConnection: false,
+      extra: {...request.extra, _networkRescueKey: true},
+    );
+    return _dio.fetch<dynamic>(rescuedRequest);
+  }
+
+  void resetTransport() {
+    try {
+      _dio.httpClientAdapter.close(force: true);
+    } catch (_) {
+      // Ignore adapter shutdown issues and still swap in a fresh transport.
+    }
+    _dio.httpClientAdapter = _httpClientAdapterFactory();
+    _lastTransportActivityAt = _nowProvider();
+  }
+
+  bool _isRecoverableNetworkDrop(DioException error) {
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.sendTimeout) {
+      return true;
+    }
+
+    return error.type == DioExceptionType.unknown &&
+        error.error.toString().contains('SocketException');
+  }
+
+  void _prepareTransportForRequest() {
+    final now = _nowProvider();
+    final lastActivityAt = _lastTransportActivityAt;
+    if (lastActivityAt != null &&
+        _transportIdleResetThreshold > Duration.zero &&
+        now.difference(lastActivityAt) >= _transportIdleResetThreshold) {
+      resetTransport();
+    }
+    _lastTransportActivityAt = now;
   }
 
   ApiException _mapDioException(DioException error) {

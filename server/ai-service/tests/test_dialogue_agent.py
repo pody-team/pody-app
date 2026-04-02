@@ -7,10 +7,13 @@ from app.dialogue_agent import (
     MAX_DIALOGUE_CHARACTERS,
     StubDialogueAgent,
     _build_dialogue_prompt,
+    _build_dialogue_system_prompt,
     _dialogue_validation_payload,
+    _tool_status_message,
     _validate_dialogue_content,
 )
 from app.models import AIHostDraft, EpisodeDraft, ProductionPlan, ShowDraft, VoiceProfile
+from app.planner import _reference_date_context
 from app.show_creation import EpisodeDialogueMemory, ScriptTurn
 
 
@@ -42,7 +45,7 @@ def _podcast_plan() -> ProductionPlan:
             slug="founder-signal",
             title="Founder Signal",
             description="Goc nhin founder va PM.",
-            primary_category="Cong nghe",
+            primary_category="Công nghệ",
             language_code="vi",
             content_type="podcast",
             hosts=[
@@ -128,6 +131,22 @@ def test_stub_dialogue_agent_returns_dialogue_turns() -> None:
 
     assert len(turns) >= 4
     assert turns[0].speaker == "Atlas"
+
+
+def test_build_dialogue_system_prompt_injects_current_reference_date() -> None:
+    prompt = _build_dialogue_system_prompt()
+
+    assert _reference_date_context() in prompt
+
+
+def test_dialogue_search_status_message_stays_generic() -> None:
+    message = _tool_status_message(
+        "brave_search",
+        query="xu huong podcast cong nghe cho startup 2026",
+    )
+
+    assert message == "Đang research để viết thoại..."
+    assert "startup" not in message
 
 
 def test_build_dialogue_prompt_includes_full_previous_context_and_teaser() -> None:

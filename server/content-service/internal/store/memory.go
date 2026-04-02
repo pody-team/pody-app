@@ -18,6 +18,9 @@ type ContentStore interface {
 	GetShowDetail(ctx context.Context, showID string) (domain.ShowDetail, error)
 	ListShowEpisodes(ctx context.Context, showID string) ([]domain.EpisodeSummary, error)
 	GetEpisodeDetail(ctx context.Context, episodeID string) (domain.EpisodeDetail, error)
+	GetCreatorShowDetail(ctx context.Context, ownerUserID string, showID string) (domain.ShowDetail, error)
+	ListCreatorShowEpisodes(ctx context.Context, ownerUserID string, showID string) ([]domain.EpisodeSummary, error)
+	GetCreatorEpisodeDetail(ctx context.Context, ownerUserID string, episodeID string) (domain.EpisodeDetail, error)
 	ListEpisodeBookmarks(ctx context.Context, userID string) ([]domain.BookmarkedEpisode, error)
 	GetEpisodeBookmarkStatus(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error)
 	SaveEpisodeBookmark(ctx context.Context, userID string, episodeID string) (domain.EpisodeBookmarkStatus, error)
@@ -370,6 +373,42 @@ func (s *demoStore) GetEpisodeDetail(_ context.Context, episodeID string) (domai
 	}
 
 	return episode, nil
+}
+
+func (s *demoStore) GetCreatorShowDetail(
+	_ context.Context,
+	ownerUserID string,
+	showID string,
+) (domain.ShowDetail, error) {
+	if strings.TrimSpace(ownerUserID) == "" {
+		return domain.ShowDetail{}, ErrNotFound
+	}
+
+	return s.GetShowDetail(context.Background(), showID)
+}
+
+func (s *demoStore) ListCreatorShowEpisodes(
+	_ context.Context,
+	ownerUserID string,
+	showID string,
+) ([]domain.EpisodeSummary, error) {
+	if strings.TrimSpace(ownerUserID) == "" {
+		return nil, ErrNotFound
+	}
+
+	return s.ListShowEpisodes(context.Background(), showID)
+}
+
+func (s *demoStore) GetCreatorEpisodeDetail(
+	_ context.Context,
+	ownerUserID string,
+	episodeID string,
+) (domain.EpisodeDetail, error) {
+	if strings.TrimSpace(ownerUserID) == "" {
+		return domain.EpisodeDetail{}, ErrNotFound
+	}
+
+	return s.GetEpisodeDetail(context.Background(), episodeID)
 }
 
 func (s *demoStore) ListEpisodeBookmarks(_ context.Context, userID string) ([]domain.BookmarkedEpisode, error) {

@@ -85,6 +85,84 @@ void main() {
       expect(cleared, isTrue);
       expect(adapter.requestCount, 1);
     });
+
+    test('reset transport va mo lai SSE stream sau khi roi mang', () async {
+      late final _FakeAdapter initialAdapter;
+      final recoveredAdapter = _FakeAdapter((request) async {
+        expect(request.responseType, ResponseType.stream);
+        expect(request.headers['Connection'], 'close');
+        expect(request.persistentConnection, isFalse);
+        return ResponseBody.fromString(
+          'event: done\ndata: {"thread_id":"thread-1"}\n\n',
+          200,
+          headers: {
+            Headers.contentTypeHeader: ['text/event-stream'],
+          },
+        );
+      });
+      var adapterFactoryCalls = 0;
+
+      initialAdapter = _FakeAdapter((request) async {
+        throw DioException.connectionError(
+          requestOptions: request,
+          reason: 'socket closed',
+        );
+      });
+
+      final apiClient = ApiClient(
+        baseUrl: 'https://example.com',
+        httpClientAdapterFactory: () {
+          adapterFactoryCalls += 1;
+          return adapterFactoryCalls == 1 ? initialAdapter : recoveredAdapter;
+        },
+      );
+
+      final responseBody = await apiClient.openEventStream(
+        '/api/v1/ai/chat-create/threads/stream',
+        method: 'POST',
+      );
+
+      expect(responseBody.statusCode, 200);
+      expect(adapterFactoryCalls, 2);
+      expect(initialAdapter.closeCallCount, 1);
+      expect(initialAdapter.lastForceClose, isTrue);
+      expect(recoveredAdapter.requestCount, 1);
+    });
+
+    test('chu dong reset transport truoc request moi sau mot khoang idle dai', () async {
+      var now = DateTime(2026, 4, 2, 8, 0, 0);
+      late final _FakeAdapter initialAdapter;
+      final refreshedAdapter = _FakeAdapter((request) async {
+        return _jsonResponse(200, {'status': 'fresh-transport'});
+      });
+      var adapterFactoryCalls = 0;
+
+      initialAdapter = _FakeAdapter((request) async {
+        return _jsonResponse(200, {'status': 'initial-transport'});
+      });
+
+      final apiClient = ApiClient(
+        baseUrl: 'https://example.com',
+        httpClientAdapterFactory: () {
+          adapterFactoryCalls += 1;
+          return adapterFactoryCalls == 1 ? initialAdapter : refreshedAdapter;
+        },
+        transportIdleResetThreshold: const Duration(minutes: 1),
+        nowProvider: () => now,
+      );
+
+      final firstResponse = await apiClient.get('/ping');
+      expect(firstResponse['status'], 'initial-transport');
+
+      now = now.add(const Duration(minutes: 2));
+
+      final secondResponse = await apiClient.get('/ping');
+      expect(secondResponse['status'], 'fresh-transport');
+      expect(adapterFactoryCalls, 2);
+      expect(initialAdapter.closeCallCount, 1);
+      expect(initialAdapter.lastForceClose, isTrue);
+      expect(refreshedAdapter.requestCount, 1);
+    });
   });
 }
 
@@ -103,9 +181,14 @@ class _FakeAdapter implements HttpClientAdapter {
 
   final Future<ResponseBody> Function(RequestOptions request) _handler;
   int requestCount = 0;
+  int closeCallCount = 0;
+  bool lastForceClose = false;
 
   @override
-  void close({bool force = false}) {}
+  void close({bool force = false}) {
+    closeCallCount += 1;
+    lastForceClose = force;
+  }
 
   @override
   Future<ResponseBody> fetch(

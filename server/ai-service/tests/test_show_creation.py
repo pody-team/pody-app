@@ -3,12 +3,15 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+import app.show_creation as show_creation_module
 from app.models import AIHostDraft, EpisodeDraft, ProductionPlan, ShowDraft, VoiceProfile
 from app.show_creation import (
+    ContentCreationStore,
     EpisodeArtifact,
     MAX_TTS_PROMPT_CHARACTERS,
     ScriptTurn,
     ShowCreationSession,
+    StoredAudioAsset,
     _build_tts_prompt_chunks,
     _build_episode_segments,
     _build_episode_turns,
@@ -52,7 +55,7 @@ def _plan_with_two_hosts() -> ProductionPlan:
             slug="tech-pulse",
             title="Tech Pulse",
             description="Ban tin cong nghe cho founder.",
-            primary_category="Cong nghe",
+            primary_category="Công nghệ",
             language_code="vi",
             content_type="podcast",
             hosts=[
@@ -268,7 +271,7 @@ def test_resolve_category_matches_exact_db_name() -> None:
                 {
                     "id": "51000000-0000-0000-0000-000000000001",
                     "slug": "cong-nghe",
-                    "name": "Cong nghe",
+                    "name": "Công nghệ",
                 }
             ]
 
@@ -278,7 +281,7 @@ def test_resolve_category_matches_exact_db_name() -> None:
 
     category_name, category_id = _resolve_category(FakeConn(), "Cong nghe")
 
-    assert category_name == "Cong nghe"
+    assert category_name == "Công nghệ"
     assert category_id == "51000000-0000-0000-0000-000000000001"
 
 
@@ -289,7 +292,7 @@ def test_resolve_category_matches_vietnamese_name_via_slugified_lookup() -> None
                 {
                     "id": "51000000-0000-0000-0000-000000000001",
                     "slug": "cong-nghe",
-                    "name": "Cong nghe",
+                    "name": "Công nghệ",
                 }
             ]
 
@@ -299,8 +302,151 @@ def test_resolve_category_matches_vietnamese_name_via_slugified_lookup() -> None
 
     category_name, category_id = _resolve_category(FakeConn(), "Công nghệ")
 
-    assert category_name == "Cong nghe"
+    assert category_name == "Công nghệ"
     assert category_id == "51000000-0000-0000-0000-000000000001"
+
+
+class _FakeExecuteResult:
+    def __init__(self, *, row: dict[str, str] | None = None) -> None:
+        self._row = row or {}
+
+    def fetchone(self):
+        return self._row
+
+    def fetchall(self):
+        return []
+
+
+class _RecordingConnection:
+    def __init__(self) -> None:
+        self.row_factory = None
+        self.queries: list[tuple[str, object]] = []
+        self._show_host_inserts = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def transaction(self):
+        return self
+
+    def execute(self, query, params=None):
+        normalized = " ".join(query.split())
+        self.queries.append((normalized, params))
+        if "INSERT INTO shows" in normalized:
+            return _FakeExecuteResult(row={"id": "show-created-1"})
+        if "INSERT INTO show_hosts" in normalized:
+            self._show_host_inserts += 1
+            return _FakeExecuteResult(row={"id": f"host-{self._show_host_inserts}"})
+        if "INSERT INTO episodes" in normalized:
+            return _FakeExecuteResult(row={"id": "episode-created-1"})
+        return _FakeExecuteResult()
+
+
+class _FakePool:
+    def __init__(self, conn: _RecordingConnection) -> None:
+        self._conn = conn
+
+    def connection(self):
+        return self._conn
+
+
+class _FakeAudioStore:
+    @property
+    def enabled(self) -> bool:
+        return True
+
+    def upload_episode_audio(
+        self,
+        *,
+        show_id: str,
+        episode_slug: str,
+        audio_bytes: bytes,
+    ) -> StoredAudioAsset:
+        _ = audio_bytes
+        return StoredAudioAsset(
+            audio_url=f"https://cdn.pody.vn/{show_id}/{episode_slug}.wav",
+            storage_key=f"shows/{show_id}/episodes/{episode_slug}.wav",
+        )
+
+
+def test_create_show_shell_inserts_published_public_show(monkeypatch) -> None:
+    plan = _plan_with_two_hosts()
+    conn = _RecordingConnection()
+    store = ContentCreationStore(_FakePool(conn), audio_store=_FakeAudioStore())
+
+    monkeypatch.setattr(
+        show_creation_module,
+        "_resolve_category",
+        lambda *_args, **_kwargs: ("Công nghệ", "cat-1"),
+    )
+    monkeypatch.setattr(
+        show_creation_module,
+        "_ensure_unique_show_slug",
+        lambda *_args, **_kwargs: "tech-pulse",
+    )
+
+    session = store.create_show_shell(
+        owner_user_id=uuid4(),
+        owner_display_name="Creator",
+        owner_email="creator@example.com",
+        plan=plan,
+    )
+
+    show_insert = next(query for query, _ in conn.queries if "INSERT INTO shows" in query)
+    assert "publish_status" in show_insert
+    assert "visibility" in show_insert
+    assert "published_at" in show_insert
+    assert "'published'" in show_insert
+    assert "'public'" in show_insert
+    assert "now()" in show_insert
+    assert session.show_id == "show-created-1"
+
+
+def test_create_episode_from_plan_inserts_published_public_episode(monkeypatch) -> None:
+    plan = _plan_with_two_hosts()
+    conn = _RecordingConnection()
+    store = ContentCreationStore(_FakePool(conn), audio_store=_FakeAudioStore())
+
+    monkeypatch.setattr(
+        show_creation_module,
+        "_ensure_unique_episode_slug",
+        lambda *_args, **_kwargs: "ai-agents-cho-product",
+    )
+    monkeypatch.setattr(show_creation_module, "_build_episode_segments", lambda **_kwargs: [])
+
+    created = store.create_episode_from_plan(
+        show=ShowCreationSession(
+            show_id="show-created-1",
+            show_title=plan.series_title,
+            cover_image_url="https://example.com/show.png",
+            primary_host_name="Atlas",
+            inserted_host_ids=("host-1", "host-2"),
+        ),
+        plan=plan,
+        episode=plan.episodes[0],
+        artifact=EpisodeArtifact(
+            audio_bytes=b"wav",
+            duration_seconds=120,
+            script_text="Atlas: Xin chao",
+            turns=(),
+        ),
+    )
+
+    episode_insert = next(
+        query for query, _ in conn.queries if "INSERT INTO episodes" in query
+    )
+    assert "publish_status" in episode_insert
+    assert "visibility" in episode_insert
+    assert "published_at" in episode_insert
+    assert "'published'" in episode_insert
+    assert "'public'" in episode_insert
+    assert "now()" in episode_insert
+    assert created.episode_id == "episode-created-1"
+
+
 def test_resolve_category_raises_for_unknown_value() -> None:
     class FakeResult:
         def fetchall(self):
@@ -308,7 +454,7 @@ def test_resolve_category_raises_for_unknown_value() -> None:
                 {
                     "id": "51000000-0000-0000-0000-000000000004",
                     "slug": "giai-thich-de-hieu",
-                    "name": "Giai thich de hieu",
+                    "name": "Giải thích dễ hiểu",
                 }
             ]
 

@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart' show ResponseBody;
+import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/core/network/api_client.dart';
 
 import '../domain/ai_models.dart';
 
 class AIRemoteDataSource {
-  AIRemoteDataSource(this._apiClient);
+  AIRemoteDataSource(
+    this._apiClient, {
+    Duration streamIdleTimeout = const Duration(seconds: 75),
+  }) : _streamIdleTimeout = streamIdleTimeout;
 
   final ApiClient _apiClient;
+  final Duration _streamIdleTimeout;
 
   Future<List<AIVoiceProfile>> listVoiceProfiles() async {
     final response = await _apiClient.get(
@@ -23,9 +29,7 @@ class AIRemoteDataSource {
         .toList();
   }
 
-  Future<AIChatThread> createThread({
-    required String prompt,
-  }) async {
+  Future<AIChatThread> createThread({required String prompt}) async {
     final response = await _apiClient.post(
       '/api/v1/ai/chat-create/threads',
       requiresAuth: true,
@@ -130,38 +134,46 @@ class AIRemoteDataSource {
   }
 
   Stream<AIChatStreamEvent> _parseSseStream(ResponseBody responseBody) async* {
-    final lines = utf8.decoder
-        .bind(responseBody.stream)
-        .transform(const LineSplitter());
-    var eventName = 'message';
-    final dataLines = <String>[];
+    try {
+      final lines = utf8.decoder
+          .bind(responseBody.stream.timeout(_streamIdleTimeout))
+          .transform(const LineSplitter());
+      var eventName = 'message';
+      final dataLines = <String>[];
 
-    await for (final line in lines) {
-      if (line.isEmpty) {
+      await for (final line in lines) {
+        if (line.isEmpty) {
+          final event = _buildStreamEvent(eventName, dataLines.join('\n'));
+          if (event != null) {
+            yield event;
+          }
+          eventName = 'message';
+          dataLines.clear();
+          continue;
+        }
+
+        if (line.startsWith('event:')) {
+          eventName = line.substring(6).trim();
+          continue;
+        }
+
+        if (line.startsWith('data:')) {
+          dataLines.add(line.substring(5).trim());
+        }
+      }
+
+      if (dataLines.isNotEmpty) {
         final event = _buildStreamEvent(eventName, dataLines.join('\n'));
         if (event != null) {
           yield event;
         }
-        eventName = 'message';
-        dataLines.clear();
-        continue;
       }
-
-      if (line.startsWith('event:')) {
-        eventName = line.substring(6).trim();
-        continue;
-      }
-
-      if (line.startsWith('data:')) {
-        dataLines.add(line.substring(5).trim());
-      }
-    }
-
-    if (dataLines.isNotEmpty) {
-      final event = _buildStreamEvent(eventName, dataLines.join('\n'));
-      if (event != null) {
-        yield event;
-      }
+    } on TimeoutException {
+      throw ApiException(
+        'Ket noi toi AI bi gian doan qua lau. Hay gui lai de thu ket noi moi.',
+      );
+    } finally {
+      responseBody.close();
     }
   }
 
@@ -177,6 +189,8 @@ class AIRemoteDataSource {
         final debugLabel = tool ?? phase ?? 'status';
         return AIChatStreamEvent.status(
           _readPayloadString(payload['message'], fallback: 'AI dang xu ly...'),
+          phase: phase,
+          toolName: tool,
           debugLabel: debugLabel,
         );
       case 'assistant_delta':
@@ -204,7 +218,10 @@ class AIRemoteDataSource {
         );
       case 'error':
         return AIChatStreamEvent.error(
-          _readPayloadString(payload['message'], fallback: 'AI service gap loi.'),
+          _readPayloadString(
+            payload['message'],
+            fallback: 'AI service gap loi.',
+          ),
           debugLabel: 'error',
         );
       default:

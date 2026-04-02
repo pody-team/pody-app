@@ -14,6 +14,9 @@
 - `GET /api/v1/public/content/episodes/{episodeID}`
 - `POST /api/v1/content/shows`
 - `GET /api/v1/content/me/shows`
+- `GET /api/v1/content/me/shows/{showID}`
+- `GET /api/v1/content/me/shows/{showID}/episodes`
+- `GET /api/v1/content/me/episodes/{episodeID}`
 - `GET /api/v1/content/me/bookmarks`
 - `GET /api/v1/content/me/bookmarks/{episodeID}`
 - `PUT /api/v1/content/me/bookmarks/{episodeID}`

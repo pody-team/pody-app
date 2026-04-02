@@ -8,6 +8,7 @@ import 'package:pody/features/content/presentation/content_legacy_mapper.dart';
 import 'package:pody/features/content/presentation/content_scope.dart';
 import 'package:pody/screens/auth/sign_in_screen.dart';
 import 'package:pody/screens/auth/sign_up_screen.dart';
+import 'package:pody/screens/show/creator_show_detail_screen.dart';
 import 'package:pody/screens/show/content_show_detail_screen.dart';
 import 'package:pody/utils/player_utils.dart';
 
@@ -1105,7 +1106,7 @@ class _CreationCard extends StatelessWidget {
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) =>
-                ContentShowDetailScreen(showId: show.id, initialSummary: show),
+                CreatorShowDetailScreen(showId: show.id, initialSummary: show),
           ),
         );
       },

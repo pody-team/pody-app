@@ -14,15 +14,19 @@ const _detailNeutral = Color(0xFF3E2723);
 const _detailSurface = Color(0xFFFFFBF6);
 const _detailSurfaceStrong = Color(0xFFF1E2D3);
 
+enum ContentShowDetailSource { listener, creator }
+
 class ContentShowDetailScreen extends StatefulWidget {
   const ContentShowDetailScreen({
     required this.showId,
     this.initialSummary,
+    this.source = ContentShowDetailSource.listener,
     super.key,
   });
 
   final String showId;
   final ContentShowSummary? initialSummary;
+  final ContentShowDetailSource source;
 
   @override
   State<ContentShowDetailScreen> createState() =>
@@ -54,7 +58,9 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
 
     try {
       final repository = ContentScope.of(context);
-      final bundle = await repository.getShowBundle(widget.showId);
+      final bundle = widget.source == ContentShowDetailSource.creator
+          ? await repository.getCreatorShowBundle(widget.showId)
+          : await repository.getShowBundle(widget.showId);
       if (!mounted) {
         return;
       }
@@ -84,10 +90,15 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
     setState(() => _playingEpisodeId = episode.id);
     try {
       final repository = ContentScope.of(context);
-      final detail = await repository.getEpisodeDetail(episode.id);
+      final detail = widget.source == ContentShowDetailSource.creator
+          ? await repository.getCreatorEpisodeDetail(episode.id)
+          : await repository.getEpisodeDetail(episode.id);
       final remainingDetails = await Future.wait([
         for (final summary in bundle.episodes)
-          if (summary.id != episode.id) repository.getEpisodeDetail(summary.id),
+          if (summary.id != episode.id)
+            widget.source == ContentShowDetailSource.creator
+                ? repository.getCreatorEpisodeDetail(summary.id)
+                : repository.getEpisodeDetail(summary.id),
       ]);
       if (!mounted) {
         return;
@@ -118,6 +129,7 @@ class _ContentShowDetailScreenState extends State<ContentShowDetailScreen> {
               builder: (_) => ContentShowDetailScreen(
                 showId: bundle.show.id,
                 initialSummary: bundle.show.toSummary(),
+                source: widget.source,
               ),
             ),
           );

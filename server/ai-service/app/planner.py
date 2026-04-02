@@ -239,6 +239,10 @@ def _build_allowed_voices_block(voice_profiles: list[VoiceProfile]) -> str:
     return "\n".join(lines)
 
 
+def _reference_date_context() -> str:
+    return f"Ngày tham chiếu hiện tại: {datetime.now(UTC).date().isoformat()}."
+
+
 def _build_plan_system_prompt(
     *,
     voice_profiles: list[VoiceProfile],
@@ -246,6 +250,7 @@ def _build_plan_system_prompt(
 ) -> str:
     return (
         f"{PLAN_SYSTEM_PROMPT.strip()}\n\n"
+        f"{_reference_date_context()}\n\n"
         f"{_build_allowed_categories_block(categories)}\n\n"
         f"{_build_allowed_voices_block(voice_profiles)}"
     )
@@ -264,6 +269,7 @@ def _build_create_agent_system_prompt_for_mode(
     )
     return (
         f"{base_prompt.strip()}\n\n"
+        f"{_reference_date_context()}\n\n"
         f"{_build_allowed_categories_block(categories)}\n\n"
         f"{_build_allowed_voices_block(voice_profiles)}"
     )
@@ -441,25 +447,25 @@ class StubPlanner:
 
         if "sleep" in prompt_lower or "calm" in prompt_lower or "reset" in prompt_lower:
             title = "Midnight Reset"
-            category = "Cham soc ban than"
+            category = "Chăm sóc bản thân"
             tags = ["sleep", "mindfulness", "daily-routine"]
             tone = "calm, reflective, encouraging"
             host_name = "Lumi"
         elif "crime" in prompt_lower or "mystery" in prompt_lower or "dieu tra" in prompt_lower:
             title = "Ho So Giai Ma"
-            category = "Dieu tra"
+            category = "Điều tra"
             tags = ["mystery", "analysis", "storytelling"]
             tone = "curious, dramatic, investigative"
             host_name = "Minh Tra"
         elif "news" in prompt_lower or "digest" in prompt_lower or "tin" in prompt_lower:
             title = "Ban Tin De Hieu"
-            category = "Giai thich de hieu"
+            category = "Giải thích dễ hiểu"
             tags = ["news", "digest", "explainer"]
             tone = "clear, concise, modern"
             host_name = "Atlas"
         else:
             title = "AI Builder Lab"
-            category = "Cong nghe"
+            category = "Công nghệ"
             tags = ["ai", "builder", "startup"]
             tone = "sharp, practical, optimistic"
             host_name = "Nova"
@@ -554,13 +560,13 @@ class GoogleGenAIPlanner:
     def __init__(
         self,
         *,
-        api_key: str,
+        project: str,
+        location: str,
         model: str,
-        base_url: str | None = None,
         search_tool: SearchTool | None = None,
         category_catalog: CategoryCatalog | None = None,
     ) -> None:
-        self._client = _build_genai_client(api_key=api_key, base_url=base_url)
+        self._client = _build_genai_client(project=project, location=location)
         self._model = model
         self._search_tool = search_tool or DisabledSearchTool()
         self._category_catalog = category_catalog
@@ -712,20 +718,20 @@ class GoogleGenAICreateAgent:
     def __init__(
         self,
         *,
-        api_key: str,
+        project: str,
+        location: str,
         model: str,
-        base_url: str | None = None,
         search_tool: SearchTool | None = None,
         category_catalog: CategoryCatalog | None = None,
     ) -> None:
-        self._client = _build_genai_client(api_key=api_key, base_url=base_url)
+        self._client = _build_genai_client(project=project, location=location)
         self._model = model
         self._search_tool = search_tool or DisabledSearchTool()
         self._category_catalog = category_catalog
         self._planner_fallback = GoogleGenAIPlanner(
-            api_key=api_key,
+            project=project,
+            location=location,
             model=model,
-            base_url=base_url,
             search_tool=self._search_tool,
             category_catalog=category_catalog,
         )
@@ -889,11 +895,11 @@ def build_planner(
         else None
     )
     if settings.use_google_provider:
-        api_key = settings.google_api_key or "proxy-placeholder"
+        project = _require_vertex_project(settings)
         return GoogleGenAIPlanner(
-            api_key=api_key,
+            project=project,
+            location=settings.google_cloud_location,
             model=settings.google_model,
-            base_url=settings.google_base_url,
             search_tool=build_search_tool(settings),
             category_catalog=category_catalog,
         )
@@ -911,11 +917,11 @@ def build_create_agent(
         else None
     )
     if settings.use_google_provider:
-        api_key = settings.google_api_key or "proxy-placeholder"
+        project = _require_vertex_project(settings)
         return GoogleGenAICreateAgent(
-            api_key=api_key,
+            project=project,
+            location=settings.google_cloud_location,
             model=settings.google_model,
-            base_url=settings.google_base_url,
             search_tool=build_search_tool(settings),
             category_catalog=category_catalog,
         )
@@ -979,11 +985,19 @@ def build_search_tool(settings: Settings) -> SearchTool:
     )
 
 
-def _build_genai_client(*, api_key: str, base_url: str | None) -> genai.Client:
-    http_options = None
-    if base_url:
-        http_options = types.HttpOptions(baseUrl=base_url)
-    return genai.Client(api_key=api_key, http_options=http_options)
+def _require_vertex_project(settings: Settings) -> str:
+    project = (settings.google_cloud_project or "").strip()
+    if not project:
+        raise PlannerError("GOOGLE_CLOUD_PROJECT is required to use Vertex AI")
+    return project
+
+
+def _build_genai_client(*, project: str, location: str) -> genai.Client:
+    return genai.Client(
+        vertexai=True,
+        project=project,
+        location=location,
+    )
 
 
 def _build_create_agent_prompt(
@@ -1399,11 +1413,6 @@ def _emit_plan_preview(
 
 def _tool_status_message(tool_name: str, *, query: str | None = None) -> str:
     if tool_name == "brave_search":
-        if query:
-            compact_query = re.sub(r"\s+", " ", query).strip()
-            if len(compact_query) > 72:
-                compact_query = f"{compact_query[:69].rstrip()}..."
-            return f"Đang tìm kiếm thông tin về “{compact_query}”..."
         return "Đang tìm kiếm thông tin liên quan..."
     if tool_name == "begin_edit_session":
         return "Đang mở bản draft để chỉnh sửa..."

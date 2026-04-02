@@ -49,17 +49,17 @@ var serviceEnvs = []serviceEnv{
 }
 
 func Load() (Config, error) {
-	readTimeout, err := durationFromEnv("READ_TIMEOUT", 5*time.Second)
+	readTimeout, err := durationFromEnv("READ_TIMEOUT", 30*time.Second)
 	if err != nil {
 		return Config{}, err
 	}
 
-	writeTimeout, err := durationFromEnv("WRITE_TIMEOUT", 10*time.Second)
+	writeTimeout, err := durationFromEnv("WRITE_TIMEOUT", 5*time.Minute)
 	if err != nil {
 		return Config{}, err
 	}
 
-	idleTimeout, err := durationFromEnv("IDLE_TIMEOUT", 30*time.Second)
+	idleTimeout, err := durationFromEnv("IDLE_TIMEOUT", 120*time.Second)
 	if err != nil {
 		return Config{}, err
 	}

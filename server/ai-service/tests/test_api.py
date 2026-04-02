@@ -163,8 +163,8 @@ class FakeAIService:
             slug="ai-builder-lab",
             title="AI Builder Lab",
             description="Show draft",
-            primary_category="Cong nghe",
-            categories=["Cong nghe"],
+            primary_category="Công nghệ",
+            categories=["Công nghệ"],
             hosts=[
                 AIHostDraft(
                     display_name="Nova",

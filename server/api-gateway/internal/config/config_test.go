@@ -29,8 +29,16 @@ func TestLoadUsesDefaults(t *testing.T) {
 		t.Fatalf("expected default port 8080, got %s", cfg.Port)
 	}
 
-	if cfg.ReadTimeout != 5*time.Second {
-		t.Fatalf("expected default read timeout 5s, got %s", cfg.ReadTimeout)
+	if cfg.ReadTimeout != 30*time.Second {
+		t.Fatalf("expected default read timeout 30s, got %s", cfg.ReadTimeout)
+	}
+
+	if cfg.WriteTimeout != 5*time.Minute {
+		t.Fatalf("expected default write timeout 5m, got %s", cfg.WriteTimeout)
+	}
+
+	if cfg.IdleTimeout != 120*time.Second {
+		t.Fatalf("expected default idle timeout 120s, got %s", cfg.IdleTimeout)
 	}
 
 	if len(cfg.AllowedOrigins) != 1 || cfg.AllowedOrigins[0] != "*" {
@@ -90,7 +98,6 @@ func TestLoadOverridesValues(t *testing.T) {
 	foundArticlePublic := false
 	foundIdentityPublic := false
 	foundIdentityProtected := false
-	foundAIPublic := false
 	foundAIProtected := false
 	for _, route := range cfg.Routes {
 		if route.Name == "social" {
@@ -125,13 +132,6 @@ func TestLoadOverridesValues(t *testing.T) {
 			foundContentProtected = true
 			if route.TargetURL != "http://localhost:8082/api/v1/content" {
 				t.Fatalf("unexpected protected content target %s", route.TargetURL)
-			}
-		}
-
-		if route.Name == "ai-public" {
-			foundAIPublic = true
-			if route.TargetURL != "http://localhost:8085/api/v1/public/ai" {
-				t.Fatalf("unexpected public ai target %s", route.TargetURL)
 			}
 		}
 
@@ -172,7 +172,7 @@ func TestLoadOverridesValues(t *testing.T) {
 }
 
 func TestLoadRejectsInvalidURL(t *testing.T) {
-	t.Setenv("NEWS_SERVICE_URL", "://bad-url")
+	t.Setenv("AI_SERVICE_URL", "://bad-url")
 
 	_, err := Load()
 	if err == nil {

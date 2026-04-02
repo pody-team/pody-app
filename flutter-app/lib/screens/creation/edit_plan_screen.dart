@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/features/ai/domain/ai_models.dart';
 import 'package:pody/features/ai/presentation/ai_scope.dart';
+import 'package:pody/state/player_state.dart';
 
 const Color _planCanvas = Color(0xFFFFFBF6);
 const Color _planSurface = Color(0xFFFFFEFC);
@@ -31,10 +34,15 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
   String? _voiceLoadError;
   bool _hasRequestedVoiceProfiles = false;
   bool _isCreatingShow = false;
+  final PlayerState _sharedPlayerState = PlayerState.instance;
+  final ValueNotifier<int> _voicePreviewRefresh = ValueNotifier<int>(0);
+  String? _previewingVoiceId;
+  String? _loadingPreviewVoiceId;
 
   @override
   void initState() {
     super.initState();
+    _sharedPlayerState.addListener(_handleSharedPlayerChanged);
     _seriesTitleController = TextEditingController(
       text: widget.plan.seriesTitle,
     );
@@ -75,6 +83,8 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
 
   @override
   void dispose() {
+    _sharedPlayerState.removeListener(_handleSharedPlayerChanged);
+    _voicePreviewRefresh.dispose();
     _seriesTitleController.dispose();
     _seriesDescriptionController.dispose();
     _toneStyleController.dispose();
@@ -151,6 +161,114 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
       voice.provider,
     ];
     return segments.where((value) => value.trim().isNotEmpty).join(' • ');
+  }
+
+  void _handleSharedPlayerChanged() {
+    final nextPreviewingVoiceId = _sharedPlayerState.activePreviewId;
+    final shouldClearLoading =
+        _loadingPreviewVoiceId != null &&
+        (nextPreviewingVoiceId == _loadingPreviewVoiceId ||
+            !_sharedPlayerState.isPreviewBuffering);
+    if (_previewingVoiceId == nextPreviewingVoiceId && !shouldClearLoading) {
+      return;
+    }
+    _previewingVoiceId = nextPreviewingVoiceId;
+    if (shouldClearLoading) {
+      _loadingPreviewVoiceId = null;
+    }
+    _notifyVoicePreviewUi();
+  }
+
+  void _notifyVoicePreviewUi() {
+    _voicePreviewRefresh.value++;
+  }
+
+  bool _hasVoicePreview(AIVoiceProfile voice) {
+    final uri = _voicePreviewUri(voice);
+    if (uri == null) {
+      return false;
+    }
+    final host = uri.host.trim().toLowerCase();
+    if (host.isEmpty || host == 'example.com') {
+      return false;
+    }
+    return uri.scheme == 'https' || uri.scheme == 'http';
+  }
+
+  String _describeVoicePreviewError(Object error) {
+    return error.toString();
+  }
+
+  Future<void> _stopVoicePreview() async {
+    _previewingVoiceId = null;
+    _loadingPreviewVoiceId = null;
+    _notifyVoicePreviewUi();
+    await _sharedPlayerState.stopPreview();
+  }
+
+  Future<void> _toggleVoicePreview(AIVoiceProfile voice) async {
+    if (_loadingPreviewVoiceId == voice.id) {
+      return;
+    }
+
+    final isCurrentVoice = _previewingVoiceId == voice.id;
+    if (isCurrentVoice && _sharedPlayerState.isPreviewActive) {
+      await _stopVoicePreview();
+      return;
+    }
+
+    _loadingPreviewVoiceId = voice.id;
+    _notifyVoicePreviewUi();
+    try {
+      await _playVoicePreview(voice);
+    } catch (error, stackTrace) {
+      final errorDetail = _describeVoicePreviewError(error);
+      final sampleUrl = (voice.sampleAudioUrl ?? '').trim();
+      debugPrint(
+        'Voice preview failed'
+        ' voice=${voice.name}'
+        ' url=$sampleUrl'
+        ' error=$errorDetail',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      _previewingVoiceId = null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Không thể phát audio mẫu của ${voice.name} lúc này.'
+              ' ($errorDetail)',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      _loadingPreviewVoiceId = null;
+      _notifyVoicePreviewUi();
+    }
+  }
+
+  Future<void> _playVoicePreview(AIVoiceProfile voice) async {
+    final previewUri = _voicePreviewUri(voice);
+    if (previewUri == null || !_hasVoicePreview(voice)) {
+      throw StateError('Voice này chưa có audio mẫu khả dụng.');
+    }
+
+    await _sharedPlayerState.playPreview(
+      previewId: voice.id,
+      title: voice.name,
+      audioUrl: previewUri.toString(),
+    );
+    _previewingVoiceId = voice.id;
+  }
+
+  Uri? _voicePreviewUri(AIVoiceProfile voice) {
+    final sampleAudioUrl = (voice.sampleAudioUrl ?? '').trim();
+    if (sampleAudioUrl.isEmpty) {
+      return null;
+    }
+    return Uri.tryParse(sampleAudioUrl);
   }
 
   String _genderLabel(String value) {
@@ -271,109 +389,168 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
                         ),
                       )
                     else
-                      ...List.generate(_availableVoices.length, (i) {
-                        final voice = _availableVoices[i];
-                        final isSelected = selectedVoice == voice.id;
-                        return GestureDetector(
-                          onTap: () {
-                            setModalState(() => selectedVoice = voice.id);
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? _planPrimary.withValues(alpha: 0.10)
-                                  : _planSurfaceStrong,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected
-                                    ? _planPrimary
-                                    : _planNeutral.withValues(alpha: 0.08),
-                                width: isSelected ? 1.4 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
+                      ValueListenableBuilder<int>(
+                        valueListenable: _voicePreviewRefresh,
+                        builder: (_, _, _) {
+                          return Column(
+                            children: List.generate(_availableVoices.length, (
+                              i,
+                            ) {
+                              final voice = _availableVoices[i];
+                              final isSelected = selectedVoice == voice.id;
+                              final hasPreview = _hasVoicePreview(voice);
+                              final isLoadingPreview =
+                                  _loadingPreviewVoiceId == voice.id;
+                              final isPlayingPreview =
+                                  _previewingVoiceId == voice.id &&
+                                  _sharedPlayerState.isPreviewPlaying;
+                              return GestureDetector(
+                                onTap: () async {
+                                  final wasSelected = selectedVoice == voice.id;
+                                  setModalState(() => selectedVoice = voice.id);
+                                  if (!wasSelected && hasPreview) {
+                                    await _toggleVoicePreview(voice);
+                                  }
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? _planPrimary.withValues(alpha: 0.14)
-                                        : _planSurface,
-                                    borderRadius: BorderRadius.circular(12),
+                                        ? _planPrimary.withValues(alpha: 0.10)
+                                        : _planSurfaceStrong,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? _planPrimary
+                                          : _planNeutral.withValues(
+                                              alpha: 0.08,
+                                            ),
+                                      width: isSelected ? 1.4 : 1,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.graphic_eq,
-                                    color: isSelected
-                                        ? _planPrimary
-                                        : _planMuted,
-                                    size: 20,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                  child: Row(
                                     children: [
-                                      Text(
-                                        voice.name,
-                                        style: GoogleFonts.workSans(
-                                          color: _planNeutral,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 14,
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? _planPrimary.withValues(
+                                                  alpha: 0.14,
+                                                )
+                                              : _planSurface,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.graphic_eq,
+                                          color: isSelected
+                                              ? _planPrimary
+                                              : _planMuted,
+                                          size: 20,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        _voiceDescription(voice),
-                                        style: GoogleFonts.workSans(
-                                          color: _planMuted,
-                                          fontSize: 12,
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              voice.name,
+                                              style: GoogleFonts.workSans(
+                                                color: _planNeutral,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              _voiceDescription(voice),
+                                              style: GoogleFonts.workSans(
+                                                color: _planMuted,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                      const SizedBox(width: 12),
+                                      if (isLoadingPreview)
+                                        SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  isSelected
+                                                      ? _planPrimary
+                                                      : _planMuted,
+                                                ),
+                                          ),
+                                        )
+                                      else if (isPlayingPreview)
+                                        Icon(
+                                          Icons.pause_circle_filled,
+                                          color: isSelected
+                                              ? _planPrimary
+                                              : _planMuted,
+                                          size: 24,
+                                        )
+                                      else if (!hasPreview)
+                                        Icon(
+                                          Icons.volume_off_outlined,
+                                          color: _planMuted.withValues(
+                                            alpha: 0.45,
+                                          ),
+                                          size: 24,
+                                        ),
+                                      if (isSelected)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 12,
+                                          ),
+                                          child: Icon(
+                                            Icons.check_circle,
+                                            color: _planPrimary,
+                                            size: 20,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
-                                Icon(
-                                  isSelected
-                                      ? Icons.check_circle
-                                      : Icons.play_circle_outline,
-                                  color: isSelected
-                                      ? _planPrimary
-                                      : _planMuted,
-                                  size: 22,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
+                              );
+                            }),
+                          );
+                        },
+                      ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: FilledButton(
-                        onPressed: (_isLoadingVoices ||
+                        onPressed:
+                            (_isLoadingVoices ||
                                 (_availableVoices.isNotEmpty &&
                                     selectedVoice == null))
                             ? null
                             : () {
-                          setState(() {
-                            _hosts[hostIndex] = _EditableHost(
-                              name: nameController.text.trim().isNotEmpty
-                                  ? nameController.text.trim()
-                                  : host.name,
-                              voiceId: selectedVoice,
-                              role: host.role,
-                              bio: bioController.text.trim(),
-                            );
-                          });
-                          Navigator.pop(ctx);
-                        },
+                                setState(() {
+                                  _hosts[hostIndex] = _EditableHost(
+                                    name: nameController.text.trim().isNotEmpty
+                                        ? nameController.text.trim()
+                                        : host.name,
+                                    voiceId: selectedVoice,
+                                    role: host.role,
+                                    bio: bioController.text.trim(),
+                                  );
+                                });
+                                Navigator.pop(ctx);
+                              },
                         style: FilledButton.styleFrom(
                           backgroundColor: _planPrimary,
                           foregroundColor: Colors.white,
@@ -395,7 +572,7 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
           },
         );
       },
-    );
+    ).whenComplete(_stopVoicePreview);
   }
 
   Future<void> _createShowFromDraft() async {
@@ -556,21 +733,38 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
             const SizedBox(height: 18),
             _PlanCard(
               title: 'Hosts & voices',
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: List.generate(_hosts.length, (i) {
-                  final host = _hosts[i];
-                  final voiceName = _voiceLabel(host.voiceId);
-                  return SizedBox(
-                    width: (MediaQuery.of(context).size.width - 52) / 2,
-                    child: _buildHostVoiceSelector(
-                      name: host.name,
-                      voiceType: voiceName,
-                      onTap: () => _openHostEditor(i),
-                    ),
+              child: ValueListenableBuilder<int>(
+                valueListenable: _voicePreviewRefresh,
+                builder: (_, _, _) {
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: List.generate(_hosts.length, (i) {
+                      final host = _hosts[i];
+                      final voice = _voiceProfileById(host.voiceId);
+                      final voiceName = _voiceLabel(host.voiceId);
+                      return SizedBox(
+                        width: (MediaQuery.of(context).size.width - 52) / 2,
+                        child: _buildHostVoiceSelector(
+                          name: host.name,
+                          voiceType: voiceName,
+                          canPreview: voice != null && _hasVoicePreview(voice),
+                          isPreviewLoading:
+                              voice != null &&
+                              _loadingPreviewVoiceId == voice.id,
+                          isPreviewPlaying:
+                              voice != null &&
+                              _previewingVoiceId == voice.id &&
+                              _sharedPlayerState.isPreviewPlaying,
+                          onPreviewTap: voice == null
+                              ? null
+                              : () => _toggleVoicePreview(voice),
+                          onTap: () => _openHostEditor(i),
+                        ),
+                      );
+                    }),
                   );
-                }),
+                },
               ),
             ),
             const SizedBox(height: 18),
@@ -768,61 +962,110 @@ class _EditPlanScreenState extends State<EditPlanScreen> {
   Widget _buildHostVoiceSelector({
     required String name,
     required String voiceType,
+    required bool canPreview,
+    required bool isPreviewLoading,
+    required bool isPreviewPlaying,
+    required VoidCallback? onPreviewTap,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: _planSurfaceStrong,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.person_outline, color: _planPrimary, size: 16),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: GoogleFonts.workSans(
-                      color: _planNeutral,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+    return Container(
+      decoration: BoxDecoration(
+        color: _planSurfaceStrong,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.person_outline,
+                            color: _planPrimary,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: GoogleFonts.workSans(
+                                color: _planNeutral,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.graphic_eq,
+                            color: _planMuted,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              voiceType,
+                              style: GoogleFonts.workSans(
+                                color: _planMuted,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: _planMuted,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(Icons.graphic_eq, color: _planMuted, size: 14),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    voiceType,
-                    style: GoogleFonts.workSans(
-                      color: _planMuted,
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+          ),
+          IconButton(
+            tooltip: canPreview ? 'Nghe thử $voiceType' : 'Chưa có audio mẫu',
+            onPressed: onPreviewTap,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            icon: isPreviewLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    isPreviewPlaying
+                        ? Icons.pause_circle_filled
+                        : canPreview
+                        ? Icons.play_circle_outline
+                        : Icons.volume_off_outlined,
+                    color: canPreview
+                        ? _planPrimary
+                        : _planMuted.withValues(alpha: 0.45),
+                    size: 22,
                   ),
-                ),
-                const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: _planMuted,
-                  size: 16,
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
     );
   }

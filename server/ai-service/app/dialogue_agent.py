@@ -8,8 +8,15 @@ from typing import Any, Callable, Protocol
 
 from google.genai import types
 
+from .config import Settings
 from .models import EpisodeDraft, ProductionPlan, VoiceProfile
-from .planner import DisabledSearchTool, SearchTool, _build_genai_client, build_search_tool
+from .planner import (
+    DisabledSearchTool,
+    SearchTool,
+    _build_genai_client,
+    _reference_date_context,
+    build_search_tool,
+)
 from .show_creation import EpisodeDialogueMemory, ScriptTurn, _build_episode_turns, _build_tts_prompt
 
 
@@ -163,6 +170,10 @@ Ràng buộc:
 """
 
 
+def _build_dialogue_system_prompt() -> str:
+    return f"{DIALOGUE_SYSTEM_PROMPT.strip()}\n\n{_reference_date_context()}"
+
+
 class StubDialogueAgent:
     def generate_dialogue(
         self,
@@ -193,12 +204,12 @@ class GoogleGenAIDialogueAgent:
     def __init__(
         self,
         *,
-        api_key: str,
+        project: str,
+        location: str,
         model: str,
-        base_url: str | None = None,
         search_tool: SearchTool | None = None,
     ) -> None:
-        self._client = _build_genai_client(api_key=api_key, base_url=base_url)
+        self._client = _build_genai_client(project=project, location=location)
         self._model = model
         self._search_tool = search_tool or DisabledSearchTool()
 
@@ -234,7 +245,7 @@ class GoogleGenAIDialogueAgent:
                 contents=contents,
                 config=types.GenerateContentConfig(
                     temperature=0.8,
-                    system_instruction=DIALOGUE_SYSTEM_PROMPT,
+                    system_instruction=_build_dialogue_system_prompt(),
                     tools=DIALOGUE_TOOLS,
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
@@ -304,13 +315,15 @@ class GoogleGenAIDialogueAgent:
         raise DialogueAgentError("Dialogue agent reached max iterations without valid dialogue")
 
 
-def build_dialogue_agent(settings) -> DialogueAgent:
+def build_dialogue_agent(settings: Settings) -> DialogueAgent:
     if settings.use_google_provider:
-        api_key = settings.google_api_key or "proxy-placeholder"
+        project = (settings.google_cloud_project or "").strip()
+        if not project:
+            raise DialogueAgentError("GOOGLE_CLOUD_PROJECT is required to use Vertex AI")
         return GoogleGenAIDialogueAgent(
-            api_key=api_key,
+            project=project,
+            location=settings.google_cloud_location,
             model=settings.google_model,
-            base_url=settings.google_base_url,
             search_tool=build_search_tool(settings),
         )
     return StubDialogueAgent()
@@ -813,11 +826,6 @@ def _emit_tool_status(
 
 def _tool_status_message(tool_name: str, *, query: str | None = None) -> str:
     if tool_name == "brave_search":
-        if query:
-            compact_query = re.sub(r"\s+", " ", query).strip()
-            if len(compact_query) > 72:
-                compact_query = f"{compact_query[:69].rstrip()}..."
-            return f"Đang research để viết thoại về “{compact_query}”..."
         return "Đang research để viết thoại..."
     if tool_name == "read_plan":
         return "Đang đọc lại context của show và episode..."

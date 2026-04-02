@@ -1,10 +1,13 @@
 package httpserver
 
 import (
+	"bufio"
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/promex04/pody/server/api-gateway/internal/config"
 )
@@ -59,6 +62,111 @@ func TestProtectedIdentityRouteRequiresAuth(t *testing.T) {
 
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("expected protected route to require auth, got %d", recorder.Code)
+	}
+}
+
+func TestProtectedAIStreamFlushesFirstStatusChunk(t *testing.T) {
+	releaseUpstream := make(chan struct{})
+	released := false
+	release := func() {
+		if released {
+			return
+		}
+		close(releaseUpstream)
+		released = true
+	}
+	defer release()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/ai/chat-create/threads/stream" {
+			t.Fatalf("expected upstream ai stream path, got %s", r.URL.Path)
+		}
+		if got := r.Header.Get("X-Auth-User-ID"); got != "user-123" {
+			t.Fatalf("expected forwarded auth user id, got %q", got)
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			t.Fatalf("expected upstream writer to support flush")
+		}
+
+		_, _ = w.Write([]byte("event: status\n"))
+		_, _ = w.Write([]byte("data: {\"phase\":\"thinking\"}\n\n"))
+		flusher.Flush()
+
+		<-releaseUpstream
+
+		_, _ = w.Write([]byte("event: done\n"))
+		_, _ = w.Write([]byte("data: {}\n\n"))
+		flusher.Flush()
+	}))
+	defer upstream.Close()
+
+	server := New(config.Config{
+		Port:           "8080",
+		AllowedOrigins: []string{"*"},
+		JWTSecret:      "secret",
+		Routes: []config.ServiceRoute{
+			{Name: "ai", Prefix: "/api/v1/ai", TargetURL: upstream.URL + "/api/v1/ai"},
+		},
+	}, newDiscardLogger())
+
+	gateway := httptest.NewServer(server.Handler)
+	defer gateway.Close()
+
+	type firstChunkResult struct {
+		statusCode int
+		firstLine  string
+		err        error
+	}
+
+	resultCh := make(chan firstChunkResult, 1)
+	go func() {
+		req, err := http.NewRequest(
+			http.MethodPost,
+			gateway.URL+"/api/v1/ai/chat-create/threads/stream",
+			bytes.NewBufferString(`{"prompt":"stream test"}`),
+		)
+		if err != nil {
+			resultCh <- firstChunkResult{err: err}
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "text/event-stream")
+		req.Header.Set("Authorization", "Bearer "+signedTestToken(t, "secret"))
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			resultCh <- firstChunkResult{err: err}
+			return
+		}
+		defer resp.Body.Close()
+
+		reader := bufio.NewReader(resp.Body)
+		line, err := reader.ReadString('\n')
+		resultCh <- firstChunkResult{
+			statusCode: resp.StatusCode,
+			firstLine:  line,
+			err:        err,
+		}
+	}()
+
+	select {
+	case result := <-resultCh:
+		release()
+		if result.err != nil {
+			t.Fatalf("expected first stream chunk without error, got %v", result.err)
+		}
+		if result.statusCode != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", result.statusCode)
+		}
+		if result.firstLine != "event: status\n" {
+			t.Fatalf("expected first status line immediately, got %q", result.firstLine)
+		}
+	case <-time.After(2 * time.Second):
+		release()
+		t.Fatal("expected first SSE chunk to flush through full gateway stack")
 	}
 }
 

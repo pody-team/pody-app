@@ -667,10 +667,13 @@ class ContentCreationStore:
                   description,
                   content_type,
                   language_code,
-                  cover_image_url
+                  cover_image_url,
+                  publish_status,
+                  visibility,
+                  published_at
                 )
                 VALUES (
-                  %s, %s, %s, %s, %s, %s, %s, %s, NULLIF(%s, '')
+                  %s, %s, %s, %s, %s, %s, %s, %s, NULLIF(%s, ''), 'published', 'public', now()
                 )
                 RETURNING id::text
                 """,
@@ -776,7 +779,10 @@ class ContentCreationStore:
                   audio_storage_key,
                   cover_image_url,
                   duration_seconds,
-                  is_ai_generated
+                  is_ai_generated,
+                  publish_status,
+                  visibility,
+                  published_at
                 )
                 VALUES (
                   %s::uuid,
@@ -789,7 +795,10 @@ class ContentCreationStore:
                   NULLIF(%s, ''),
                   NULLIF(%s, ''),
                   %s,
-                  true
+                  true,
+                  'published',
+                  'public',
+                  now()
                 )
                 RETURNING id::text
                 """,

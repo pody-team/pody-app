@@ -6,6 +6,7 @@ class AIVoiceProfile {
     required this.providerVoiceId,
     required this.languageCode,
     required this.gender,
+    this.sampleAudioUrl,
   });
 
   final String id;
@@ -14,6 +15,7 @@ class AIVoiceProfile {
   final String providerVoiceId;
   final String languageCode;
   final String gender;
+  final String? sampleAudioUrl;
 
   factory AIVoiceProfile.fromJson(Map<String, dynamic> json) {
     return AIVoiceProfile(
@@ -23,6 +25,7 @@ class AIVoiceProfile {
       providerVoiceId: _readString(json['provider_voice_id']),
       languageCode: _readString(json['language_code']),
       gender: _readString(json['gender']),
+      sampleAudioUrl: _readNullableString(json['sample_audio_url']),
     );
   }
 }
@@ -395,6 +398,8 @@ class AIChatStreamEvent {
     this.plan,
     this.thread,
     this.threadId,
+    this.phase,
+    this.toolName,
     this.debugLabel,
   });
 
@@ -404,12 +409,21 @@ class AIChatStreamEvent {
   final AIProductionPlan? plan;
   final AIChatThread? thread;
   final String? threadId;
+  final String? phase;
+  final String? toolName;
   final String? debugLabel;
 
-  factory AIChatStreamEvent.status(String message, {String? debugLabel}) {
+  factory AIChatStreamEvent.status(
+    String message, {
+    String? phase,
+    String? toolName,
+    String? debugLabel,
+  }) {
     return AIChatStreamEvent._(
       type: AIChatStreamEventType.status,
       message: message,
+      phase: phase,
+      toolName: toolName,
       debugLabel: debugLabel,
     );
   }

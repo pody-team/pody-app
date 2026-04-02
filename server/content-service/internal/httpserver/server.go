@@ -73,6 +73,9 @@ func New(cfg config.Config, logger *slog.Logger, contentStore store.ContentStore
 	router.Route("/api/v1/content", func(r chi.Router) {
 		r.Post("/shows", s.handleCreateShow)
 		r.Get("/me/shows", s.handleMyShows)
+		r.Get("/me/shows/{showID}", s.handleMyShowDetail)
+		r.Get("/me/shows/{showID}/episodes", s.handleMyShowEpisodes)
+		r.Get("/me/episodes/{episodeID}", s.handleMyEpisodeDetail)
 		r.Get("/me/bookmarks", s.handleEpisodeBookmarks)
 		r.Get("/me/bookmarks/{episodeID}", s.handleEpisodeBookmarkStatus)
 		r.Put("/me/bookmarks/{episodeID}", s.handleSaveEpisodeBookmark)
@@ -176,6 +179,63 @@ func (s *server) handleMyShows(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"shows": shows})
+}
+
+func (s *server) handleMyShowDetail(w http.ResponseWriter, r *http.Request) {
+	auth, showID, ok := s.authenticatedShowIDRequest(w, r)
+	if !ok {
+		return
+	}
+
+	show, err := s.contentStore.GetCreatorShowDetail(r.Context(), auth.UserID, showID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, errors.New("show not found"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"show": show})
+}
+
+func (s *server) handleMyShowEpisodes(w http.ResponseWriter, r *http.Request) {
+	auth, showID, ok := s.authenticatedShowIDRequest(w, r)
+	if !ok {
+		return
+	}
+
+	episodes, err := s.contentStore.ListCreatorShowEpisodes(r.Context(), auth.UserID, showID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, errors.New("show not found"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"episodes": episodes})
+}
+
+func (s *server) handleMyEpisodeDetail(w http.ResponseWriter, r *http.Request) {
+	auth, episodeID, ok := s.authenticatedEpisodeIDRequest(w, r)
+	if !ok {
+		return
+	}
+
+	episode, err := s.contentStore.GetCreatorEpisodeDetail(r.Context(), auth.UserID, episodeID)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, errors.New("episode not found"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"episode": episode})
 }
 
 func (s *server) handleEpisodeBookmarks(w http.ResponseWriter, r *http.Request) {
@@ -309,6 +369,22 @@ func (s *server) authenticatedEpisodeIDRequest(w http.ResponseWriter, r *http.Re
 	}
 
 	return auth, episodeID, true
+}
+
+func (s *server) authenticatedShowIDRequest(w http.ResponseWriter, r *http.Request) (authContext, string, bool) {
+	auth, ok := authContextFromRequest(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, errors.New("missing auth user id"))
+		return authContext{}, "", false
+	}
+
+	showID := strings.TrimSpace(chi.URLParam(r, "showID"))
+	if showID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("show id is required"))
+		return authContext{}, "", false
+	}
+
+	return auth, showID, true
 }
 
 func (s *server) writeBookmarkError(w http.ResponseWriter, err error) {

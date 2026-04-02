@@ -131,6 +131,78 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
         '500':
           $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/me/shows/{showID}:
+    get:
+      tags: [Creator]
+      operationId: getCreatorShowDetail
+      summary: Get details for a show owned by the current creator
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/ShowID'
+      responses:
+        '200':
+          description: Creator show detail payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShowEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/me/shows/{showID}/episodes:
+    get:
+      tags: [Creator]
+      operationId: listCreatorShowEpisodes
+      summary: List episodes for a show owned by the current creator
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/ShowID'
+      responses:
+        '200':
+          description: Creator episode list payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShowEpisodesEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/content/me/episodes/{episodeID}:
+    get:
+      tags: [Creator]
+      operationId: getCreatorEpisodeDetail
+      summary: Get episode details for an episode owned by the current creator
+      security:
+        - authUserId: []
+      parameters:
+        - $ref: '#/components/parameters/EpisodeID'
+      responses:
+        '200':
+          description: Creator episode detail payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EpisodeEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ErrorResponse'
   /api/v1/content/me/bookmarks/{episodeID}:
     get:
       tags: [Creator]

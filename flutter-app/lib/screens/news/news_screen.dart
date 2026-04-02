@@ -918,22 +918,35 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildAddButton(NewsArticle article) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: () => _toggleAdded(article),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: article.isAdded ? _newsPrimary : _newsSurfaceStrong,
+    final isAdded = article.isAdded;
+
+    return Tooltip(
+      message: isAdded
+          ? 'Bỏ khỏi danh sách đã chọn'
+          : 'Thêm vào danh sách đã chọn',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          article.isAdded ? 'Đã chọn' : 'Thêm',
-          style: GoogleFonts.workSans(
-            color: article.isAdded ? Colors.white : _newsNeutral,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+          onTap: () => _toggleAdded(article),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isAdded ? _newsPrimary : _newsSurfaceStrong,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isAdded
+                    ? _newsPrimary
+                    : _newsNeutral.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Icon(
+              isAdded ? Icons.check_rounded : Icons.add_rounded,
+              color: isAdded ? Colors.white : _newsNeutral,
+              size: 18,
+            ),
           ),
         ),
       ),

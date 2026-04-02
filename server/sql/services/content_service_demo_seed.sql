@@ -2,12 +2,12 @@ BEGIN;
 
 INSERT INTO categories (id, slug, name, applies_to, sort_order, is_active)
 VALUES
-  ('51000000-0000-0000-0000-000000000001', 'cong-nghe', 'Cong nghe', 'show', 10, true),
-  ('51000000-0000-0000-0000-000000000002', 'dieu-tra', 'Dieu tra', 'show', 20, true),
-  ('51000000-0000-0000-0000-000000000003', 'cham-soc-ban-than', 'Cham soc ban than', 'show', 30, true),
-  ('51000000-0000-0000-0000-000000000004', 'giai-thich-de-hieu', 'Giai thich de hieu', 'show', 40, true),
-  ('51000000-0000-0000-0000-000000000005', 'chuyen-ke', 'Chuyen ke', 'show', 50, true),
-  ('51000000-0000-0000-0000-000000000006', 'ngu-ngon', 'Ngu ngon', 'show', 60, true)
+  ('51000000-0000-0000-0000-000000000001', 'cong-nghe', 'Công nghệ', 'show', 10, true),
+  ('51000000-0000-0000-0000-000000000002', 'dieu-tra', 'Điều tra', 'show', 20, true),
+  ('51000000-0000-0000-0000-000000000003', 'cham-soc-ban-than', 'Chăm sóc bản thân', 'show', 30, true),
+  ('51000000-0000-0000-0000-000000000004', 'giai-thich-de-hieu', 'Giải thích dễ hiểu', 'show', 40, true),
+  ('51000000-0000-0000-0000-000000000005', 'chuyen-ke', 'Chuyện kể', 'show', 50, true),
+  ('51000000-0000-0000-0000-000000000006', 'ngu-ngon', 'Ngủ ngon', 'show', 60, true)
 ON CONFLICT (id) DO UPDATE
 SET
   slug = EXCLUDED.slug,
@@ -68,7 +68,7 @@ VALUES
     'https://picsum.photos/seed/pody-owner/200/200',
     'Future Minds',
     'future-minds',
-    'Show cong nghe do AI host Nova dan dat, bien nhung chu de ky thuat thanh cuoc tro chuyen de theo doi va de nho.',
+    'Show công nghệ do AI host Nova dẫn dắt, biến những chủ đề kỹ thuật thành cuộc trò chuyện dễ theo dõi và dễ nhớ.',
     'podcast',
     'vi',
     'https://picsum.photos/seed/future-minds-cover/800/800',
@@ -88,7 +88,7 @@ VALUES
     'https://picsum.photos/seed/pody-owner/200/200',
     'True Crime Daily',
     'true-crime-daily',
-    'Nhung ho so hinh su duoc ke lai theo nhip dieu tra cham, ro va co khong khi, do AI host Minh Tra dan dat.',
+    'Những hồ sơ hình sự được kể lại theo nhịp điều tra chậm, rõ và có không khí, do AI host Minh Trà dẫn dắt.',
     'storytelling',
     'vi',
     'https://picsum.photos/seed/true-crime-daily/800/800',
@@ -108,7 +108,7 @@ VALUES
     'https://picsum.photos/seed/pody-owner/200/200',
     'Midnight Reset',
     'midnight-reset',
-    'Mot show chua co tap nao nhung da san sang voi AI host Lumi, danh cho cac episode tam su va reset cuoi ngay.',
+    'Một show chưa có tập nào nhưng đã sẵn sàng với AI host Lumi, dành cho các episode tâm sự và reset cuối ngày.',
     'storytelling',
     'vi',
     'https://picsum.photos/seed/midnight-reset/800/800',
@@ -186,7 +186,7 @@ VALUES
     'host',
     'ai',
     0,
-    'AI host cua Future Minds, chuyen bien cac chu de cong nghe thanh nhung cuoc tro chuyen de nghe va de nho.'
+    'AI host của Future Minds, chuyển biến các chủ đề công nghệ thành những cuộc trò chuyện dễ nghe và dễ nhớ.'
   ),
   (
     '21000000-0000-0000-0000-000000000002',

@@ -5,15 +5,17 @@ import '../domain/password_reset_challenge.dart';
 import '../domain/verification_challenge.dart';
 
 class AuthRemoteDataSource {
-  AuthRemoteDataSource(this._apiClient);
+  AuthRemoteDataSource(this._apiClient, {ApiClient? publicApiClient})
+    : _publicApiClient = publicApiClient ?? _apiClient;
 
   final ApiClient _apiClient;
+  final ApiClient _publicApiClient;
 
   Future<AuthSession> signIn({
     required String email,
     required String password,
   }) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/sign-in',
       body: {'email': email, 'password': password},
     );
@@ -22,7 +24,7 @@ class AuthRemoteDataSource {
   }
 
   Future<AuthSession> signInWithGoogle(String idToken) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/google',
       body: {'id_token': idToken},
     );
@@ -35,7 +37,7 @@ class AuthRemoteDataSource {
     required String password,
     required String displayName,
   }) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/sign-up',
       body: {'email': email, 'password': password, 'display_name': displayName},
     );
@@ -44,7 +46,7 @@ class AuthRemoteDataSource {
   }
 
   Future<VerificationChallenge> resendVerification(String email) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/resend-verification',
       body: {'email': email},
     );
@@ -53,7 +55,7 @@ class AuthRemoteDataSource {
   }
 
   Future<PasswordResetChallenge> forgotPassword(String email) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/forgot-password',
       body: {'email': email},
     );
@@ -65,7 +67,7 @@ class AuthRemoteDataSource {
     required String email,
     required String otp,
   }) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/verify-reset-otp',
       body: {'email': email, 'otp': otp},
     );
@@ -78,7 +80,7 @@ class AuthRemoteDataSource {
     required String otp,
     required String newPassword,
   }) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/reset-password',
       body: {'email': email, 'otp': otp, 'new_password': newPassword},
     );
@@ -111,7 +113,7 @@ class AuthRemoteDataSource {
   }
 
   Future<AuthSession> refresh(String refreshToken) async {
-    final response = await _apiClient.post(
+    final response = await _publicApiClient.post(
       '/api/v1/public/identity/refresh',
       body: {'refresh_token': refreshToken},
     );
@@ -120,7 +122,7 @@ class AuthRemoteDataSource {
   }
 
   Future<void> signOut(String refreshToken) async {
-    await _apiClient.postWithoutResponseBody(
+    await _publicApiClient.postWithoutResponseBody(
       '/api/v1/public/identity/sign-out',
       body: {'refresh_token': refreshToken},
     );

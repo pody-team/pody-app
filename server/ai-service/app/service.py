@@ -43,6 +43,7 @@ class AIService:
         dialogue_agent: DialogueAgent | None = None,
         transcript_generator: SubprocessTranscriptGenerator | None = None,
         notification_client: NotificationClient | None = None,
+        stream_heartbeat_interval_seconds: float = 15.0,
     ) -> None:
         self._repository = repository
         self._create_agent = create_agent
@@ -58,6 +59,10 @@ class AIService:
         self._show_creation_stop = threading.Event()
         self._show_creation_thread: threading.Thread | None = None
         self._transcript_thread: threading.Thread | None = None
+        self._stream_heartbeat_interval_seconds = max(
+            0.0,
+            stream_heartbeat_interval_seconds,
+        )
 
     def list_voice_profiles(self) -> list[VoiceProfile]:
         return self._repository.list_voice_profiles()
@@ -246,7 +251,12 @@ class AIService:
 
         try:
             while True:
-                item = queue.get()
+                try:
+                    item = queue.get(timeout=self._stream_heartbeat_interval_seconds)
+                except Empty:
+                    if self._stream_heartbeat_interval_seconds > 0:
+                        yield _build_thinking_status_event()
+                    continue
                 if item is sentinel:
                     break
                 if isinstance(item, dict):
@@ -530,9 +540,11 @@ def _chunk_text(text: str, chunk_size: int = 22) -> list[str]:
 
 
 def _build_status_events() -> list[dict[str, Any]]:
-    return [
-        _stream_event(
-            "status",
-            {"phase": "thinking", "message": "Đang suy nghĩ..."},
-        ),
-    ]
+    return [_build_thinking_status_event()]
+
+
+def _build_thinking_status_event() -> dict[str, Any]:
+    return _stream_event(
+        "status",
+        {"phase": "thinking", "message": "Đang suy nghĩ..."},
+    )

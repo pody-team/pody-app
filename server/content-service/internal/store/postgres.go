@@ -81,7 +81,10 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
             description,
             content_type,
             language_code,
-            cover_image_url
+            cover_image_url,
+            publish_status,
+            visibility,
+            published_at
         )
         VALUES (
             $1::uuid,
@@ -92,7 +95,10 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
             $6,
             $7,
             $8,
-            NULLIF($9, '')
+            NULLIF($9, ''),
+            'published',
+            'public',
+            now()
         )
         RETURNING id::text, published_at, visibility, monetization_type
     `, ownerUserID, ownerDisplayName, ownerAvatarURL, title, slug, description, contentType, languageCode, coverImageURL).Scan(&showID, &publishedAt, &visibility, &monetizationType)
@@ -434,6 +440,234 @@ func (s *PostgresStore) GetEpisodeDetail(ctx context.Context, episodeID string) 
 			AND s.visibility = 'public'
 			AND s.deleted_at IS NULL
 	`, episodeID).Scan(
+		&episode.ID,
+		&episode.ShowID,
+		&episode.Title,
+		&episode.Description,
+		&audioURL,
+		&coverImageURL,
+		&durationSeconds,
+		&publishedAt,
+		&episodeNumber,
+		&likeCount,
+		&commentCount,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.EpisodeDetail{}, ErrNotFound
+		}
+		return domain.EpisodeDetail{}, err
+	}
+
+	episode.AudioURL = audioURL
+	episode.CoverImageURL = coverImageURL
+	episode.DurationSeconds = int(durationSeconds)
+	episode.PublishedAt = publishedAt
+	episode.EpisodeNumber = int(episodeNumber)
+	episode.LikeCount = int(likeCount)
+	episode.CommentCount = int(commentCount)
+	episode.Tags, err = s.listEpisodeTagNames(ctx, episodeID)
+	if err != nil {
+		return domain.EpisodeDetail{}, err
+	}
+	episode.Transcript, err = s.getEpisodeTranscript(ctx, episodeID)
+	if err != nil {
+		return domain.EpisodeDetail{}, err
+	}
+
+	return episode, nil
+}
+
+func (s *PostgresStore) GetCreatorShowDetail(ctx context.Context, ownerUserID string, showID string) (domain.ShowDetail, error) {
+	showID = strings.TrimSpace(showID)
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	var (
+		show              domain.ShowDetail
+		ownerDisplayName  string
+		ownerAvatarURL    string
+		coverImageURL     string
+		subscriberCount   int64
+		totalEpisodeCount int64
+		totalListenCount  int64
+		publishedAt       time.Time
+	)
+
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			s.id::text,
+			s.slug::text,
+			s.title,
+			s.description,
+			COALESCE(s.cover_image_url, ''),
+			s.subscriber_count,
+			s.episode_count,
+			s.total_listen_count,
+			s.language_code,
+			s.content_type,
+			s.visibility,
+			s.monetization_type,
+			COALESCE(s.published_at, s.created_at),
+			COALESCE(s.owner_display_name_snapshot, ''),
+			COALESCE(s.owner_avatar_url_snapshot, '')
+		FROM shows s
+		WHERE s.id = $1::uuid
+			AND s.owner_user_id = $2::uuid
+			AND s.deleted_at IS NULL
+	`, showID, ownerUserID).Scan(
+		&show.ID,
+		&show.Slug,
+		&show.Title,
+		&show.Description,
+		&coverImageURL,
+		&subscriberCount,
+		&totalEpisodeCount,
+		&totalListenCount,
+		&show.LanguageCode,
+		&show.ContentType,
+		&show.Visibility,
+		&show.MonetizationType,
+		&publishedAt,
+		&ownerDisplayName,
+		&ownerAvatarURL,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.ShowDetail{}, ErrNotFound
+		}
+		return domain.ShowDetail{}, err
+	}
+
+	show.CoverImageURL = coverImageURL
+	show.SubscriberCount = int(subscriberCount)
+	show.TotalEpisodeCount = int(totalEpisodeCount)
+	show.TotalListenCount = int(totalListenCount)
+	show.PublishedAt = publishedAt
+	show.Owner = domain.OwnerSummary{
+		ID:          ownerUserID,
+		DisplayName: ownerDisplayName,
+		AvatarURL:   ownerAvatarURL,
+	}
+
+	show.Categories, err = s.listShowCategoryNames(ctx, showID)
+	if err != nil {
+		return domain.ShowDetail{}, err
+	}
+	show.Tags, err = s.listShowTagNames(ctx, showID)
+	if err != nil {
+		return domain.ShowDetail{}, err
+	}
+	show.Hosts, err = s.listShowHosts(ctx, showID)
+	if err != nil {
+		return domain.ShowDetail{}, err
+	}
+
+	return show, nil
+}
+
+func (s *PostgresStore) ListCreatorShowEpisodes(ctx context.Context, ownerUserID string, showID string) ([]domain.EpisodeSummary, error) {
+	showID = strings.TrimSpace(showID)
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			e.id::text,
+			e.show_id::text,
+			e.title,
+			e.description,
+			COALESCE(e.cover_image_url, COALESCE(s.cover_image_url, '')),
+			e.duration_seconds,
+			COALESCE(e.published_at, e.created_at),
+			COALESCE(e.episode_number, 0)
+		FROM episodes e
+		JOIN shows s ON s.id = e.show_id
+		WHERE e.show_id = $1::uuid
+			AND s.owner_user_id = $2::uuid
+			AND e.deleted_at IS NULL
+			AND s.deleted_at IS NULL
+		ORDER BY COALESCE(e.published_at, e.created_at) DESC, e.episode_number DESC NULLS LAST
+	`, showID, ownerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	episodes := make([]domain.EpisodeSummary, 0)
+	for rows.Next() {
+		var (
+			episode         domain.EpisodeSummary
+			coverImageURL   string
+			durationSeconds int64
+			episodeNumber   int64
+			publishedAt     time.Time
+		)
+		if err := rows.Scan(
+			&episode.ID,
+			&episode.ShowID,
+			&episode.Title,
+			&episode.Description,
+			&coverImageURL,
+			&durationSeconds,
+			&publishedAt,
+			&episodeNumber,
+		); err != nil {
+			return nil, err
+		}
+
+		episode.CoverImageURL = coverImageURL
+		episode.DurationSeconds = int(durationSeconds)
+		episode.PublishedAt = publishedAt
+		episode.EpisodeNumber = int(episodeNumber)
+		episodes = append(episodes, episode)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(episodes) == 0 {
+		if exists, err := s.creatorShowExists(ctx, ownerUserID, showID); err != nil {
+			return nil, err
+		} else if !exists {
+			return nil, ErrNotFound
+		}
+	}
+
+	return episodes, nil
+}
+
+func (s *PostgresStore) GetCreatorEpisodeDetail(ctx context.Context, ownerUserID string, episodeID string) (domain.EpisodeDetail, error) {
+	episodeID = strings.TrimSpace(episodeID)
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	var (
+		episode         domain.EpisodeDetail
+		coverImageURL   string
+		audioURL        string
+		durationSeconds int64
+		episodeNumber   int64
+		likeCount       int64
+		commentCount    int64
+		publishedAt     time.Time
+	)
+
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			e.id::text,
+			e.show_id::text,
+			e.title,
+			e.description,
+			COALESCE(e.audio_url, ''),
+			COALESCE(e.cover_image_url, COALESCE(s.cover_image_url, '')),
+			e.duration_seconds,
+			COALESCE(e.published_at, e.created_at),
+			COALESCE(e.episode_number, 0),
+			e.like_count,
+			e.comment_count
+		FROM episodes e
+		JOIN shows s ON s.id = e.show_id
+		WHERE e.id = $1::uuid
+			AND s.owner_user_id = $2::uuid
+			AND e.deleted_at IS NULL
+			AND s.deleted_at IS NULL
+	`, episodeID, ownerUserID).Scan(
 		&episode.ID,
 		&episode.ShowID,
 		&episode.Title,
@@ -995,6 +1229,20 @@ func (s *PostgresStore) showExists(ctx context.Context, showID string) (bool, er
 				AND deleted_at IS NULL
 		)
 	`, showID).Scan(&exists)
+	return exists, err
+}
+
+func (s *PostgresStore) creatorShowExists(ctx context.Context, ownerUserID string, showID string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM shows
+			WHERE id = $1::uuid
+				AND owner_user_id = $2::uuid
+				AND deleted_at IS NULL
+		)
+	`, strings.TrimSpace(showID), strings.TrimSpace(ownerUserID)).Scan(&exists)
 	return exists, err
 }
 

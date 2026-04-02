@@ -22,8 +22,24 @@ class ContentRepository {
     );
   }
 
+  Future<ContentShowBundle> getCreatorShowBundle(String showId) async {
+    final results = await Future.wait<dynamic>([
+      _remoteDataSource.getCreatorShowDetail(showId),
+      _remoteDataSource.listCreatorShowEpisodes(showId),
+    ]);
+
+    return ContentShowBundle(
+      show: results[0] as ContentShowDetail,
+      episodes: results[1] as List<ContentEpisodeSummary>,
+    );
+  }
+
   Future<ContentEpisodeDetail> getEpisodeDetail(String episodeId) {
     return _remoteDataSource.getEpisodeDetail(episodeId);
+  }
+
+  Future<ContentEpisodeDetail> getCreatorEpisodeDetail(String episodeId) {
+    return _remoteDataSource.getCreatorEpisodeDetail(episodeId);
   }
 
   Future<List<ContentBookmarkedEpisode>> listBookmarkedEpisodes() {

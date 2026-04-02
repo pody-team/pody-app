@@ -93,22 +93,22 @@ CREATE INDEX IF NOT EXISTS ix_categories_active ON categories (is_active);
 
 INSERT INTO categories (id, slug, name, description, is_active)
 VALUES
-    ('0c4e34fd-8b70-4e5b-90c0-42b35e9cb2d1', 'thoi-su', 'Thoi su', 'Tin tuc cap nhat ve chinh tri, xa hoi va cac van de thoi su trong ngay.', TRUE),
-    ('0c8ec260-3917-4871-baa7-dcb6957d8447', 'quoc-te', 'Quoc te', 'Tin tuc quoc te, dia chinh tri, kinh te va cac su kien noi bat tren the gioi.', TRUE),
-    ('1463d0e3-5dc9-4ea6-a08b-d1916c76bfdf', 'kinh-doanh', 'Kinh doanh', 'Tin tuc doanh nghiep, thi truong, thuong mai va chien luoc kinh doanh.', TRUE),
-    ('1c20459d-ec50-4217-8e8c-b2b962cf664f', 'tai-chinh', 'Tai chinh', 'Tin tuc tai chinh, dau tu, ngan hang, chung khoan va quan ly tai san.', TRUE),
-    ('205f73c5-8394-48e1-a0c9-bdbfa8245041', 'cong-nghe', 'Cong nghe', 'Tin tuc cong nghe, AI, phan mem, thiet bi so va san pham moi.', TRUE),
-    ('2b5b8a43-1e71-48df-9050-7c4f4f8944dd', 'khoa-hoc', 'Khoa hoc', 'Tin tuc nghien cuu, phat hien khoa hoc, doi moi va ung dung khoa hoc.', TRUE),
-    ('364a4276-bcbc-4a53-972d-1d99226f07cb', 'giao-duc', 'Giao duc', 'Tin tuc giao duc, hoc tap, truong hoc, ky thi va xu huong dao tao.', TRUE),
-    ('3f580fd8-6c52-406f-a82c-a4a4ad8eb49d', 'suc-khoe', 'Suc khoe', 'Tin tuc suc khoe, y te, dinh duong, phong benh va cham soc co the.', TRUE),
-    ('46a6073f-0e74-47b3-b5ec-3f8a2dfadc2a', 'the-thao', 'The thao', 'Tin tuc bong da, the thao thanh tich cao, giai dau va van dong vien.', TRUE),
-    ('58d6b7e5-f66e-43f5-9f75-e4b5a4504cae', 'giai-tri', 'Giai tri', 'Tin tuc phim anh, am nhac, nguoi noi tieng va xu huong giai tri.', TRUE),
-    ('66553f6b-174c-46a5-9a5d-c89907a53f1b', 'van-hoa', 'Van hoa', 'Tin tuc van hoa, sach, nghe thuat, le hoi va doi song tinh than.', TRUE),
-    ('771225a1-a3d7-45cd-af1c-a6cc02e5808c', 'phap-luat', 'Phap luat', 'Tin tuc phap luat, an ninh, chinh sach, vu an va quy dinh moi.', TRUE),
-    ('84a8dc74-e420-4201-b032-b05e13b64344', 'du-lich', 'Du lich', 'Tin tuc du lich, diem den, kinh nghiem di chuyen va xu huong nghi duong.', TRUE),
-    ('9ab92a57-c2e6-4db9-a512-7d4db09e5e0d', 'bat-dong-san', 'Bat dong san', 'Tin tuc thi truong nha dat, quy hoach, du an va dau tu bat dong san.', TRUE),
-    ('a4d7c6bf-f1c1-4d10-9e42-0104d9f1f0f8', 'xe', 'Xe', 'Tin tuc oto, xe may, giao thong, cong nghe xe va danh gia phuong tien.', TRUE),
-    ('b5bdb13e-9e2d-46ce-9dd0-d0f6fb757ced', 'doi-song', 'Doi song', 'Tin tuc doi song, gia dinh, tieu dung, xu huong song va cau chuyen xa hoi.', TRUE)
+    ('0c4e34fd-8b70-4e5b-90c0-42b35e9cb2d1', 'thoi-su', 'Thời sự', 'Tin tức cập nhật về chính trị, xã hội và các vấn đề thời sự trong ngày.', TRUE),
+    ('0c8ec260-3917-4871-baa7-dcb6957d8447', 'quoc-te', 'Quốc tế', 'Tin tức quốc tế, địa chính trị, kinh tế và các sự kiện nổi bật trên thế giới.', TRUE),
+    ('1463d0e3-5dc9-4ea6-a08b-d1916c76bfdf', 'kinh-doanh', 'Kinh doanh', 'Tin tức doanh nghiệp, thị trường, thương mại và chiến lược kinh doanh.', TRUE),
+    ('1c20459d-ec50-4217-8e8c-b2b962cf664f', 'tai-chinh', 'Tài chính', 'Tin tức tài chính, đầu tư, ngân hàng, chứng khoán và quản lý tài sản.', TRUE),
+    ('205f73c5-8394-48e1-a0c9-bdbfa8245041', 'cong-nghe', 'Công nghệ', 'Tin tức công nghệ, AI, phần mềm, thiết bị số và sản phẩm mới.', TRUE),
+    ('2b5b8a43-1e71-48df-9050-7c4f4f8944dd', 'khoa-hoc', 'Khoa học', 'Tin tức nghiên cứu, phát hiện khoa học, đổi mới và ứng dụng khoa học.', TRUE),
+    ('364a4276-bcbc-4a53-972d-1d99226f07cb', 'giao-duc', 'Giáo dục', 'Tin tức giáo dục, học tập, trường học, kỳ thi và xu hướng đào tạo.', TRUE),
+    ('3f580fd8-6c52-406f-a82c-a4a4ad8eb49d', 'suc-khoe', 'Sức khỏe', 'Tin tức sức khỏe, y tế, dinh dưỡng, phòng bệnh và chăm sóc cơ thể.', TRUE),
+    ('46a6073f-0e74-47b3-b5ec-3f8a2dfadc2a', 'the-thao', 'Thể thao', 'Tin tức bóng đá, thể thao thành tích cao, giải đấu và vận động viên.', TRUE),
+    ('58d6b7e5-f66e-43f5-9f75-e4b5a4504cae', 'giai-tri', 'Giải trí', 'Tin tức phim ảnh, âm nhạc, người nổi tiếng và xu hướng giải trí.', TRUE),
+    ('66553f6b-174c-46a5-9a5d-c89907a53f1b', 'van-hoa', 'Văn hóa', 'Tin tức văn hóa, sách, nghệ thuật, lễ hội và đời sống tinh thần.', TRUE),
+    ('771225a1-a3d7-45cd-af1c-a6cc02e5808c', 'phap-luat', 'Pháp luật', 'Tin tức pháp luật, an ninh, chính sách, vụ án và quy định mới.', TRUE),
+    ('84a8dc74-e420-4201-b032-b05e13b64344', 'du-lich', 'Du lịch', 'Tin tức du lịch, điểm đến, kinh nghiệm di chuyển và xu hướng nghỉ dưỡng.', TRUE),
+    ('9ab92a57-c2e6-4db9-a512-7d4db09e5e0d', 'bat-dong-san', 'Bất động sản', 'Tin tức thị trường nhà đất, quy hoạch, dự án và đầu tư bất động sản.', TRUE),
+    ('a4d7c6bf-f1c1-4d10-9e42-0104d9f1f0f8', 'xe', 'Xe', 'Tin tức ô tô, xe máy, giao thông, công nghệ xe và đánh giá phương tiện.', TRUE),
+    ('b5bdb13e-9e2d-46ce-9dd0-d0f6fb757ced', 'doi-song', 'Đời sống', 'Tin tức đời sống, gia đình, tiêu dùng, xu hướng sống và câu chuyện xã hội.', TRUE)
 ON CONFLICT (slug) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,

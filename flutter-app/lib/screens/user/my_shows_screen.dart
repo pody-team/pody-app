@@ -4,7 +4,7 @@ import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/auth/presentation/auth_scope.dart';
 import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/content/presentation/content_scope.dart';
-import 'package:pody/screens/show/content_show_detail_screen.dart';
+import 'package:pody/screens/show/creator_show_detail_screen.dart';
 import 'package:pody/screens/user/create_show_screen.dart';
 
 const Color _showsCanvas = Color(0xFFFFFBF6);
@@ -303,7 +303,7 @@ class _ShowCard extends StatelessWidget {
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => ContentShowDetailScreen(
+              builder: (_) => CreatorShowDetailScreen(
                 showId: show.id,
                 initialSummary: show,
               ),

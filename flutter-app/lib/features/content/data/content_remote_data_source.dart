@@ -41,6 +41,40 @@ class ContentRemoteDataSource {
     );
   }
 
+  Future<ContentShowDetail> getCreatorShowDetail(String showId) async {
+    final response = await _apiClient.get(
+      '/api/v1/content/me/shows/$showId',
+      requiresAuth: true,
+    );
+    return ContentShowDetail.fromJson(
+      (response['show'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
+  Future<List<ContentEpisodeSummary>> listCreatorShowEpisodes(
+    String showId,
+  ) async {
+    final response = await _apiClient.get(
+      '/api/v1/content/me/shows/$showId/episodes',
+      requiresAuth: true,
+    );
+    final rawEpisodes = response['episodes'] as List<dynamic>? ?? const [];
+    return rawEpisodes
+        .whereType<Map<String, dynamic>>()
+        .map(ContentEpisodeSummary.fromJson)
+        .toList();
+  }
+
+  Future<ContentEpisodeDetail> getCreatorEpisodeDetail(String episodeId) async {
+    final response = await _apiClient.get(
+      '/api/v1/content/me/episodes/$episodeId',
+      requiresAuth: true,
+    );
+    return ContentEpisodeDetail.fromJson(
+      (response['episode'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
   Future<ContentEpisodeBookmarkStatus> getEpisodeBookmarkStatus(
     String episodeId,
   ) async {

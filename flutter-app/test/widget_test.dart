@@ -45,6 +45,7 @@ void main() {
       final apiClient = ApiClient(baseUrl: 'http://localhost:8080');
       await tester.pumpWidget(
         PodyApp(
+          apiClient: apiClient,
           authController: authController,
           aiRepository: AIRepository(AIRemoteDataSource(apiClient)),
           contentRepository: ContentRepository(

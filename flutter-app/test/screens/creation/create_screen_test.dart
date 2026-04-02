@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pody/core/network/api_client.dart';
+import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/ai/data/ai_remote_data_source.dart';
 import 'package:pody/features/ai/data/ai_repository.dart';
 import 'package:pody/features/ai/domain/ai_models.dart';
@@ -241,39 +242,190 @@ void main() {
     expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
   });
 
-  testWidgets('edit screen loads voice profiles from API instead of hardcoded list', (
-    WidgetTester tester,
-  ) async {
-    final aiRemote = _FakeAIRemoteDataSource(
-      ApiClient(baseUrl: 'http://localhost:8080'),
-    );
-    final authController = await _buildAuthenticatedController();
-    final plan = await aiRemote.getDraft('draft-1');
+  testWidgets(
+    'edit screen loads voice profiles from API instead of hardcoded list',
+    (WidgetTester tester) async {
+      final aiRemote = _FakeAIRemoteDataSource(
+        ApiClient(baseUrl: 'http://localhost:8080'),
+      );
+      final authController = await _buildAuthenticatedController();
+      final plan = await aiRemote.getDraft('draft-1');
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AIScope(
-          repository: AIRepository(aiRemote),
-          child: AuthScope(
-            controller: authController,
-            child: EditPlanScreen(plan: plan),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIScope(
+            repository: AIRepository(aiRemote),
+            child: AuthScope(
+              controller: authController,
+              child: EditPlanScreen(plan: plan),
+            ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(aiRemote.listVoiceProfilesCalls, 1);
-    expect(find.text('Nova DB Voice'), findsOneWidget);
+      expect(aiRemote.listVoiceProfilesCalls, 1);
+      expect(find.text('Nova DB Voice'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Nova').first);
-    await tester.tap(find.text('Nova').first);
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Nova').first);
+      await tester.tap(find.text('Nova').first);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Nova DB Voice'), findsWidgets);
-    expect(find.text('Atlas DB Voice'), findsOneWidget);
-    expect(find.text('Trung tính'), findsNothing);
-  });
+      expect(find.text('Nova DB Voice'), findsWidgets);
+      expect(find.text('Atlas DB Voice'), findsOneWidget);
+      expect(find.text('Trung tính'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'create screen maps generic status messages from all phases to phase-specific labels',
+    (WidgetTester tester) async {
+      final aiRemote = _FakeAIRemoteDataSource(
+        ApiClient(baseUrl: 'http://localhost:8080'),
+      );
+      aiRemote.holdNextCreateThread = true;
+      aiRemote.createThreadPreludeEvents = [
+        AIChatStreamEvent.status(
+          'Đang suy nghĩ',
+          phase: 'search',
+          debugLabel: 'search',
+        ),
+        AIChatStreamEvent.status(
+          'Đang suy nghĩ',
+          phase: 'read_plan',
+          debugLabel: 'read_plan',
+        ),
+        AIChatStreamEvent.status(
+          'Đang suy nghĩ',
+          phase: 'write_plan',
+          debugLabel: 'write_plan',
+        ),
+        AIChatStreamEvent.status(
+          'Đang suy nghĩ',
+          phase: 'edit_plan',
+          debugLabel: 'edit_plan',
+        ),
+        AIChatStreamEvent.status(
+          'Đang suy nghĩ',
+          phase: 'sync_assets',
+          debugLabel: 'sync_assets',
+        ),
+        AIChatStreamEvent.status(
+          'Đang suy nghĩ',
+          phase: 'finalize_turn',
+          debugLabel: 'finalize_turn',
+        ),
+      ];
+      final authController = await _buildAuthenticatedController();
+
+      await tester.pumpWidget(_buildScreen(authController, aiRemote));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text(_createScreenPrompts.first));
+      await tester.tap(find.text(_createScreenPrompts.first));
+      await tester.pump();
+
+      expect(
+        find.textContaining(
+          'Đang hoàn thiện phản hồi cho bạn',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Đang tìm kiếm thông tin liên quan'), findsOneWidget);
+      expect(find.text('Đang đọc lại context hiện tại'), findsOneWidget);
+      expect(find.text('Đang soạn plan cho bạn'), findsOneWidget);
+      expect(find.text('Đang chỉnh sửa plan'), findsOneWidget);
+      expect(find.text('Đang sync assets'), findsOneWidget);
+      expect(
+        find.textContaining('Đang suy nghĩ', findRichText: true),
+        findsNothing,
+      );
+      expect(find.byTooltip('Hoàn tất'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+
+      aiRemote.completePendingCreateThread();
+      await tester.pumpAndSettle();
+    },
+  );
+
+  testWidgets(
+    'create screen unlocks and lets creator retry after stream error',
+    (WidgetTester tester) async {
+      final aiRemote = _FakeAIRemoteDataSource(
+        ApiClient(baseUrl: 'http://localhost:8080'),
+      );
+      aiRemote.createThreadFailureDelay = const Duration(milliseconds: 80);
+      aiRemote.createThreadFailure = ApiException(
+        'Ket noi toi AI bi gian doan qua lau. Hay gui lai de thu ket noi moi.',
+      );
+      final authController = await _buildAuthenticatedController();
+
+      await tester.pumpWidget(_buildScreen(authController, aiRemote));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(_createScreenPrompts.first));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Ket noi toi AI bi gian doan qua lau. Hay gui lai de thu ket noi moi.',
+        ),
+        findsOneWidget,
+      );
+      expect(aiRemote.createThreadCalls, 1);
+
+      aiRemote.createThreadFailure = null;
+      aiRemote.createThreadFailureDelay = null;
+
+      await tester.enterText(find.byType(TextField), 'Retry after disconnect');
+      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(aiRemote.createThreadCalls, 2);
+      expect(find.text('Assistant reply 2'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'new chat can cancel an in-flight create request without restarting app',
+    (WidgetTester tester) async {
+      final aiRemote = _FakeAIRemoteDataSource(
+        ApiClient(baseUrl: 'http://localhost:8080'),
+      );
+      aiRemote.holdNextCreateThread = true;
+      final authController = await _buildAuthenticatedController();
+
+      await tester.pumpWidget(_buildScreen(authController, aiRemote));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(_createScreenPrompts.first));
+      await tester.pump();
+
+      expect(aiRemote.createThreadCalls, 1);
+      expect(find.byTooltip('New chat'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('New chat'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(_createScreenPrompts.first), findsOneWidget);
+      expect(find.text('Assistant reply 1'), findsNothing);
+
+      aiRemote.holdNextCreateThread = false;
+
+      await tester.enterText(find.byType(TextField), 'Retry after reset');
+      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(aiRemote.createThreadCalls, 2);
+      expect(find.text('Assistant reply 2'), findsOneWidget);
+    },
+  );
 }
 
 const _createScreenPrompts = <String>[
@@ -326,9 +478,14 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
   int addThreadMessageCalls = 0;
   int createShowFromPlanCalls = 0;
   int listVoiceProfilesCalls = 0;
+  bool holdNextCreateThread = false;
   bool holdNextAddThread = false;
+  List<AIChatStreamEvent>? createThreadPreludeEvents;
+  Duration? createThreadFailureDelay;
+  Object? createThreadFailure;
 
   AIChatThread? _currentThread;
+  Completer<void>? _pendingCreateThreadCompleter;
   Completer<AIChatThread>? _pendingAddThreadCompleter;
 
   @override
@@ -449,9 +606,27 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
       assistantReply: 'Assistant reply $createThreadCalls',
     );
     _currentThread = thread;
-    yield AIChatStreamEvent.status('Dang phan tich brief...');
-    yield AIChatStreamEvent.assistantDelta('Assistant ');
-    yield AIChatStreamEvent.assistantDelta('reply $createThreadCalls');
+    final preludeEvents = createThreadPreludeEvents;
+    if (preludeEvents != null) {
+      for (final event in preludeEvents) {
+        yield event;
+      }
+    } else {
+      yield AIChatStreamEvent.status('Dang phan tich brief...');
+      yield AIChatStreamEvent.assistantDelta('Assistant ');
+      yield AIChatStreamEvent.assistantDelta('reply $createThreadCalls');
+    }
+    final failureDelay = createThreadFailureDelay;
+    if (failureDelay != null) {
+      await Future<void>.delayed(failureDelay);
+    }
+    final failure = createThreadFailure;
+    if (failure != null) {
+      throw failure;
+    }
+    if (holdNextCreateThread) {
+      await (_pendingCreateThreadCompleter = Completer<void>()).future;
+    }
     yield AIChatStreamEvent.thread(thread);
     yield AIChatStreamEvent.done(threadId: thread.id);
   }
@@ -535,6 +710,16 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
     );
     _currentThread = thread;
     completer.complete(thread);
+  }
+
+  void completePendingCreateThread() {
+    final completer = _pendingCreateThreadCompleter;
+    if (completer == null || completer.isCompleted) {
+      return;
+    }
+
+    holdNextCreateThread = false;
+    completer.complete();
   }
 
   AIChatThread _buildThread({

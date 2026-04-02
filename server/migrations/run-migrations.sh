@@ -63,6 +63,5 @@ apply_migration "$NOTIFICATION_DATABASE_URL" /migrations/notification_service.sq
 apply_migration "$CONTENT_DATABASE_URL" /migrations/content_service.sql "content service schema"
 apply_demo_seed_if_enabled "$CONTENT_DATABASE_URL" /migrations/content_service_demo_seed.sql "content service demo seed"
 apply_migration "$AI_DATABASE_URL" /migrations/ai_service.sql "ai service schema"
-apply_demo_seed_if_enabled "$AI_DATABASE_URL" /migrations/ai_service_demo_seed.sql "ai service demo seed"
 apply_migration "$ARTICLE_DATABASE_URL" /migrations/article_service.sql "article service schema"
 apply_demo_seed_if_enabled "$ARTICLE_DATABASE_URL" /migrations/article_service_demo_seed.sql "article service demo seed"

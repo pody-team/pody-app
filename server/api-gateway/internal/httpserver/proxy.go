@@ -20,6 +20,7 @@ func newServiceProxy(route config.ServiceRoute, logger *slog.Logger) (http.Handl
 	targetQuery := target.RawQuery
 
 	proxy := &httputil.ReverseProxy{
+		FlushInterval: -1,
 		Director: func(req *http.Request) {
 			originalHost := req.Host
 			originalPath := req.URL.Path

@@ -174,6 +174,41 @@ class BlockingToolCreateAgent:
         )
 
 
+class BlockingSilentCreateAgent:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def respond(
+        self,
+        *,
+        prompt: str,
+        requested_episode_count: int | None,
+        voice_profiles: list[VoiceProfile],
+        conversation: list[str],
+        current_thread_title: str | None,
+        current_plan: ProductionPlan | None,
+        emit_event=None,
+    ) -> ChatTurnResult:
+        _ = prompt
+        _ = requested_episode_count
+        _ = voice_profiles
+        _ = conversation
+        _ = current_thread_title
+        _ = current_plan
+        _ = emit_event
+        self.calls += 1
+        self.started.set()
+        if not self.release.wait(timeout=2):
+            raise TimeoutError("timed out waiting to finish create agent")
+        return ChatTurnResult(
+            thread_title="Founder format brainstorm",
+            assistant_reply="Chat reply for: founder format",
+            plan_output=None,
+        )
+
+
 class FakeRepository:
     def __init__(self) -> None:
         self.voice_profiles = [_voice_profile()]
@@ -845,6 +880,52 @@ def test_stream_create_thread_emits_tool_status_while_turn_is_still_running() ->
     second_event = next_event_queue.get(timeout=1)
     assert second_event["event"] == "status"
     assert second_event["data"]["tool"] == "brave_search"
+
+    create_agent.release.set()
+    reader.join(timeout=1)
+
+    assert error_queue.empty()
+    remaining_event_names = [event["event"] for event in stream]
+    assert "thread" in remaining_event_names
+
+
+def test_stream_create_thread_emits_heartbeat_status_while_waiting_for_model() -> None:
+    repository = FakeRepository()
+    create_agent = BlockingSilentCreateAgent()
+    planner = FakePlanner()
+    service = AIService(
+        repository,
+        create_agent,
+        planner,
+        "stub",
+        stream_heartbeat_interval_seconds=0.01,
+    )
+
+    stream = service.stream_create_thread(
+        _auth(),
+        CreateThreadRequest(prompt="Tạo concept show về founder"),
+    )
+
+    first_event = next(stream)
+    assert first_event["event"] == "status"
+    assert first_event["data"]["phase"] == "thinking"
+
+    next_event_queue: Queue[dict[str, object]] = Queue()
+    error_queue: Queue[BaseException] = Queue()
+
+    def read_next_event() -> None:
+        try:
+            next_event_queue.put(next(stream))
+        except BaseException as exc:
+            error_queue.put(exc)
+
+    reader = threading.Thread(target=read_next_event, daemon=True)
+    reader.start()
+
+    assert create_agent.started.wait(timeout=1)
+    heartbeat_event = next_event_queue.get(timeout=1)
+    assert heartbeat_event["event"] == "status"
+    assert heartbeat_event["data"]["phase"] == "thinking"
 
     create_agent.release.set()
     reader.join(timeout=1)

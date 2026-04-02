@@ -10,7 +10,6 @@ COPY ./sql/services/notification_service.sql /migrations/notification_service.sq
 COPY ./sql/services/content_service.sql /migrations/content_service.sql
 COPY ./sql/services/content_service_demo_seed.sql /migrations/content_service_demo_seed.sql
 COPY ./sql/services/ai_service.sql /migrations/ai_service.sql
-COPY ./sql/services/ai_service_demo_seed.sql /migrations/ai_service_demo_seed.sql
 COPY ./sql/services/article_service.sql /migrations/article_service.sql
 COPY ./sql/services/article_service_demo_seed.sql /migrations/article_service_demo_seed.sql
 COPY ./migrations/run-migrations.sh /usr/local/bin/run-migrations.sh

@@ -808,7 +808,7 @@ class AIRepository:
             title=plan_row["series_title"],
             description=plan_row["series_description"],
             cover_image_url=_string_or_none(metadata.get("cover_image_url")),
-            primary_category=_string_or_default(metadata.get("primary_category"), "Cong nghe"),
+            primary_category=_string_or_default(metadata.get("primary_category"), "Công nghệ"),
             categories=_strings(metadata.get("categories")),
             language_code=plan_row["target_language_code"],
             content_type=_string_or_default(metadata.get("content_type"), "podcast"),

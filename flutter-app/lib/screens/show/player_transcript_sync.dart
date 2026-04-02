@@ -82,6 +82,89 @@ bool shouldShowReturnToCurrentTranscriptButton({
   return (currentOffset - targetOffset).abs() > threshold;
 }
 
+bool isTranscriptBubbleOutsideFocusZone({
+  required double bubbleTop,
+  required double bubbleBottom,
+  required double viewportHeight,
+  double topBoundaryFactor = 0.18,
+  double bottomBoundaryFactor = 0.62,
+}) {
+  if (viewportHeight <= 0) {
+    return false;
+  }
+
+  final bubbleCenter = (bubbleTop + bubbleBottom) / 2;
+  final focusZoneTop = viewportHeight * topBoundaryFactor;
+  final focusZoneBottom = viewportHeight * bottomBoundaryFactor;
+  return bubbleCenter < focusZoneTop || bubbleCenter > focusZoneBottom;
+}
+
+bool shouldShowReturnToCurrentTranscriptFromFocusZone({
+  required double bubbleTop,
+  required double bubbleBottom,
+  required double viewportHeight,
+  required bool isCurrentlyVisible,
+  double showTopBoundaryFactor = 0.1,
+  double showBottomBoundaryFactor = 0.72,
+  double hideTopBoundaryFactor = 0.2,
+  double hideBottomBoundaryFactor = 0.6,
+}) {
+  if (viewportHeight <= 0) {
+    return false;
+  }
+
+  if (bubbleBottom < 0 || bubbleTop > viewportHeight) {
+    return true;
+  }
+
+  final bubbleCenter = (bubbleTop + bubbleBottom) / 2;
+  final topBoundary =
+      viewportHeight *
+      (isCurrentlyVisible ? hideTopBoundaryFactor : showTopBoundaryFactor);
+  final bottomBoundary =
+      viewportHeight *
+      (isCurrentlyVisible
+          ? hideBottomBoundaryFactor
+          : showBottomBoundaryFactor);
+
+  return bubbleCenter < topBoundary || bubbleCenter > bottomBoundary;
+}
+
+Duration resolveTranscriptSeekPosition({
+  required List<ChatBubble> bubbles,
+  required int bubbleIndex,
+  required Duration episodeDuration,
+}) {
+  if (bubbles.isEmpty) {
+    return Duration.zero;
+  }
+
+  final clampedIndex = bubbleIndex.clamp(0, bubbles.length - 1);
+  final bubble = bubbles[clampedIndex];
+  final startSeconds =
+      bubble.startSeconds ??
+      () {
+        for (final word in bubble.words) {
+          if (word.text.trim().isNotEmpty) {
+            return word.startSeconds;
+          }
+        }
+        return null;
+      }();
+
+  if (startSeconds != null && startSeconds >= 0) {
+    return Duration(milliseconds: (startSeconds * 1000).round());
+  }
+
+  final totalMillis = episodeDuration.inMilliseconds;
+  if (totalMillis <= 0) {
+    return Duration.zero;
+  }
+
+  final fraction = clampedIndex / bubbles.length;
+  return Duration(milliseconds: (totalMillis * fraction).round());
+}
+
 int resolveTranscriptWordIndex({
   required ChatBubble bubble,
   required double currentSeconds,

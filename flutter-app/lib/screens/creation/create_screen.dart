@@ -61,6 +61,7 @@ class _CreateScreenState extends State<CreateScreen> {
   String? _activeUserId;
   String? _pendingUserMessage;
   String? _streamingStatus;
+  String? _activeToolName;
   List<String> _streamingStatusHistory = const [];
   List<String> _pendingStatusQueue = const [];
   List<String> _streamDebugTrail = const [];
@@ -77,7 +78,7 @@ class _CreateScreenState extends State<CreateScreen> {
     _statusPulseTimer?.cancel();
     _statusClearTimer?.cancel();
     _statusAdvanceTimer?.cancel();
-    _streamSubscription?.cancel();
+    _detachStreamSubscription();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -98,12 +99,13 @@ class _CreateScreenState extends State<CreateScreen> {
     _statusClearTimer = null;
     _statusAdvanceTimer?.cancel();
     _statusAdvanceTimer = null;
-    _streamSubscription?.cancel();
+    _detachStreamSubscription();
     _thread = null;
     _isSending = false;
     _errorMessage = null;
     _pendingUserMessage = null;
     _streamingStatus = null;
+    _activeToolName = null;
     _streamingStatusHistory = const [];
     _streamDebugTrail = const [];
     _streamingAssistantText = '';
@@ -218,6 +220,7 @@ class _CreateScreenState extends State<CreateScreen> {
       _errorMessage = null;
       _pendingUserMessage = prompt;
       _streamingStatus = 'Đang suy nghĩ';
+      _activeToolName = null;
       _streamingStatusHistory = const ['Đang suy nghĩ'];
       _pendingStatusQueue = const [];
       _streamDebugTrail = const ['thinking'];
@@ -238,8 +241,9 @@ class _CreateScreenState extends State<CreateScreen> {
             message: prompt,
           );
 
-    await _streamSubscription?.cancel();
-    _streamSubscription = stream.listen(
+    await _detachStreamSubscription();
+    late final StreamSubscription<AIChatStreamEvent> subscription;
+    subscription = stream.listen(
       (event) {
         if (!mounted) {
           return;
@@ -250,12 +254,16 @@ class _CreateScreenState extends State<CreateScreen> {
         if (!mounted) {
           return;
         }
+        if (identical(_streamSubscription, subscription)) {
+          _streamSubscription = null;
+        }
         _restoreInputIfNeeded(previousText, seededPrompt == null);
         setState(() {
           _errorMessage = _humanizeError(error);
           _isSending = false;
           _pendingUserMessage = null;
           _streamingStatus = null;
+          _activeToolName = null;
           _streamingStatusHistory = const [];
           _pendingStatusQueue = const [];
           _streamDebugTrail = const [];
@@ -272,14 +280,25 @@ class _CreateScreenState extends State<CreateScreen> {
         if (!mounted) {
           return;
         }
+        if (identical(_streamSubscription, subscription)) {
+          _streamSubscription = null;
+        }
         setState(() {
           _isSending = false;
+          _activeToolName = null;
         });
         _stopStatusPulse();
         _scheduleStatusClear();
       },
       cancelOnError: false,
     );
+    _streamSubscription = subscription;
+  }
+
+  Future<void>? _detachStreamSubscription() {
+    final subscription = _streamSubscription;
+    _streamSubscription = null;
+    return subscription?.cancel();
   }
 
   void _startStatusPulse() {
@@ -323,7 +342,7 @@ class _CreateScreenState extends State<CreateScreen> {
     if (_statusAdvanceTimer != null) {
       return;
     }
-    _statusAdvanceTimer = Timer(const Duration(milliseconds: 850), () {
+    _statusAdvanceTimer = Timer(const Duration(milliseconds: 400), () {
       _statusAdvanceTimer?.cancel();
       _statusAdvanceTimer = null;
       if (!mounted) {
@@ -343,6 +362,17 @@ class _CreateScreenState extends State<CreateScreen> {
         _scheduleStatusClear();
       }
     });
+  }
+
+  void _flushPendingStatusQueue() {
+    _statusAdvanceTimer?.cancel();
+    _statusAdvanceTimer = null;
+    if (_pendingStatusQueue.isNotEmpty) {
+      for (final status in _pendingStatusQueue) {
+        _pushStreamingStatus(status);
+      }
+      _pendingStatusQueue = const [];
+    }
   }
 
   void _scrollToBottom() {
@@ -374,7 +404,7 @@ class _CreateScreenState extends State<CreateScreen> {
     _statusClearTimer = null;
     _statusAdvanceTimer?.cancel();
     _statusAdvanceTimer = null;
-    _streamSubscription?.cancel();
+    _detachStreamSubscription();
     setState(() {
       _sidebarSection = _CreateSidebarSection.chats;
       _thread = null;
@@ -382,6 +412,7 @@ class _CreateScreenState extends State<CreateScreen> {
       _errorMessage = null;
       _pendingUserMessage = null;
       _streamingStatus = null;
+      _activeToolName = null;
       _streamingStatusHistory = const [];
       _pendingStatusQueue = const [];
       _streamDebugTrail = const [];
@@ -403,7 +434,7 @@ class _CreateScreenState extends State<CreateScreen> {
   Future<void> _selectThread(String threadId) async {
     FocusScope.of(context).unfocus();
     final repository = AIScope.of(context);
-    await _streamSubscription?.cancel();
+    await _detachStreamSubscription();
     _statusClearTimer?.cancel();
     _statusClearTimer = null;
     _statusAdvanceTimer?.cancel();
@@ -413,6 +444,7 @@ class _CreateScreenState extends State<CreateScreen> {
       _errorMessage = null;
       _pendingUserMessage = null;
       _streamingStatus = null;
+      _activeToolName = null;
       _streamingStatusHistory = const [];
       _pendingStatusQueue = const [];
       _streamDebugTrail = const [];
@@ -450,25 +482,47 @@ class _CreateScreenState extends State<CreateScreen> {
       case AIChatStreamEventType.status:
         _statusClearTimer?.cancel();
         _statusClearTimer = null;
-        final normalizedStatus = _normalizedStatusText(
-          event.message ?? '',
-        ).trim();
+        final normalizedStatus = _resolvedStatusText(event).trim();
         if (normalizedStatus.isEmpty) {
           break;
         }
-        final isThinkingOnly = event.debugLabel?.trim() == 'thinking';
-        if (!isThinkingOnly) {
-          _statusAdvanceTimer?.cancel();
-          _statusAdvanceTimer = null;
+        final activityKey = _activityKeyForEvent(event);
+        final isThinkingOnly = _isThinkingStatusEvent(event);
+        final isToolEvent = activityKey != null && !isThinkingOnly;
+        if (isToolEvent) {
+          _flushPendingStatusQueue();
           setState(() {
+            _removeGenericStatusHistory();
             final prev = _streamingStatus;
             if (prev != null) {
               final prevNorm = _normalizedStatusText(prev).trim();
-              if (prevNorm != normalizedStatus) {
+              if (prevNorm != normalizedStatus &&
+                  !_isGenericStatusText(prevNorm)) {
                 _pushStreamingStatus(prev);
               }
             }
             _streamingStatus = normalizedStatus;
+            _activeToolName = activityKey;
+            _pushStreamingStatus(normalizedStatus);
+          });
+          _scrollToBottom();
+          break;
+        }
+        if (!isThinkingOnly) {
+          _statusAdvanceTimer?.cancel();
+          _statusAdvanceTimer = null;
+          setState(() {
+            _removeGenericStatusHistory();
+            final prev = _streamingStatus;
+            if (prev != null) {
+              final prevNorm = _normalizedStatusText(prev).trim();
+              if (prevNorm != normalizedStatus &&
+                  !_isGenericStatusText(prevNorm)) {
+                _pushStreamingStatus(prev);
+              }
+            }
+            _streamingStatus = normalizedStatus;
+            _activeToolName = null;
             _pushStreamingStatus(normalizedStatus);
           });
           _scheduleNextQueuedStatus();
@@ -481,6 +535,7 @@ class _CreateScreenState extends State<CreateScreen> {
               : _normalizedStatusText(_streamingStatus!).trim();
           if (_streamingStatus == null) {
             _streamingStatus = normalizedStatus;
+            _activeToolName = null;
             _pushStreamingStatus(normalizedStatus);
           } else if (prevNorm != normalizedStatus &&
               (_pendingStatusQueue.isEmpty ||
@@ -522,6 +577,7 @@ class _CreateScreenState extends State<CreateScreen> {
       case AIChatStreamEventType.done:
         setState(() {
           _isSending = false;
+          _activeToolName = null;
         });
         _stopStatusPulse();
         if (_statusAdvanceTimer == null && _pendingStatusQueue.isEmpty) {
@@ -541,6 +597,7 @@ class _CreateScreenState extends State<CreateScreen> {
           _isSending = false;
           _pendingUserMessage = null;
           _streamingStatus = null;
+          _activeToolName = null;
           _streamingStatusHistory = const [];
           _pendingStatusQueue = const [];
           _streamDebugTrail = const [];
@@ -566,6 +623,12 @@ class _CreateScreenState extends State<CreateScreen> {
       return;
     }
     _streamingStatusHistory = <String>[..._streamingStatusHistory, normalized];
+  }
+
+  void _removeGenericStatusHistory() {
+    _streamingStatusHistory = _streamingStatusHistory
+        .where((status) => !_isGenericStatusText(status))
+        .toList(growable: false);
   }
 
   void _pushDebugEvent(String? label) {
@@ -673,6 +736,212 @@ class _CreateScreenState extends State<CreateScreen> {
       return error.message;
     }
     return 'AI service dang tam thoi khong phan hoi. Thu lai sau it phut nua.';
+  }
+
+  String _resolvedStatusText(AIChatStreamEvent event) {
+    final raw = _normalizedStatusText(event.message ?? '').trim();
+    final fallback =
+        _statusTextForKey(_normalizedStreamKey(event.toolName)) ??
+        _statusTextForKey(_normalizedStreamKey(event.phase)) ??
+        _statusTextForKey(_normalizedStreamKey(event.debugLabel)) ??
+        _statusTextFallbackFromUnknownKey(
+          _normalizedStreamKey(event.toolName),
+        ) ??
+        _statusTextFallbackFromUnknownKey(_normalizedStreamKey(event.phase)) ??
+        _statusTextFallbackFromUnknownKey(
+          _normalizedStreamKey(event.debugLabel),
+        );
+
+    if (raw.isEmpty) {
+      return fallback ?? '';
+    }
+    if (_isGenericStatusText(raw) && fallback != null) {
+      return fallback;
+    }
+    return raw;
+  }
+
+  String? _normalizedStreamKey(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed.toLowerCase().replaceAll(RegExp(r'[\s-]+'), '_');
+  }
+
+  String? _activityKeyForEvent(AIChatStreamEvent event) {
+    final toolKey = _normalizedStreamKey(event.toolName);
+    if (toolKey != null) {
+      return toolKey;
+    }
+
+    final phaseKey =
+        _normalizedStreamKey(event.phase) ??
+        _normalizedStreamKey(event.debugLabel);
+    switch (phaseKey) {
+      case null:
+      case 'thinking':
+      case 'status':
+      case 'tool':
+        return null;
+      case 'research':
+      case 'retrieval':
+      case 'lookup':
+        return 'search';
+      case 'review':
+      case 'analysis':
+      case 'analyze':
+      case 'load_context':
+        return 'read';
+      case 'planning':
+      case 'outline':
+      case 'brainstorm':
+        return 'plan';
+      case 'draft':
+      case 'drafting':
+      case 'compose':
+      case 'create_plan':
+        return 'write';
+      case 'refine':
+      case 'refining':
+      case 'rewrite':
+      case 'revise':
+      case 'update':
+        return 'edit';
+      case 'open_editor':
+      case 'open_draft':
+      case 'prepare_edit':
+        return 'begin_edit_session';
+      case 'finalize':
+      case 'finish':
+      case 'complete':
+      case 'completed':
+        return 'finalize_turn';
+      case 'voice':
+        return 'list_voice_profiles';
+      default:
+        return phaseKey;
+    }
+  }
+
+  bool _isThinkingStatusEvent(AIChatStreamEvent event) {
+    if (_normalizedStreamKey(event.toolName) != null) {
+      return false;
+    }
+    final phaseKey =
+        _normalizedStreamKey(event.phase) ??
+        _normalizedStreamKey(event.debugLabel);
+    return phaseKey == null || phaseKey == 'thinking' || phaseKey == 'status';
+  }
+
+  bool _isGenericStatusText(String value) {
+    final normalized = value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[.…]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return const {
+      'đang suy nghĩ',
+      'dang suy nghi',
+      'ai đang xử lý',
+      'ai dang xu ly',
+      'đang xử lý',
+      'dang xu ly',
+      'đang xử lý bước tiếp theo',
+      'dang xu ly buoc tiep theo',
+      'đang thực hiện bước tiếp theo',
+      'dang thuc hien buoc tiep theo',
+    }.contains(normalized);
+  }
+
+  String? _statusTextForKey(String? key) {
+    switch (key) {
+      case 'thinking':
+        return 'Đang suy nghĩ';
+      case 'search':
+      case 'research':
+      case 'retrieval':
+      case 'lookup':
+      case 'brave_search':
+        return 'Đang tìm kiếm thông tin liên quan';
+      case 'read':
+      case 'review':
+      case 'analysis':
+      case 'analyze':
+      case 'load_context':
+      case 'read_plan':
+      case 'read_dialogue':
+        return 'Đang đọc lại context hiện tại';
+      case 'plan':
+      case 'planning':
+      case 'outline':
+      case 'brainstorm':
+        return 'Đang lên cấu trúc nội dung';
+      case 'write':
+      case 'draft':
+      case 'drafting':
+      case 'compose':
+      case 'create_plan':
+      case 'write_plan':
+        return 'Đang soạn plan cho bạn';
+      case 'write_dialogue':
+        return 'Đang viết dialogue cho episode';
+      case 'edit':
+      case 'refine':
+      case 'refining':
+      case 'rewrite':
+      case 'revise':
+      case 'update':
+      case 'edit_plan':
+        return 'Đang chỉnh sửa plan';
+      case 'edit_dialogue':
+        return 'Đang chỉnh sửa dialogue';
+      case 'begin_edit_session':
+      case 'open_editor':
+      case 'open_draft':
+      case 'prepare_edit':
+        return 'Đang mở bản draft để chỉnh sửa';
+      case 'voice':
+      case 'list_voice_profiles':
+        return 'Đang rà voice phù hợp cho host';
+      case 'finalize':
+      case 'finish':
+      case 'complete':
+      case 'completed':
+      case 'finalize_turn':
+        return 'Đang hoàn thiện phản hồi cho bạn';
+      default:
+        return null;
+    }
+  }
+
+  String? _statusTextFallbackFromUnknownKey(String? key) {
+    if (key == null || key == 'thinking' || key == 'status' || key == 'tool') {
+      return null;
+    }
+    final words = key
+        .split('_')
+        .where((part) => part.isNotEmpty)
+        .map((part) => part.toLowerCase())
+        .toList(growable: false);
+    if (words.isEmpty) {
+      return null;
+    }
+    return 'Đang ${words.join(' ')}';
+  }
+
+  String _formatStatusKeyLabel(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+    return value
+        .split('_')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) =>
+              '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
   }
 
   List<Widget> _buildConversation(BuildContext context) {
@@ -809,7 +1078,7 @@ class _CreateScreenState extends State<CreateScreen> {
     BuildContext context, {
     required bool showHistoryButton,
   }) {
-    final canResetThread = _thread != null && !_isSending;
+    final canResetThread = _thread != null || _isSending;
     final mediaQuery = MediaQuery.of(context);
     final bottomInset = mediaQuery.viewInsets.bottom;
     final safeBottom = mediaQuery.padding.bottom;
@@ -1211,19 +1480,6 @@ class _CreateScreenState extends State<CreateScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_streamDebugTrail.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                'debug: ${_streamDebugTrail.join(' -> ')}',
-                style: const TextStyle(
-                  color: _createTextMuted,
-                  fontSize: 11,
-                  height: 1.4,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
           if (previousStatuses.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -1242,13 +1498,26 @@ class _CreateScreenState extends State<CreateScreen> {
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: _createBorderSoft),
                         ),
-                        child: Text(
-                          status,
-                          style: GoogleFonts.workSans(
-                            color: _createTextSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline,
+                              size: 13,
+                              color: _createAccentOlive,
+                            ),
+                            const SizedBox(width: 5),
+                            Flexible(
+                              child: Text(
+                                status,
+                                style: GoogleFonts.workSans(
+                                  color: _createTextSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     )
@@ -1262,18 +1531,49 @@ class _CreateScreenState extends State<CreateScreen> {
               padding: EdgeInsets.only(
                 top: _streamingAssistantText.isNotEmpty ? 10 : 0,
               ),
-              child: RichText(
-                text: TextSpan(
-                  style: GoogleFonts.workSans(
-                    color: _createTextSecondary,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                  children: [
-                    TextSpan(text: currentStatus),
-                    TextSpan(text: '.' * (_statusPulseTick + 1)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (_activeToolName != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _createAccent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _createAccent.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Tooltip(
+                        message: _toolDisplayName(_activeToolName!),
+                        child: Icon(
+                          _toolIcon(_activeToolName!),
+                          size: 13,
+                          color: _createAccent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                   ],
-                ),
+                  Flexible(
+                    child: RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.workSans(
+                          color: _createTextSecondary,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                        children: [
+                          TextSpan(text: currentStatus),
+                          TextSpan(text: '.' * (_statusPulseTick + 1)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           if (_streamingPlanPreview != null) ...[
@@ -1283,6 +1583,68 @@ class _CreateScreenState extends State<CreateScreen> {
         ],
       ),
     );
+  }
+
+  IconData _toolIcon(String toolName) {
+    switch (toolName) {
+      case 'search':
+      case 'brave_search':
+        return Icons.search;
+      case 'write':
+      case 'plan':
+      case 'write_plan':
+      case 'write_dialogue':
+        return Icons.edit_note;
+      case 'edit':
+      case 'edit_plan':
+      case 'edit_dialogue':
+        return Icons.tune;
+      case 'read':
+      case 'read_plan':
+      case 'read_dialogue':
+        return Icons.visibility;
+      case 'list_voice_profiles':
+        return Icons.mic;
+      case 'begin_edit_session':
+        return Icons.build;
+      case 'finalize_turn':
+        return Icons.check_circle;
+      default:
+        return Icons.settings;
+    }
+  }
+
+  String _toolDisplayName(String toolName) {
+    switch (toolName) {
+      case 'search':
+      case 'brave_search':
+        return 'Tìm kiếm';
+      case 'write':
+      case 'write_plan':
+        return 'Viết plan';
+      case 'plan':
+        return 'Lên plan';
+      case 'edit':
+      case 'edit_plan':
+        return 'Sửa plan';
+      case 'read':
+      case 'read_plan':
+        return 'Đọc plan';
+      case 'read_dialogue':
+        return 'Đọc dialogue';
+      case 'write_dialogue':
+        return 'Viết dialogue';
+      case 'edit_dialogue':
+        return 'Sửa dialogue';
+      case 'list_voice_profiles':
+        return 'Voice';
+      case 'begin_edit_session':
+        return 'Mở editor';
+      case 'finalize_turn':
+        return 'Hoàn tất';
+      default:
+        return _formatStatusKeyLabel(toolName);
+    }
   }
 
   String _normalizedStatusText(String value) {

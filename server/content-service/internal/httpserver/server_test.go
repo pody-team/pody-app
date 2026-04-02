@@ -114,6 +114,70 @@ func TestMyShowsRequiresAuthHeader(t *testing.T) {
 	}
 }
 
+func TestMyShowDetailRequiresAuthHeader(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/shows/show-future-minds", nil)
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
+
+func TestMyShowDetailReturnsOwnedShow(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/shows/show-future-minds", nil)
+	request.Header.Set("X-Auth-User-ID", "creator-123")
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %q", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "\"id\":\"show-future-minds\"") {
+		t.Fatalf("expected owned show detail in response, got %q", recorder.Body.String())
+	}
+}
+
+func TestMyEpisodeDetailReturnsOwnedEpisode(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/episodes/ep-future-minds-001", nil)
+	request.Header.Set("X-Auth-User-ID", "creator-123")
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %q", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "\"id\":\"ep-future-minds-001\"") {
+		t.Fatalf("expected owned episode detail in response, got %q", recorder.Body.String())
+	}
+}
+
+func TestMyShowEpisodesReturnsOwnedEpisodes(t *testing.T) {
+	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/content/me/shows/show-future-minds/episodes", nil)
+	request.Header.Set("X-Auth-User-ID", "creator-123")
+	recorder := httptest.NewRecorder()
+
+	server.Handler.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d with body %q", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "\"episodes\"") {
+		t.Fatalf("expected episode list in response, got %q", recorder.Body.String())
+	}
+}
+
 func TestEpisodeBookmarkRequiresAuthHeader(t *testing.T) {
 	server := New(config.Config{Port: "8082"}, slog.New(slog.NewTextHandler(io.Discard, nil)), store.NewDemoStore())
 

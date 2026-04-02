@@ -41,15 +41,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   bool _didLoadFavorites = false;
   bool _isLiked = false;
   final ScrollController _scrollController = ScrollController();
-  final ScrollController _transcriptScrollController = ScrollController();
-  final List<GlobalKey> _bubbleKeys = [];
   double _dragStart = 0;
-  int _lastActiveIndex = -1;
-  bool _isTranscriptAutoFollowEnabled = true;
-  bool _showReturnToCurrentTranscriptButton = false;
-  bool _isTranscriptAutoScrolling = false;
   String? _favoriteEpisodeId;
-  String? _transcriptEpisodeId;
 
   Episode get episode => widget.episode!;
   Show get show => widget.show!;
@@ -79,7 +72,6 @@ class _PlayerScreenState extends State<PlayerScreen>
   void dispose() {
     _playerState.removeListener(_handlePlayerChanged);
     _scrollController.dispose();
-    _transcriptScrollController.dispose();
     super.dispose();
   }
 
@@ -197,155 +189,6 @@ class _PlayerScreenState extends State<PlayerScreen>
         );
       },
     );
-  }
-
-  void _resetTranscriptTracking(String episodeId) {
-    if (_transcriptEpisodeId == episodeId) {
-      return;
-    }
-
-    _transcriptEpisodeId = episodeId;
-    _lastActiveIndex = -1;
-    _isTranscriptAutoFollowEnabled = true;
-    _showReturnToCurrentTranscriptButton = false;
-  }
-
-  double? _resolveTranscriptTargetOffset(int bubbleIndex) {
-    if (!_transcriptScrollController.hasClients ||
-        bubbleIndex < 0 ||
-        bubbleIndex >= _bubbleKeys.length) {
-      return null;
-    }
-
-    final context = _bubbleKeys[bubbleIndex].currentContext;
-    final renderBox = context?.findRenderObject() as RenderBox?;
-    final scrollAncestor = _transcriptScrollController
-        .position
-        .context
-        .storageContext
-        .findRenderObject();
-    if (renderBox == null || scrollAncestor == null) {
-      return null;
-    }
-
-    final scrollPosition = _transcriptScrollController.position;
-    final offset = renderBox
-        .localToGlobal(Offset.zero, ancestor: scrollAncestor)
-        .dy;
-
-    return (_transcriptScrollController.offset +
-            offset -
-            scrollPosition.viewportDimension * 0.3)
-        .clamp(0.0, scrollPosition.maxScrollExtent);
-  }
-
-  Future<void> _scrollTranscriptToBubble(
-    int bubbleIndex, {
-    bool animated = true,
-  }) async {
-    final targetOffset = _resolveTranscriptTargetOffset(bubbleIndex);
-    if (targetOffset == null) {
-      return;
-    }
-
-    _isTranscriptAutoScrolling = true;
-    try {
-      if (animated) {
-        await _transcriptScrollController.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      } else {
-        _transcriptScrollController.jumpTo(targetOffset);
-      }
-    } finally {
-      _isTranscriptAutoScrolling = false;
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _isTranscriptAutoFollowEnabled = true;
-      _showReturnToCurrentTranscriptButton = false;
-    });
-  }
-
-  void _syncTranscriptReturnButton(
-    int activeBubbleIndex, {
-    bool enableAutoFollowWhenNear = false,
-  }) {
-    if (!_transcriptScrollController.hasClients) {
-      return;
-    }
-
-    final targetOffset = _resolveTranscriptTargetOffset(activeBubbleIndex);
-    if (targetOffset == null) {
-      return;
-    }
-
-    final shouldShow = shouldShowReturnToCurrentTranscriptButton(
-      currentOffset: _transcriptScrollController.offset,
-      targetOffset: targetOffset,
-    );
-    final shouldEnableAutoFollow =
-        enableAutoFollowWhenNear &&
-        !shouldShow &&
-        !_isTranscriptAutoFollowEnabled;
-
-    if (!mounted ||
-        (_showReturnToCurrentTranscriptButton == shouldShow &&
-            !shouldEnableAutoFollow)) {
-      return;
-    }
-
-    setState(() {
-      _showReturnToCurrentTranscriptButton = shouldShow;
-      if (shouldEnableAutoFollow) {
-        _isTranscriptAutoFollowEnabled = true;
-      }
-    });
-  }
-
-  bool _handleTranscriptScrollNotification(
-    ScrollNotification notification,
-    int activeBubbleIndex,
-  ) {
-    if (_isTranscriptAutoScrolling) {
-      return false;
-    }
-
-    final isUserDriven =
-        (notification is ScrollStartNotification &&
-            notification.dragDetails != null) ||
-        (notification is ScrollUpdateNotification &&
-            notification.dragDetails != null) ||
-        (notification is OverscrollNotification &&
-            notification.dragDetails != null);
-
-    if (isUserDriven && _isTranscriptAutoFollowEnabled && mounted) {
-      setState(() {
-        _isTranscriptAutoFollowEnabled = false;
-      });
-    }
-
-    if (notification is ScrollUpdateNotification ||
-        notification is OverscrollNotification ||
-        notification is ScrollEndNotification ||
-        notification is UserScrollNotification) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _syncTranscriptReturnButton(
-          activeBubbleIndex,
-          enableAutoFollowWhenNear:
-              notification is ScrollEndNotification ||
-              notification is UserScrollNotification,
-        );
-      });
-    }
-
-    return false;
   }
 
   Widget _buildControlButton({
@@ -1040,167 +883,366 @@ class _PlayerScreenState extends State<PlayerScreen>
   /// Full transcript view — shows all lines, highlights active line & words.
   Widget _buildTranscript() {
     final activeEpisode = _playerState.episode ?? episode;
-    final bubbles = activeEpisode.bubbles;
-    final progress = _playerState.progress;
-    final currentSeconds = _playerState.position.inMilliseconds / 1000.0;
-
-    _resetTranscriptTracking(activeEpisode.id);
-
-    // Ensure keys list is big enough
-    while (_bubbleKeys.length < bubbles.length) {
-      _bubbleKeys.add(GlobalKey());
-    }
-
-    final activeBubbleIndex = resolveActiveTranscriptBubbleIndex(
-      bubbles: bubbles,
-      currentSeconds: currentSeconds,
-      fallbackProgress: progress,
+    return _PlayerTranscriptView(
+      episode: activeEpisode,
+      progress: _playerState.progress,
+      currentSeconds: _playerState.position.inMilliseconds / 1000.0,
+      onTapBubble: (bubbleIndex) async {
+        final targetPosition = resolveTranscriptSeekPosition(
+          bubbles: activeEpisode.bubbles,
+          bubbleIndex: bubbleIndex,
+          episodeDuration: activeEpisode.duration,
+        );
+        await _playerState.seekToPosition(targetPosition);
+      },
     );
+  }
+}
 
-    // Auto-scroll to active bubble whenever it changes
-    if (activeBubbleIndex != _lastActiveIndex) {
-      _lastActiveIndex = activeBubbleIndex;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_isTranscriptAutoFollowEnabled) {
-          _scrollTranscriptToBubble(activeBubbleIndex);
-          return;
-        }
+class _PlayerTranscriptView extends StatefulWidget {
+  final Episode episode;
+  final double progress;
+  final double currentSeconds;
+  final Future<void> Function(int bubbleIndex) onTapBubble;
 
-        _syncTranscriptReturnButton(activeBubbleIndex);
-      });
+  const _PlayerTranscriptView({
+    required this.episode,
+    required this.progress,
+    required this.currentSeconds,
+    required this.onTapBubble,
+  });
+
+  @override
+  State<_PlayerTranscriptView> createState() => _PlayerTranscriptViewState();
+}
+
+class _PlayerTranscriptViewState extends State<_PlayerTranscriptView> {
+  final ScrollController _scrollController = ScrollController();
+  final List<GlobalKey> _bubbleKeys = [];
+  final Map<int, List<GlobalKey>> _wordKeysByBubble = {};
+
+  int _lastActiveBubbleIndex = -1;
+  int _lastActiveWordIndex = -1;
+  bool _autoFollowEnabled = true;
+  bool _showReturnToCurrentButton = false;
+  bool _isAutoScrolling = false;
+
+  @override
+  void didUpdateWidget(covariant _PlayerTranscriptView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.episode.id != widget.episode.id) {
+      _lastActiveBubbleIndex = -1;
+      _lastActiveWordIndex = -1;
+      _autoFollowEnabled = true;
+      _showReturnToCurrentButton = false;
+      _wordKeysByBubble.clear();
     }
+  }
 
-    // Progress within the active bubble (0.0 → 1.0)
-    final bubbleProgress = resolveTranscriptBubbleProgress(
-      bubbles: bubbles,
-      activeBubbleIndex: activeBubbleIndex,
-      currentSeconds: currentSeconds,
-      fallbackProgress: progress,
-    );
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
-    // Check if there are multiple speakers (conversation style vs storytelling)
-    final hasMultipleSpeakers =
-        bubbles.map((b) => b.speakerId).toSet().length > 1;
-
-    return Stack(
-      children: [
-        NotificationListener<ScrollNotification>(
-          onNotification: (notification) => _handleTranscriptScrollNotification(
-            notification,
-            activeBubbleIndex,
-          ),
-          child: ListView.builder(
-            controller: _transcriptScrollController,
-            physics: const ClampingScrollPhysics(),
-            itemCount: bubbles.length,
-            itemBuilder: (context, i) {
-              final bubble = bubbles[i];
-              final isActive = i == activeBubbleIndex;
-              final isPast = i < activeBubbleIndex;
-              final showSpeaker =
-                  hasMultipleSpeakers &&
-                  (i == 0 || bubbles[i - 1].speakerId != bubble.speakerId);
-
-              return Container(
-                key: _bubbleKeys[i],
-                margin: EdgeInsets.only(
-                  bottom: i == bubbles.length - 1 ? 84 : 18,
-                ),
-                padding: isActive
-                    ? const EdgeInsets.symmetric(horizontal: 12, vertical: 12)
-                    : const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isActive ? _playerSurfaceStrong : Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (showSpeaker)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 250),
-                          style: GoogleFonts.workSans(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: isActive ? _playerPrimary : _playerMuted,
-                            letterSpacing: 0.5,
-                          ),
-                          child: Text(bubble.speaker.toUpperCase()),
-                        ),
-                      ),
-                    isActive
-                        ? _buildHighlightedText(
-                            bubble: bubble,
-                            progress: bubbleProgress,
-                            currentSeconds: currentSeconds,
-                          )
-                        : AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 250),
-                            style: GoogleFonts.workSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w400,
-                              color: isPast
-                                  ? _playerMuted
-                                  : _playerNeutral.withValues(alpha: 0.55),
-                              height: 1.6,
-                            ),
-                            child: Text(bubble.text),
-                          ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-        Positioned(
-          right: 0,
-          bottom: 12,
-          child: IgnorePointer(
-            ignoring: !_showReturnToCurrentTranscriptButton,
-            child: AnimatedSlide(
-              duration: const Duration(milliseconds: 220),
-              offset: _showReturnToCurrentTranscriptButton
-                  ? Offset.zero
-                  : const Offset(0, 1.2),
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 180),
-                opacity: _showReturnToCurrentTranscriptButton ? 1 : 0,
-                child: FilledButton.icon(
-                  onPressed: () => _scrollTranscriptToBubble(activeBubbleIndex),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _playerPrimary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    elevation: 2,
-                  ),
-                  icon: const Icon(Icons.my_location_rounded, size: 18),
-                  label: Text(
-                    'Về hiện tại',
-                    style: GoogleFonts.workSans(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+  double? _resolveTargetOffset(int bubbleIndex) {
+    return _resolveTargetOffsetForFocus(
+      bubbleIndex: bubbleIndex,
+      wordIndex: null,
     );
   }
 
-  /// Renders text highlighting only the current word with rounded background.
+  double? _resolveTargetOffsetForFocus({
+    required int bubbleIndex,
+    required int? wordIndex,
+  }) {
+    if (!_scrollController.hasClients ||
+        bubbleIndex < 0 ||
+        bubbleIndex >= _bubbleKeys.length) {
+      return null;
+    }
+
+    final scrollRenderBox = _scrollController.position.context.storageContext
+        .findRenderObject();
+    if (scrollRenderBox == null) {
+      return null;
+    }
+
+    final scrollPosition = _scrollController.position;
+    final focusRenderBox = _resolveFocusRenderBox(
+      bubbleIndex: bubbleIndex,
+      wordIndex: wordIndex,
+    );
+    final bubbleContext = _bubbleKeys[bubbleIndex].currentContext;
+    final bubbleRenderBox = bubbleContext?.findRenderObject() as RenderBox?;
+    final renderBox = focusRenderBox ?? bubbleRenderBox;
+    if (renderBox == null) {
+      return null;
+    }
+    final focusTop = renderBox
+        .localToGlobal(Offset.zero, ancestor: scrollRenderBox)
+        .dy;
+    final anchorFactor = focusRenderBox != null ? 0.42 : 0.28;
+
+    return (_scrollController.offset +
+            focusTop -
+            scrollPosition.viewportDimension * anchorFactor)
+        .clamp(0.0, scrollPosition.maxScrollExtent);
+  }
+
+  bool? _isBubbleOutsideFocusZone(int bubbleIndex) {
+    if (!_scrollController.hasClients ||
+        bubbleIndex < 0 ||
+        bubbleIndex >= _bubbleKeys.length) {
+      return null;
+    }
+
+    final bubbleContext = _bubbleKeys[bubbleIndex].currentContext;
+    final bubbleRenderBox = bubbleContext?.findRenderObject() as RenderBox?;
+    final scrollRenderBox = _scrollController.position.context.storageContext
+        .findRenderObject();
+    if (bubbleRenderBox == null || scrollRenderBox == null) {
+      return null;
+    }
+
+    final bubbleTop = bubbleRenderBox
+        .localToGlobal(Offset.zero, ancestor: scrollRenderBox)
+        .dy;
+    final bubbleBottom = bubbleTop + bubbleRenderBox.size.height;
+
+    return isTranscriptBubbleOutsideFocusZone(
+      bubbleTop: bubbleTop,
+      bubbleBottom: bubbleBottom,
+      viewportHeight: _scrollController.position.viewportDimension,
+    );
+  }
+
+  RenderBox? _resolveFocusRenderBox({
+    required int bubbleIndex,
+    required int? wordIndex,
+  }) {
+    if (wordIndex == null) {
+      return null;
+    }
+
+    final wordKeys = _wordKeysByBubble[bubbleIndex];
+    if (wordKeys == null || wordIndex < 0 || wordIndex >= wordKeys.length) {
+      return null;
+    }
+
+    final wordContext = wordKeys[wordIndex].currentContext;
+    return wordContext?.findRenderObject() as RenderBox?;
+  }
+
+  bool? _isFocusOutsideZone({
+    required int bubbleIndex,
+    required int wordIndex,
+  }) {
+    if (!_scrollController.hasClients ||
+        bubbleIndex < 0 ||
+        bubbleIndex >= _bubbleKeys.length) {
+      return null;
+    }
+
+    final scrollRenderBox = _scrollController.position.context.storageContext
+        .findRenderObject();
+    if (scrollRenderBox == null) {
+      return null;
+    }
+
+    final focusRenderBox = _resolveFocusRenderBox(
+      bubbleIndex: bubbleIndex,
+      wordIndex: wordIndex,
+    );
+    final bubbleContext = _bubbleKeys[bubbleIndex].currentContext;
+    final bubbleRenderBox = bubbleContext?.findRenderObject() as RenderBox?;
+    final renderBox = focusRenderBox ?? bubbleRenderBox;
+    if (renderBox == null) {
+      return null;
+    }
+
+    final focusTop = renderBox
+        .localToGlobal(Offset.zero, ancestor: scrollRenderBox)
+        .dy;
+    final focusBottom = focusTop + renderBox.size.height;
+
+    return shouldShowReturnToCurrentTranscriptFromFocusZone(
+      bubbleTop: focusTop,
+      bubbleBottom: focusBottom,
+      viewportHeight: _scrollController.position.viewportDimension,
+      isCurrentlyVisible: _showReturnToCurrentButton,
+    );
+  }
+
+  void _ensureWordKeysForBubble(int bubbleIndex, int wordCount) {
+    final existing = _wordKeysByBubble[bubbleIndex];
+    if (existing != null && existing.length == wordCount) {
+      return;
+    }
+
+    _wordKeysByBubble[bubbleIndex] = List.generate(
+      wordCount,
+      (_) => GlobalKey(),
+    );
+  }
+
+  Future<void> _scrollToBubble(
+    int bubbleIndex, {
+    int? wordIndex,
+    bool animated = true,
+    int retryCount = 2,
+  }) async {
+    final targetOffset = _resolveTargetOffsetForFocus(
+      bubbleIndex: bubbleIndex,
+      wordIndex: wordIndex,
+    );
+    if (targetOffset == null) {
+      if (retryCount > 0 && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) {
+            return;
+          }
+          unawaited(
+            _scrollToBubble(
+              bubbleIndex,
+              wordIndex: wordIndex,
+              animated: animated,
+              retryCount: retryCount - 1,
+            ),
+          );
+        });
+      }
+      return;
+    }
+
+    _isAutoScrolling = true;
+    try {
+      if (animated) {
+        await _scrollController.animateTo(
+          targetOffset,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        );
+      } else {
+        _scrollController.jumpTo(targetOffset);
+      }
+    } finally {
+      _isAutoScrolling = false;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _autoFollowEnabled = true;
+      _showReturnToCurrentButton = false;
+    });
+  }
+
+  Future<void> _handleBubbleTap(int bubbleIndex) async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _autoFollowEnabled = true;
+      _showReturnToCurrentButton = false;
+      _lastActiveBubbleIndex = bubbleIndex;
+      _lastActiveWordIndex = -1;
+    });
+
+    await widget.onTapBubble(bubbleIndex);
+    if (!mounted) {
+      return;
+    }
+
+    unawaited(_scrollToBubble(bubbleIndex));
+  }
+
+  void _updateFocusButton(int activeBubbleIndex, int activeWordIndex) {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    if (_autoFollowEnabled) {
+      if (mounted && _showReturnToCurrentButton) {
+        setState(() {
+          _showReturnToCurrentButton = false;
+        });
+      }
+      return;
+    }
+
+    final shouldShow =
+        _isFocusOutsideZone(
+          bubbleIndex: activeBubbleIndex,
+          wordIndex: activeWordIndex,
+        ) ??
+        _isBubbleOutsideFocusZone(activeBubbleIndex) ??
+        (() {
+          final targetOffset = _resolveTargetOffset(activeBubbleIndex);
+          if (targetOffset == null) {
+            return false;
+          }
+
+          return shouldShowReturnToCurrentTranscriptButton(
+            currentOffset: _scrollController.offset,
+            targetOffset: targetOffset,
+          );
+        })();
+
+    if (!mounted || _showReturnToCurrentButton == shouldShow) {
+      return;
+    }
+
+    setState(() {
+      _showReturnToCurrentButton = shouldShow;
+    });
+  }
+
+  bool _handleScrollNotification(
+    ScrollNotification notification,
+    int activeBubbleIndex,
+    int activeWordIndex,
+  ) {
+    if (_isAutoScrolling) {
+      return false;
+    }
+
+    final isUserDriven =
+        (notification is ScrollStartNotification &&
+            notification.dragDetails != null) ||
+        (notification is ScrollUpdateNotification &&
+            notification.dragDetails != null) ||
+        (notification is OverscrollNotification &&
+            notification.dragDetails != null);
+
+    if (isUserDriven && _autoFollowEnabled && mounted) {
+      setState(() {
+        _autoFollowEnabled = false;
+      });
+    }
+
+    if (notification is ScrollUpdateNotification ||
+        notification is OverscrollNotification ||
+        notification is ScrollEndNotification ||
+        notification is UserScrollNotification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _updateFocusButton(activeBubbleIndex, activeWordIndex);
+      });
+    }
+
+    return false;
+  }
+
   Widget _buildHighlightedText({
+    required int bubbleIndex,
     required ChatBubble bubble,
+    required int currentWordIndex,
     required double progress,
     required double currentSeconds,
   }) {
@@ -1212,11 +1254,8 @@ class _PlayerScreenState extends State<PlayerScreen>
       return const SizedBox.shrink();
     }
 
-    final currentWordIndex = resolveTranscriptWordIndex(
-      bubble: bubble,
-      currentSeconds: currentSeconds,
-      fallbackProgress: progress,
-    );
+    _ensureWordKeysForBubble(bubbleIndex, words.length);
+    final wordKeys = _wordKeysByBubble[bubbleIndex]!;
 
     return Text.rich(
       TextSpan(
@@ -1231,6 +1270,7 @@ class _PlayerScreenState extends State<PlayerScreen>
               alignment: PlaceholderAlignment.baseline,
               baseline: TextBaseline.alphabetic,
               child: Container(
+                key: wordKeys[idx],
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
                   color: _playerPrimary.withValues(alpha: 0.16),
@@ -1249,17 +1289,236 @@ class _PlayerScreenState extends State<PlayerScreen>
             );
           }
 
-          return TextSpan(
-            text: '$word$suffix',
-            style: GoogleFonts.workSans(
-              fontSize: 15,
-              fontWeight: FontWeight.w400,
-              color: _playerNeutral,
-              height: 1.6,
+          return WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: Text(
+              '$word$suffix',
+              key: wordKeys[idx],
+              style: GoogleFonts.workSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                color: _playerNeutral,
+                height: 1.6,
+              ),
             ),
           );
         }).toList(),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbles = widget.episode.bubbles;
+    while (_bubbleKeys.length < bubbles.length) {
+      _bubbleKeys.add(GlobalKey());
+    }
+
+    final activeBubbleIndex = resolveActiveTranscriptBubbleIndex(
+      bubbles: bubbles,
+      currentSeconds: widget.currentSeconds,
+      fallbackProgress: widget.progress,
+    );
+    final bubbleProgress = resolveTranscriptBubbleProgress(
+      bubbles: bubbles,
+      activeBubbleIndex: activeBubbleIndex,
+      currentSeconds: widget.currentSeconds,
+      fallbackProgress: widget.progress,
+    );
+    final activeWordIndex = resolveTranscriptWordIndex(
+      bubble: bubbles[activeBubbleIndex],
+      currentSeconds: widget.currentSeconds,
+      fallbackProgress: bubbleProgress,
+    );
+    final previousActiveBubbleIndex = _lastActiveBubbleIndex;
+    final previousActiveWordIndex = _lastActiveWordIndex;
+    if (activeBubbleIndex != _lastActiveBubbleIndex ||
+        activeWordIndex != _lastActiveWordIndex) {
+      _lastActiveBubbleIndex = activeBubbleIndex;
+      _lastActiveWordIndex = activeWordIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+
+        if (_autoFollowEnabled) {
+          unawaited(
+            _scrollToBubble(
+              activeBubbleIndex,
+              wordIndex: activeWordIndex,
+              animated:
+                  previousActiveBubbleIndex >= 0 ||
+                  previousActiveWordIndex >= 0,
+            ),
+          );
+          return;
+        }
+
+        _updateFocusButton(activeBubbleIndex, activeWordIndex);
+      });
+    }
+
+    if ((!_autoFollowEnabled || _showReturnToCurrentButton) &&
+        !_isAutoScrolling) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _updateFocusButton(activeBubbleIndex, activeWordIndex);
+      });
+    }
+    final hasMultipleSpeakers =
+        bubbles.map((bubble) => bubble.speakerId).toSet().length > 1;
+
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) => _handleScrollNotification(
+            notification,
+            activeBubbleIndex,
+            activeWordIndex,
+          ),
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            physics: const ClampingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var index = 0; index < bubbles.length; index += 1)
+                  () {
+                    final bubble = bubbles[index];
+                    final isActive = index == activeBubbleIndex;
+                    final isPast = index < activeBubbleIndex;
+                    final showSpeaker =
+                        hasMultipleSpeakers &&
+                        (index == 0 ||
+                            bubbles[index - 1].speakerId != bubble.speakerId);
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == bubbles.length - 1 ? 84 : 18,
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          key: _bubbleKeys[index],
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () => unawaited(_handleBubbleTap(index)),
+                          child: Container(
+                            padding: isActive
+                                ? const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  )
+                                : const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 2,
+                                  ),
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? _playerSurfaceStrong
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (showSpeaker)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 5),
+                                    child: AnimatedDefaultTextStyle(
+                                      duration: const Duration(
+                                        milliseconds: 250,
+                                      ),
+                                      style: GoogleFonts.workSans(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: isActive
+                                            ? _playerPrimary
+                                            : _playerMuted,
+                                        letterSpacing: 0.5,
+                                      ),
+                                      child: Text(bubble.speaker.toUpperCase()),
+                                    ),
+                                  ),
+                                isActive
+                                    ? _buildHighlightedText(
+                                        bubbleIndex: index,
+                                        bubble: bubble,
+                                        currentWordIndex: activeWordIndex,
+                                        progress: bubbleProgress,
+                                        currentSeconds: widget.currentSeconds,
+                                      )
+                                    : AnimatedDefaultTextStyle(
+                                        duration: const Duration(
+                                          milliseconds: 250,
+                                        ),
+                                        style: GoogleFonts.workSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w400,
+                                          color: isPast
+                                              ? _playerMuted
+                                              : _playerNeutral.withValues(
+                                                  alpha: 0.55,
+                                                ),
+                                          height: 1.6,
+                                        ),
+                                        child: Text(bubble.text),
+                                      ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }(),
+              ],
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomRight,
+          child: SafeArea(
+            top: false,
+            left: false,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 0, bottom: 12),
+              child: IgnorePointer(
+                ignoring: !_showReturnToCurrentButton,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 180),
+                  opacity: _showReturnToCurrentButton ? 1 : 0,
+                  child: FilledButton.icon(
+                    onPressed: () =>
+                        unawaited(_scrollToBubble(activeBubbleIndex)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _playerPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.my_location_rounded, size: 18),
+                    label: Text(
+                      'Về hiện tại',
+                      style: GoogleFonts.workSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
