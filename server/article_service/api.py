@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware
 
+from ai_podcast.router import router as ai_podcast_router
 from dependencies import (
     get_article_engagement_service,
     get_article_query_service,
@@ -22,6 +23,7 @@ from services import ArticleEngagementService, ArticleQueryService
 def create_api(logger) -> FastAPI:
     api = FastAPI(title="Pody Article Service", version="1.1.0")
     api.add_middleware(GZipMiddleware, minimum_size=1024)
+    api.include_router(ai_podcast_router)
 
     @api.get("/healthz")
     async def healthz():

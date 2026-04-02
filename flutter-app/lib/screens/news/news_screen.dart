@@ -8,6 +8,7 @@ import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
+import 'package:pody/screens/news/article_podcast_job_screen.dart';
 import 'package:pody/screens/user/favorite_news_categories_screen.dart';
 
 const Color _newsCanvas = Color(0xFFFFFBF6);
@@ -34,6 +35,7 @@ class _NewsScreenState extends State<NewsScreen> {
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _isLoadingCategories = false;
+  bool _isCreatingPodcast = false;
   bool _hasMore = true;
   int _offset = 0;
   String _searchQuery = '';
@@ -306,6 +308,71 @@ class _NewsScreenState extends State<NewsScreen> {
     });
   }
 
+  Future<void> _createPodcastFromSelection() async {
+    final selectedArticles = _articles
+        .where((article) => article.isAdded)
+        .toList(growable: false);
+
+    if (selectedArticles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Hay chon it nhat mot bai bao de tao podcast.'),
+        ),
+      );
+      return;
+    }
+
+    if (_isCreatingPodcast) {
+      return;
+    }
+
+    setState(() => _isCreatingPodcast = true);
+
+    try {
+      final job = await ArticleScope.of(context).createPodcastJob(
+        articleIds: selectedArticles.map((article) => article.id).toList(),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ArticlePodcastJobScreen(
+            jobId: job.jobId,
+            initialArticles: selectedArticles,
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = error.isUnauthorized
+          ? 'Ban can dang nhap de tao podcast bai bao.'
+          : error.message;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khong the tao podcast luc nay. Hay thu lai.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingPodcast = false);
+      }
+    }
+  }
+
   Future<void> _openFavoriteCategories() async {
     await Navigator.push<void>(
       context,
@@ -562,7 +629,7 @@ class _NewsScreenState extends State<NewsScreen> {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: () {},
+                  onPressed: _isCreatingPodcast ? null : _createPodcastFromSelection,
                   style: FilledButton.styleFrom(
                     backgroundColor: _newsPrimary,
                     foregroundColor: Colors.white,
@@ -575,7 +642,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  child: const Text('Tạo và nghe'),
+                  child: Text(_isCreatingPodcast ? 'Dang tao...' : 'Tạo và nghe'),
                 ),
               ),
               const SizedBox(width: 12),
