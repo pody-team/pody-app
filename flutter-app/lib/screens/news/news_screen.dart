@@ -10,6 +10,7 @@ import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
 import 'package:pody/screens/news/article_podcast_library_screen.dart';
 import 'package:pody/screens/news/article_podcast_job_screen.dart';
+import 'package:pody/screens/news/news_podcast_selection.dart';
 import 'package:pody/screens/user/favorite_news_categories_screen.dart';
 
 const Color _newsCanvas = Color(0xFFFFFBF6);
@@ -28,6 +29,7 @@ class NewsScreen extends StatefulWidget {
 
 class _NewsScreenState extends State<NewsScreen> {
   static const int _pageSize = 20;
+  static const int _maxPodcastArticles = 20;
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -45,6 +47,7 @@ class _NewsScreenState extends State<NewsScreen> {
   String? _errorMessage;
   List<NewsCategory> _categories = const <NewsCategory>[];
   List<NewsArticle> _articles = const <NewsArticle>[];
+  final List<int> _selectedArticleIdsInOrder = <int>[];
   ArticleApiService? _articleService;
 
   @override
@@ -304,27 +307,66 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _toggleAdded(NewsArticle article) {
+    var removedOlderSelection = false;
     setState(() {
+      final update = updatePodcastSelection(
+        selectedIdsInOrder: _selectedArticleIdsInOrder,
+        articleId: article.id,
+        isCurrentlySelected: article.isAdded,
+        maxArticles: _maxPodcastArticles,
+      );
       article.isAdded = !article.isAdded;
+      _selectedArticleIdsInOrder
+        ..clear()
+        ..addAll(update.selectedIdsInOrder);
+
+      if (update.removedIds.isNotEmpty) {
+        removedOlderSelection = true;
+        for (final removedId in update.removedIds) {
+          for (final current in _articles) {
+            if (current.id == removedId) {
+              current.isAdded = false;
+              break;
+            }
+          }
+        }
+      }
     });
+
+    if (removedOlderSelection && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Podcast chi giu 20 bai moi chon gan nhat. Cac bai cu hon se duoc bo ra.',
+          ),
+        ),
+      );
+    }
+  }
+
+  List<NewsArticle> _selectedArticlesInOrder() {
+    final byId = {for (final article in _articles) article.id: article};
+    return _selectedArticleIdsInOrder
+        .map((articleId) => byId[articleId])
+        .whereType<NewsArticle>()
+        .toList(growable: false);
   }
 
   Future<void> _createPodcastFromSelection() async {
-    final selectedArticles = _articles
-        .where((article) => article.isAdded)
-        .toList(growable: false);
+    final selectedArticles = _selectedArticlesInOrder();
+
+    if (_isCreatingPodcast) {
+      return;
+    }
 
     if (selectedArticles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Hay chon it nhat mot bai bao de tao podcast.'),
+          content: Text(
+            'Ban chua chon bai nao. He thong se tu tao podcast tu 20 bai recommend moi nhat.',
+          ),
         ),
       );
-      return;
-    }
-
-    if (_isCreatingPodcast) {
-      return;
     }
 
     setState(() => _isCreatingPodcast = true);
@@ -660,6 +702,7 @@ class _NewsScreenState extends State<NewsScreen> {
             children: [
               Expanded(
                 child: FilledButton(
+                  key: const ValueKey<String>('news_create_podcast_button'),
                   onPressed: _isCreatingPodcast
                       ? null
                       : _createPodcastFromSelection,
@@ -1068,6 +1111,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Widget _buildAddButton(NewsArticle article) {
     return InkWell(
+      key: ValueKey<String>('news_add_button_${article.id}'),
       borderRadius: BorderRadius.circular(999),
       onTap: () => _toggleAdded(article),
       child: AnimatedContainer(

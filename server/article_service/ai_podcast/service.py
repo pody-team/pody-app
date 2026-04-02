@@ -19,7 +19,11 @@ from ai_podcast.pipeline.synthesis import build_synthesis
 from ai_podcast.pipeline.validator import validate_script
 from ai_podcast.providers.text_generation import build_text_generation_provider
 from ai_podcast.providers.tts_generation import build_tts_generation_provider
-from ai_podcast.repository import AIPodcastRepository
+from ai_podcast.repository import (
+    AIPodcastRepository,
+    MissingSelectedArticlesError,
+    NoRecommendedArticlesError,
+)
 from ai_podcast.schemas import (
     ArticlePodcastCreateRequest,
     ArticlePodcastCreateResponse,
@@ -42,8 +46,10 @@ class AIPodcastService:
     async def create_job(self, *, owner_user_id: str, request: ArticlePodcastCreateRequest) -> ArticlePodcastCreateResponse:
         try:
             job = await self._repository.create_job(owner_user_id=owner_user_id, request=request)
-        except ValueError as exc:
+        except MissingSelectedArticlesError as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except NoRecommendedArticlesError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
         return ArticlePodcastCreateResponse(job_id=job.id, status=job.status, created_at=job.created_at)
 
     async def list_jobs(self, *, owner_user_id: str) -> ArticlePodcastJobListResponse:

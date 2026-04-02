@@ -14,6 +14,15 @@ from ai_podcast.models import (
 )
 from ai_podcast.schemas import ArticlePodcastCreateRequest
 from models import Article
+from repositories import ArticleQueryRepository
+
+
+class MissingSelectedArticlesError(ValueError):
+    pass
+
+
+class NoRecommendedArticlesError(ValueError):
+    pass
 
 
 class AIPodcastRepository:
@@ -21,16 +30,24 @@ class AIPodcastRepository:
         self.session = session
 
     async def create_job(self, *, owner_user_id: str, request: ArticlePodcastCreateRequest) -> ArticlePodcastJob:
-        articles = await self._load_articles(request.article_ids)
-        if len(articles) != len(request.article_ids):
-            raise ValueError("One or more selected articles do not exist")
+        article_ids = self._normalize_article_ids(request.article_ids)
+        if article_ids:
+            articles = await self._load_articles(article_ids)
+            if len(articles) != len(article_ids):
+                raise MissingSelectedArticlesError("One or more selected articles do not exist")
+        else:
+            articles = await self._load_recommended_articles(owner_user_id=owner_user_id, limit=20)
+            if not articles:
+                raise NoRecommendedArticlesError("No recommended articles are available to create a podcast")
+
+        target_minutes = self._derive_target_minutes(len(articles))
 
         job = ArticlePodcastJob(
             id=str(uuid4()),
             owner_user_id=owner_user_id,
             status="queued",
             voice=(request.voice or "").strip() or None,
-            target_minutes=int(request.target_minutes or 6),
+            target_minutes=target_minutes,
             language_code=(request.language_code or "vi").strip() or "vi",
         )
         self.session.add(job)
@@ -181,3 +198,32 @@ class AIPodcastRepository:
         articles = list((await self.session.execute(stmt)).scalars().all())
         by_id = {int(article.id): article for article in articles}
         return [by_id[article_id] for article_id in article_ids if article_id in by_id]
+
+    async def _load_recommended_articles(self, *, owner_user_id: str, limit: int) -> list[Article]:
+        query_repository = ArticleQueryRepository(self.session)
+        rows = await query_repository.list_articles_with_extra(
+            limit=limit,
+            offset=0,
+            category=None,
+            query=None,
+            current_user_id=owner_user_id,
+        )
+        return [article for article, _, _ in rows]
+
+    @staticmethod
+    def _normalize_article_ids(article_ids: list[int]) -> list[int]:
+        normalized: list[int] = []
+        seen: set[int] = set()
+        for article_id in article_ids or []:
+            normalized_id = int(article_id)
+            if normalized_id in seen:
+                continue
+            seen.add(normalized_id)
+            normalized.append(normalized_id)
+        if len(normalized) > 20:
+            return normalized[-20:]
+        return normalized
+
+    @staticmethod
+    def _derive_target_minutes(article_count: int) -> int:
+        return max(2, min(12, round(max(0, article_count) * 0.6)))

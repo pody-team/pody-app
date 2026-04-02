@@ -37,6 +37,8 @@ class StubTextGenerationProvider(TextGenerationProvider):
         synthesis = payload.get("synthesis") or {}
         topic = str(synthesis.get("topic") or "Tin tuc hom nay").strip() or "Tin tuc hom nay"
         key_insights = synthesis.get("key_insights") or ["Nhung dien bien dang chu y"]
+        target_minutes = max(2, int(payload.get("target_minutes") or 2))
+        source_count = len(((payload.get("research_pack") or {}).get("primary_sources") or []))
         outline = [
             "Mo dau va dat van de",
             "Tong hop cac y chinh tu nhom bai bao",
@@ -45,13 +47,22 @@ class StubTextGenerationProvider(TextGenerationProvider):
         ]
         body_parts = [
             f"Xin chao, day la ban tin audio ve chu de {topic}.",
+            f"Ban podcast nay tong hop {source_count} bai bao va huong toi thoi luong khoang {target_minutes} phut.",
             "Trong nhom bai bao ma ban vua chon, co mot so y chinh noi bat can luu y.",
         ]
-        for insight in key_insights[:5]:
-            body_parts.append(str(insight).strip())
+        for section_index in range(target_minutes):
+            insight = str(key_insights[section_index % len(key_insights)]).strip()
+            if insight:
+                body_parts.append(
+                    f"Diem noi bat {section_index + 1}: {insight}. Chi tiet nay dong vai tro quan trong trong buc tranh tong the."
+                )
+            body_parts.append(
+                "Khi dat canh nhau, cac bai viet cho thay mot mach thong tin lien tuc va co nhieu diem noi nhau can theo doi."
+            )
         body_parts.append("Ben canh do, co mot vai thong tin mo rong giup dat cac bai viet vao boi canh rong hon.")
-        for item in (synthesis.get("external_context") or [])[:3]:
-            body_parts.append(str(item).strip())
+        external_context = (synthesis.get("external_context") or [])[: max(3, min(6, target_minutes))]
+        for item in external_context:
+            body_parts.append(f"Boi canh them: {str(item).strip()}.")
         body_parts.append("Do la nhung diem noi bat nhat trong cum bai bao nay.")
         return ScriptDraft(
             podcast_title=f"Podcast bao chi: {topic}",

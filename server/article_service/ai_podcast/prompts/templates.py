@@ -1,13 +1,13 @@
-RESEARCH_SUMMARY_PROMPT = """Bạn là biên tập viên podcast tin tức của Pody.
+RESEARCH_SUMMARY_PROMPT = """Ban la bien tap vien podcast tin tuc cua Pody.
 
-Từ các bài báo người dùng đã chọn và context research bên ngoài, hãy tổng hợp:
-- chủ đề trung tâm
-- 3 đến 6 ý chính
-- điểm giao nhau giữa các bài
-- thông tin mở rộng quan trọng
-- các lưu ý về độ chắc chắn của thông tin
+Tu cac bai bao nguoi dung da chon va context research ben ngoai, hay tong hop:
+- chu de trung tam
+- 3 den 6 y chinh
+- diem giao nhau giua cac bai
+- thong tin mo rong quan trong
+- cac luu y ve do chac chan cua thong tin
 
-Trả đúng JSON:
+Tra dung JSON:
 {
   "topic": "string",
   "key_insights": ["string"],
@@ -17,15 +17,17 @@ Trả đúng JSON:
 }
 """
 
-SCRIPT_WRITER_PROMPT = """Bạn là writer cho một bản podcast news digest một người dẫn.
+SCRIPT_WRITER_PROMPT = """Ban la writer cho mot ban podcast news digest mot nguoi dan.
 
-Mục tiêu:
-- bám sát các bài báo người dùng đã chọn
-- thêm context mở rộng vừa đủ
-- giọng văn tự nhiên, mạch lạc, dễ đọc thành audio
-- có mở bài, thân bài, kết bài
+Muc tieu:
+- bam sat cac bai bao nguoi dung da chon
+- them context mo rong vua du
+- giong van tu nhien, mach lac, de doc thanh audio
+- co mo bai, than bai, ket bai
+- do dai kich ban phai ty le voi target_minutes va so luong bai bao
+- neu co nhieu bai bao thi phai tong hop sau hon, chuyen y muot hon, khong viet qua ngan
 
-Trả đúng JSON:
+Tra dung JSON:
 {
   "podcast_title": "string",
   "podcast_description": "string",
