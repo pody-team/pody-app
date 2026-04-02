@@ -177,6 +177,46 @@ func (f *fakeRepo) ConsumePasswordReset(_ context.Context, email, token, passwor
 	return user, nil
 }
 
+func (f *fakeRepo) UpdateUserProfileWithOutbox(
+	_ context.Context,
+	userID,
+	displayName,
+	username,
+	bio,
+	avatarURL string,
+	event store.CreateOutboxEventInput,
+) (domain.User, error) {
+	user, ok := f.userByID[userID]
+	if !ok {
+		return domain.User{}, store.ErrNotFound
+	}
+
+	for existingID, existingUser := range f.userByID {
+		if existingID == userID {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(existingUser.Username), strings.TrimSpace(username)) {
+			return domain.User{}, store.ErrConflict
+		}
+	}
+
+	user.DisplayName = displayName
+	user.Username = username
+	user.Bio = bio
+	user.AvatarURL = avatarURL
+	user.UpdatedAt = time.Now()
+	f.userByID[userID] = user
+
+	record, ok := f.userByEmail[user.Email]
+	if ok {
+		record.User = user
+		f.userByEmail[user.Email] = record
+	}
+
+	f.outboxEvents = append(f.outboxEvents, event)
+	return user, nil
+}
+
 func (f *fakeRepo) UpdatePasswordAndRevokeSessions(_ context.Context, userID, passwordHash string) error {
 	user, ok := f.userByID[userID]
 	if !ok {
@@ -540,5 +580,168 @@ func TestVerifyResetOTP(t *testing.T) {
 	})
 	if !errors.Is(err, ErrInvalidPasswordReset) {
 		t.Fatalf("expected ErrInvalidPasswordReset, got %v", err)
+	}
+}
+
+func TestUpdateProfile(t *testing.T) {
+	repo := newFakeRepo()
+	service := newTestService(repo)
+
+	now := time.Now()
+	user := domain.User{
+		ID:              "user-profile-1",
+		Email:           "profile@pody.vn",
+		DisplayName:     "Profile User",
+		Username:        "profile.user",
+		Bio:             "Old bio",
+		AvatarURL:       "https://example.com/old.png",
+		AccountType:     "creator",
+		Status:          "active",
+		Locale:          "vi",
+		Timezone:        "Asia/Ho_Chi_Minh",
+		EmailVerifiedAt: &now,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	repo.userByID[user.ID] = user
+	repo.userByEmail[user.Email] = store.UserRecord{User: user}
+
+	session, err := service.issueSession(context.Background(), user)
+	if err != nil {
+		t.Fatalf("issueSession() error = %v", err)
+	}
+
+	displayName := "Creator Prime"
+	username := "Creator.Prime"
+	bio := "Profile moi"
+	avatarURL := ""
+	updatedUser, err := service.UpdateProfile(context.Background(), session.Tokens.AccessToken, UpdateProfileInput{
+		DisplayName: &displayName,
+		Username:    &username,
+		Bio:         &bio,
+		AvatarURL:   &avatarURL,
+	})
+	if err != nil {
+		t.Fatalf("UpdateProfile() error = %v", err)
+	}
+
+	if updatedUser.DisplayName != displayName {
+		t.Fatalf("expected updated display name %q, got %q", displayName, updatedUser.DisplayName)
+	}
+	if updatedUser.Username != "creator.prime" {
+		t.Fatalf("expected normalized username, got %q", updatedUser.Username)
+	}
+	if updatedUser.AvatarURL != "" {
+		t.Fatalf("expected avatar url to be cleared, got %q", updatedUser.AvatarURL)
+	}
+
+	if len(repo.outboxEvents) != 1 {
+		t.Fatalf("expected one outbox event, got %d", len(repo.outboxEvents))
+	}
+
+	var event notification.UserProfileUpdatedEvent
+	if err := json.Unmarshal(repo.outboxEvents[0].Payload, &event); err != nil {
+		t.Fatalf("unmarshal profile update event: %v", err)
+	}
+
+	if event.UserID != user.ID || event.DisplayName != displayName || event.Username != "creator.prime" {
+		t.Fatalf("unexpected profile update event: %+v", event)
+	}
+}
+
+func TestUpdateProfileRejectsInvalidInput(t *testing.T) {
+	repo := newFakeRepo()
+	service := newTestService(repo)
+
+	now := time.Now()
+	user := domain.User{
+		ID:              "user-profile-invalid",
+		Email:           "invalid@pody.vn",
+		DisplayName:     "Valid User",
+		Username:        "valid.user",
+		AccountType:     "listener",
+		Status:          "active",
+		Locale:          "vi",
+		Timezone:        "Asia/Ho_Chi_Minh",
+		EmailVerifiedAt: &now,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	repo.userByID[user.ID] = user
+	repo.userByEmail[user.Email] = store.UserRecord{User: user}
+
+	session, err := service.issueSession(context.Background(), user)
+	if err != nil {
+		t.Fatalf("issueSession() error = %v", err)
+	}
+
+	invalidUsername := "Bad Name"
+	if _, err := service.UpdateProfile(context.Background(), session.Tokens.AccessToken, UpdateProfileInput{
+		Username: &invalidUsername,
+	}); !errors.Is(err, ErrInvalidProfileUpdate) {
+		t.Fatalf("expected ErrInvalidProfileUpdate for username, got %v", err)
+	}
+
+	invalidAvatar := "ftp://example.com/avatar.png"
+	if _, err := service.UpdateProfile(context.Background(), session.Tokens.AccessToken, UpdateProfileInput{
+		AvatarURL: &invalidAvatar,
+	}); !errors.Is(err, ErrInvalidProfileUpdate) {
+		t.Fatalf("expected ErrInvalidProfileUpdate for avatar, got %v", err)
+	}
+
+	longBio := strings.Repeat("a", 151)
+	if _, err := service.UpdateProfile(context.Background(), session.Tokens.AccessToken, UpdateProfileInput{
+		Bio: &longBio,
+	}); !errors.Is(err, ErrInvalidProfileUpdate) {
+		t.Fatalf("expected ErrInvalidProfileUpdate for bio, got %v", err)
+	}
+}
+
+func TestUpdateProfileRejectsDuplicateUsername(t *testing.T) {
+	repo := newFakeRepo()
+	service := newTestService(repo)
+
+	now := time.Now()
+	existing := domain.User{
+		ID:              "user-existing",
+		Email:           "existing@pody.vn",
+		DisplayName:     "Existing",
+		Username:        "taken.name",
+		AccountType:     "listener",
+		Status:          "active",
+		Locale:          "vi",
+		Timezone:        "Asia/Ho_Chi_Minh",
+		EmailVerifiedAt: &now,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	current := domain.User{
+		ID:              "user-current",
+		Email:           "current@pody.vn",
+		DisplayName:     "Current",
+		Username:        "current.name",
+		AccountType:     "listener",
+		Status:          "active",
+		Locale:          "vi",
+		Timezone:        "Asia/Ho_Chi_Minh",
+		EmailVerifiedAt: &now,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	repo.userByID[existing.ID] = existing
+	repo.userByEmail[existing.Email] = store.UserRecord{User: existing}
+	repo.userByID[current.ID] = current
+	repo.userByEmail[current.Email] = store.UserRecord{User: current}
+
+	session, err := service.issueSession(context.Background(), current)
+	if err != nil {
+		t.Fatalf("issueSession() error = %v", err)
+	}
+
+	username := "taken.name"
+	if _, err := service.UpdateProfile(context.Background(), session.Tokens.AccessToken, UpdateProfileInput{
+		Username: &username,
+	}); !errors.Is(err, ErrUsernameAlreadyExists) {
+		t.Fatalf("expected ErrUsernameAlreadyExists, got %v", err)
 	}
 }

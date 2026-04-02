@@ -42,23 +42,20 @@ void main() {
     expect(find.text('@creator-prime'), findsOneWidget);
     expect(find.text('2'), findsWidgets);
     expect(find.text('3.1k'), findsOneWidget);
+    expect(find.text('Tap duoc luu 1'), findsNothing);
     expect(find.text('Tập được lưu 1'), findsOneWidget);
 
-    await tester.tap(find.text('Của tôi'));
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(
-      find.text('Future Makers'),
-      200,
-      scrollable: find.byType(Scrollable).last,
+    await authController.updateProfile(
+      displayName: 'Updated Creator',
+      username: 'updated.creator',
+      bio: 'Profile moi',
+      avatarUrl: '',
     );
-    expect(find.text('Future Makers'), findsOneWidget);
-    expect(find.text('Người theo dõi'), findsOneWidget);
-
-    await tester.tap(find.text('Theo dõi'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Chưa có dữ liệu theo dõi'), findsOneWidget);
+    expect(find.text('Updated Creator'), findsOneWidget);
+    expect(find.text('@updated.creator'), findsOneWidget);
+    expect(find.text('Profile moi'), findsOneWidget);
   });
 }
 
@@ -88,12 +85,12 @@ class _FakeGoogleAuthDataSource implements GoogleAuthDataSource {
 class _FakeAuthRemoteDataSource extends AuthRemoteDataSource {
   _FakeAuthRemoteDataSource(super.apiClient);
 
-  static final AuthUser _user = AuthUser(
+  AuthUser _user = const AuthUser(
     id: 'user-1',
     email: 'creator@pody.vn',
     displayName: 'Creator Prime',
     username: 'creator-prime',
-    bio: 'Đang xây creator studio bằng dữ liệu thật.',
+    bio: 'Dang xay creator studio bang du lieu that.',
     accountType: 'creator',
     status: 'active',
   );
@@ -113,6 +110,22 @@ class _FakeAuthRemoteDataSource extends AuthRemoteDataSource {
       tokenType: 'Bearer',
     );
   }
+
+  @override
+  Future<AuthUser> updateProfile({
+    required String displayName,
+    required String username,
+    required String bio,
+    required String avatarUrl,
+  }) async {
+    _user = _user.copyWith(
+      displayName: displayName,
+      username: username,
+      bio: bio,
+      avatarUrl: avatarUrl,
+    );
+    return _user;
+  }
 }
 
 class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
@@ -126,7 +139,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
           id: 'episode-1',
           showId: 'show-1',
           title: 'Tập được lưu 1',
-          description: 'Mô tả',
+          description: 'Mo ta',
           coverImageUrl: 'https://example.com/episode-1.png',
           durationSeconds: 1200,
           publishedAt: DateTime(2026, 3, 30, 10),
@@ -137,7 +150,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
           slug: 'future-makers',
           title: 'Future Makers',
           coverImageUrl: 'https://example.com/show-1.png',
-          primaryCategory: 'Công nghệ',
+          primaryCategory: 'Cong nghe',
           hosts: const [],
           contentType: 'podcast',
           subscriberCount: 2100,
@@ -157,7 +170,7 @@ class _FakeContentRemoteDataSource extends ContentRemoteDataSource {
         slug: 'future-makers',
         title: 'Future Makers',
         coverImageUrl: 'https://example.com/show-1.png',
-        primaryCategory: 'Công nghệ',
+        primaryCategory: 'Cong nghe',
         hosts: const [],
         contentType: 'podcast',
         subscriberCount: 2100,

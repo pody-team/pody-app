@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -172,6 +173,51 @@ class ApiClient {
       bearerToken: bearerToken,
       requiresAuth: requiresAuth,
     );
+  }
+
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required Uint8List bytes,
+    required String fileName,
+    String fieldName = 'file',
+    String? contentType,
+    bool requiresAuth = false,
+  }) async {
+    try {
+      final response = await _dio.post<dynamic>(
+        path,
+        data: FormData.fromMap({
+          fieldName: MultipartFile.fromBytes(
+            bytes,
+            filename: fileName,
+            contentType: contentType == null
+                ? null
+                : DioMediaType.parse(contentType),
+          ),
+        }),
+        options: Options(
+          headers: const {'Accept': 'application/json'},
+          extra: {_requiresAuthKey: requiresAuth},
+        ),
+      );
+
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        final decoded = jsonDecode(data);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+
+      throw ApiException('May chu tra ve du lieu khong hop le.');
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    } on FormatException {
+      throw ApiException('May chu tra ve du lieu khong hop le.');
+    }
   }
 
   Future<Map<String, dynamic>> put(

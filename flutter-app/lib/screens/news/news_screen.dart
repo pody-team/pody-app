@@ -8,6 +8,10 @@ import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
+import 'package:pody/screens/news/article_podcast_library_screen.dart';
+import 'package:pody/screens/news/article_podcast_job_screen.dart';
+import 'package:pody/screens/news/news_podcast_selection.dart';
+import 'package:pody/screens/user/favorite_news_categories_screen.dart';
 
 const Color _newsCanvas = Color(0xFFFFFBF6);
 const Color _newsSurface = Color(0xFFFFFEFC);
@@ -25,6 +29,7 @@ class NewsScreen extends StatefulWidget {
 
 class _NewsScreenState extends State<NewsScreen> {
   static const int _pageSize = 20;
+  static const int _maxPodcastArticles = 20;
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -33,6 +38,7 @@ class _NewsScreenState extends State<NewsScreen> {
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _isLoadingCategories = false;
+  bool _isCreatingPodcast = false;
   bool _hasMore = true;
   int _offset = 0;
   String _searchQuery = '';
@@ -41,6 +47,7 @@ class _NewsScreenState extends State<NewsScreen> {
   String? _errorMessage;
   List<NewsCategory> _categories = const <NewsCategory>[];
   List<NewsArticle> _articles = const <NewsArticle>[];
+  final List<int> _selectedArticleIdsInOrder = <int>[];
   ArticleApiService? _articleService;
 
   @override
@@ -300,9 +307,161 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   void _toggleAdded(NewsArticle article) {
+    var removedOlderSelection = false;
     setState(() {
+      final update = updatePodcastSelection(
+        selectedIdsInOrder: _selectedArticleIdsInOrder,
+        articleId: article.id,
+        isCurrentlySelected: article.isAdded,
+        maxArticles: _maxPodcastArticles,
+      );
       article.isAdded = !article.isAdded;
+      _selectedArticleIdsInOrder
+        ..clear()
+        ..addAll(update.selectedIdsInOrder);
+
+      if (update.removedIds.isNotEmpty) {
+        removedOlderSelection = true;
+        for (final removedId in update.removedIds) {
+          for (final current in _articles) {
+            if (current.id == removedId) {
+              current.isAdded = false;
+              break;
+            }
+          }
+        }
+      }
     });
+
+    if (removedOlderSelection && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Podcast chi giu 20 bai moi chon gan nhat. Cac bai cu hon se duoc bo ra.',
+          ),
+        ),
+      );
+    }
+  }
+
+  List<NewsArticle> _selectedArticlesInOrder() {
+    final byId = {for (final article in _articles) article.id: article};
+    return _selectedArticleIdsInOrder
+        .map((articleId) => byId[articleId])
+        .whereType<NewsArticle>()
+        .toList(growable: false);
+  }
+
+  Future<void> _createPodcastFromSelection() async {
+    final selectedArticles = _selectedArticlesInOrder();
+
+    if (_isCreatingPodcast) {
+      return;
+    }
+
+    if (selectedArticles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ban chua chon bai nao. He thong se tu tao podcast tu 20 bai recommend moi nhat.',
+          ),
+        ),
+      );
+    }
+
+    setState(() => _isCreatingPodcast = true);
+
+    try {
+      final job = await ArticleScope.of(context).createPodcastJob(
+        articleIds: selectedArticles.map((article) => article.id).toList(),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => ArticlePodcastJobScreen(
+            jobId: job.jobId,
+            initialArticles: selectedArticles,
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = error.isUnauthorized
+          ? 'Ban can dang nhap de tao podcast bai bao.'
+          : error.message;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khong the tao podcast luc nay. Hay thu lai.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isCreatingPodcast = false);
+      }
+    }
+  }
+
+  Future<void> _openFavoriteCategories() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const FavoriteNewsCategoriesScreen(),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _fetchCategories();
+    if ((_selectedCategorySlug?.isNotEmpty ?? false) ||
+        _searchQuery.isNotEmpty) {
+      return;
+    }
+    await _fetchArticles(reset: true);
+  }
+
+  Future<void> _openPodcastLibrary() async {
+    try {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => const ArticlePodcastLibraryScreen(),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final message = error.isUnauthorized
+          ? 'Ban can dang nhap de xem podcast bao da tao.'
+          : error.message;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khong mo duoc danh sach podcast bao luc nay.'),
+        ),
+      );
+    }
   }
 
   String get _heroTitle {
@@ -359,13 +518,30 @@ class _NewsScreenState extends State<NewsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                  child: Text(
-                    'Danh mục',
-                    style: GoogleFonts.newsreader(
-                      color: _newsNeutral,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Danh mục',
+                          style: GoogleFonts.newsreader(
+                            color: _newsNeutral,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton.filledTonal(
+                        onPressed: _openFavoriteCategories,
+                        tooltip: 'Chon the loai yeu thich',
+                        style: IconButton.styleFrom(
+                          backgroundColor: _newsSurface,
+                          foregroundColor: _newsPrimary,
+                          minimumSize: const Size(40, 40),
+                          padding: EdgeInsets.zero,
+                        ),
+                        icon: const Icon(Icons.tune_rounded, size: 20),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -526,7 +702,10 @@ class _NewsScreenState extends State<NewsScreen> {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: () {},
+                  key: const ValueKey<String>('news_create_podcast_button'),
+                  onPressed: _isCreatingPodcast
+                      ? null
+                      : _createPodcastFromSelection,
                   style: FilledButton.styleFrom(
                     backgroundColor: _newsPrimary,
                     foregroundColor: Colors.white,
@@ -539,8 +718,21 @@ class _NewsScreenState extends State<NewsScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  child: const Text('Tạo và nghe'),
+                  child: Text(
+                    _isCreatingPodcast ? 'Dang tao...' : 'Tạo và nghe',
+                  ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              IconButton.filledTonal(
+                onPressed: _openPodcastLibrary,
+                tooltip: 'Mo podcast bao cua toi',
+                style: IconButton.styleFrom(
+                  backgroundColor: _newsSurface,
+                  foregroundColor: _newsPrimary,
+                  minimumSize: const Size(48, 48),
+                ),
+                icon: const Icon(Icons.library_music_rounded),
               ),
               const SizedBox(width: 12),
               IconButton.filledTonal(
@@ -927,6 +1119,7 @@ class _NewsScreenState extends State<NewsScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: ValueKey<String>('news_add_button_${article.id}'),
           borderRadius: BorderRadius.circular(999),
           onTap: () => _toggleAdded(article),
           child: AnimatedContainer(

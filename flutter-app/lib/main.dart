@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:pody/screens/show/content_home_screen.dart';
@@ -37,6 +38,7 @@ const _navSurface = Color(0xFFFFFBF6);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.pody.team.pody.audio',
     androidNotificationChannelName: 'Audio playback',

@@ -272,6 +272,62 @@ paths:
                 $ref: '#/components/schemas/UserEnvelope'
         '401':
           $ref: '#/components/responses/ErrorResponse'
+    patch:
+      tags: [Account]
+      operationId: updateCurrentUserProfile
+      summary: Update the current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Current user profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+  /api/v1/identity/me/avatar:
+    post:
+      tags: [Account]
+      operationId: uploadCurrentUserAvatar
+      summary: Upload an avatar image for the current user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        '201':
+          description: Avatar uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarUploadResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
   /api/v1/identity/change-password:
     post:
       tags: [Account]
@@ -398,6 +454,20 @@ components:
           type: string
           minLength: 8
       required: [current_password, new_password]
+    UpdateProfileRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+          maxLength: 120
+        username:
+          type: string
+        bio:
+          type: string
+          maxLength: 150
+        avatar_url:
+          type: string
+          format: uri
     VerificationChallenge:
       type: object
       properties:
@@ -502,6 +572,13 @@ components:
         user:
           $ref: '#/components/schemas/User'
       required: [user]
+    AvatarUploadResponse:
+      type: object
+      properties:
+        avatar_url:
+          type: string
+          format: uri
+      required: [avatar_url]
     MessageUserResponse:
       type: object
       properties:

@@ -9,12 +9,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/promex04/pody/server/identity-service/internal/auth"
 	"github.com/promex04/pody/server/identity-service/internal/config"
 	"github.com/promex04/pody/server/identity-service/internal/googleauth"
 	"github.com/promex04/pody/server/identity-service/internal/httpserver"
+	"github.com/promex04/pody/server/identity-service/internal/media"
 	"github.com/promex04/pody/server/identity-service/internal/notification"
 	"github.com/promex04/pody/server/identity-service/internal/outbox"
 	"github.com/promex04/pody/server/identity-service/internal/store"
@@ -65,8 +67,31 @@ func main() {
 	)
 	outboxPublisher := outbox.NewPublisher(repo, notificationProducer, logger, cfg.OutboxPollInterval, cfg.OutboxBatchSize)
 	outboxCleanup := outbox.NewCleanupWorker(repo, logger, cfg.OutboxCleanupInterval, cfg.OutboxRetention, cfg.OutboxCleanupBatchSize)
+	var avatarStorage media.AvatarStorage
+	if cfg.MinIOEndpoint != "" {
+		storage, err := media.NewMinIOAvatarStorage(media.Config{
+			Endpoint:       cfg.MinIOEndpoint,
+			AccessKey:      cfg.MinIOAccessKey,
+			SecretKey:      cfg.MinIOSecretKey,
+			UseSSL:         cfg.MinIOUseSSL,
+			BucketName:     cfg.MinIOBucketName,
+			PublicBaseURL:  cfg.MinIOPublicBaseURL,
+			Region:         cfg.MinIORegion,
+			MaxAvatarBytes: cfg.MaxAvatarBytes,
+		})
+		if err != nil {
+			logger.Error("failed to create avatar storage", "error", err)
+			os.Exit(1)
+		}
+		if err := ensureAvatarBucket(context.Background(), storage, logger, cfg.MinIOBucketName); err != nil {
+			logger.Error("failed to ensure minio avatar bucket", "bucket", cfg.MinIOBucketName, "error", err)
+			os.Exit(1)
+		}
+		avatarStorage = storage
+		logger.Info("avatar storage ready", "bucket", cfg.MinIOBucketName, "public_base_url", cfg.MinIOPublicBaseURL)
+	}
 
-	server := httpserver.New(cfg, logger, authService)
+	server := httpserver.New(cfg, logger, authService, avatarStorage)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -109,4 +134,18 @@ func main() {
 		logger.Error("shutdown failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func ensureAvatarBucket(ctx context.Context, storage media.AvatarStorage, logger *slog.Logger, bucketName string) error {
+	var lastErr error
+	for attempt := 1; attempt <= 15; attempt++ {
+		if err := storage.EnsureBucket(ctx); err == nil {
+			return nil
+		} else {
+			lastErr = err
+			logger.Warn("avatar bucket is not ready yet", "bucket", bucketName, "attempt", attempt, "error", err)
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return lastErr
 }

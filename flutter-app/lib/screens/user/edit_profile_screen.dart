@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/features/auth/domain/auth_user.dart';
+import 'package:pody/features/auth/presentation/auth_scope.dart';
 
 const Color _editCanvas = Color(0xFFFFFBF6);
 const Color _editSurface = Color(0xFFFFFEFC);
@@ -24,6 +27,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _displayNameController;
   late final TextEditingController _usernameController;
   late final TextEditingController _bioController;
+  late final TextEditingController _avatarUrlController;
+  bool _isSaving = false;
+  bool _isUploadingAvatar = false;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -35,6 +42,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       text: widget.user.username ?? '',
     );
     _bioController = TextEditingController(text: widget.user.bio);
+    _avatarUrlController = TextEditingController(
+      text: widget.user.avatarUrl ?? '',
+    );
   }
 
   @override
@@ -42,13 +52,144 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _displayNameController.dispose();
     _usernameController.dispose();
     _bioController.dispose();
+    _avatarUrlController.dispose();
     super.dispose();
   }
 
-  void _showUnavailableMessage() {
+  String get _previewAvatarUrl => _avatarUrlController.text.trim();
+
+  String get _effectiveDisplayName {
+    final value = _displayNameController.text.trim();
+    if (value.isNotEmpty) {
+      return value;
+    }
+    return widget.user.displayName;
+  }
+
+  String? _validateLocally() {
+    final displayName = _displayNameController.text.trim();
+    final username = _usernameController.text.trim().toLowerCase();
+    final bioLength = _bioController.text.trim().characters.length;
+    final avatarUrl = _previewAvatarUrl;
+
+    if (displayName.isEmpty || displayName.characters.length > 120) {
+      return 'Ten hien thi phai tu 1 den 120 ky tu.';
+    }
+
+    final usernamePattern = RegExp(r'^[a-z0-9._]+$');
+    if (username.isEmpty ||
+        username.characters.length > 120 ||
+        !usernamePattern.hasMatch(username)) {
+      return 'Username chi duoc gom chu thuong, so, dau cham va dau gach duoi.';
+    }
+
+    if (bioLength > 150) {
+      return 'Tieu su toi da 150 ky tu.';
+    }
+
+    if (avatarUrl.isNotEmpty) {
+      final parsed = Uri.tryParse(avatarUrl);
+      if (parsed == null ||
+          parsed.host.isEmpty ||
+          (parsed.scheme != 'http' && parsed.scheme != 'https')) {
+        return 'Avatar URL phai bat dau bang http hoac https.';
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _saveProfile() async {
+    final localError = _validateLocally();
+    if (localError != null) {
+      _showMessage(localError);
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final authController = AuthScope.of(context);
+      await authController.updateProfile(
+        displayName: _displayNameController.text.trim(),
+        username: _usernameController.text.trim().toLowerCase(),
+        bio: _bioController.text.trim(),
+        avatarUrl: _previewAvatarUrl,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Da cap nhat ho so.')));
+      Navigator.of(context).pop();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage(_humanizeError(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    if (_isSaving || _isUploadingAvatar) {
+      return;
+    }
+    final authController = AuthScope.of(context);
+
+    try {
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+        maxWidth: 1600,
+      );
+      if (pickedFile == null) {
+        return;
+      }
+
+      setState(() => _isUploadingAvatar = true);
+      final bytes = await pickedFile.readAsBytes();
+      final avatarUrl = await authController.uploadAvatar(
+        bytes: bytes,
+        fileName: pickedFile.name,
+        contentType: pickedFile.mimeType,
+      );
+      if (!mounted) {
+        return;
+      }
+
+      _avatarUrlController.text = avatarUrl;
+      setState(() {});
+      _showMessage('Da tai avatar len server.');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage(_humanizeError(error));
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  String _humanizeError(Object error) {
+    if (error is ApiException) {
+      if (error.statusCode == 409) {
+        return 'Username da ton tai. Hay chon ten khac.';
+      }
+      return error.message;
+    }
+    return 'Khong the cap nhat ho so luc nay.';
+  }
+
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('API cập nhật hồ sơ chưa sẵn sàng.'),
+        content: Text(message),
         backgroundColor: _editNeutral,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -58,8 +199,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final avatarUrl = widget.user.avatarUrl?.trim() ?? '';
-
     return Scaffold(
       backgroundColor: _editCanvas,
       appBar: AppBar(
@@ -67,11 +206,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         surfaceTintColor: _editCanvas,
         elevation: 0,
         leading: IconButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: (_isSaving || _isUploadingAvatar)
+              ? null
+              : () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios_new, color: _editNeutral),
         ),
         title: Text(
-          'Chỉnh sửa hồ sơ',
+          'Chinh sua ho so',
           style: GoogleFonts.newsreader(
             color: _editNeutral,
             fontSize: 24,
@@ -80,14 +221,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: _showUnavailableMessage,
-            child: Text(
-              'Lưu',
-              style: GoogleFonts.workSans(
-                color: _editPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            onPressed: (_isSaving || _isUploadingAvatar) ? null : _saveProfile,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Luu',
+                    style: GoogleFonts.workSans(
+                      color: _editPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -103,44 +250,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             child: Column(
               children: [
-                Container(
-                  width: 108,
-                  height: 108,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _editSecondary.withValues(alpha: 0.42),
-                      width: 3,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _editPrimary.withValues(alpha: 0.10),
-                        blurRadius: 22,
-                        offset: const Offset(0, 14),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(54),
-                    child: avatarUrl.isEmpty
-                        ? Container(
-                            color: _editSurfaceStrong,
-                            alignment: Alignment.center,
-                            child: Text(
-                              _initialsFor(widget.user.displayName),
-                              style: GoogleFonts.workSans(
-                                color: _editNeutral,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          )
-                        : Image.network(avatarUrl, fit: BoxFit.cover),
-                  ),
+                _AvatarPreview(
+                  imageUrl: _previewAvatarUrl,
+                  displayName: _effectiveDisplayName,
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Ảnh đại diện hiện được lấy từ tài khoản đã xác thực.',
+                  'Chon anh tu may cua ban, app se tai len identity-service va luu link public tren MinIO vao profile.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.workSans(
                     fontSize: 12,
@@ -148,28 +264,85 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     height: 1.45,
                   ),
                 ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: (_isSaving || _isUploadingAvatar)
+                        ? null
+                        : _pickAndUploadAvatar,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _editPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    icon: _isUploadingAvatar
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.file_upload_outlined),
+                    label: Text(
+                      _isUploadingAvatar
+                          ? 'Dang tai avatar...'
+                          : 'Tai anh tu may',
+                      style: GoogleFonts.workSans(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _FormField(
+                  controller: _avatarUrlController,
+                  label: 'Avatar URL',
+                  hintText: 'URL se duoc dien sau khi tai len',
+                  keyboardType: TextInputType.url,
+                  readOnly: true,
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: (_isSaving || _isUploadingAvatar)
+                        ? null
+                        : () {
+                            _avatarUrlController.clear();
+                            setState(() {});
+                          },
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Xoa avatar'),
+                    style: TextButton.styleFrom(foregroundColor: _editTertiary),
+                  ),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 18),
           _SectionCard(
-            title: 'Thông tin công khai',
-            subtitle: 'Những gì người khác sẽ nhìn thấy trên hồ sơ của bạn.',
+            title: 'Thong tin cong khai',
+            subtitle: 'Nhung gi nguoi khac se nhin thay tren ho so cua ban.',
             children: [
               _FormField(
                 controller: _displayNameController,
-                label: 'Tên hiển thị',
+                label: 'Ten hien thi',
               ),
               const SizedBox(height: 14),
               _FormField(
                 controller: _usernameController,
-                label: 'Tên người dùng',
+                label: 'Ten nguoi dung',
                 prefix: '@',
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
               _FormField(
                 controller: _bioController,
-                label: 'Tiểu sử',
+                label: 'Tieu su',
                 maxLines: 4,
                 maxLength: 150,
                 onChanged: (_) => setState(() {}),
@@ -180,25 +353,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           const SizedBox(height: 18),
           _SectionCard(
-            title: 'Tài khoản',
-            subtitle: 'Thông tin đang đồng bộ từ phiên đăng nhập hiện tại.',
+            title: 'Tai khoan',
+            subtitle: 'Thong tin dang dong bo tu phien dang nhap hien tai.',
             children: [
               _ProfileInfoTile(
                 icon: Icons.email_outlined,
                 title: widget.user.email,
-                subtitle: 'Email đăng nhập',
+                subtitle: 'Email dang nhap',
               ),
               const SizedBox(height: 10),
               _ProfileInfoTile(
                 icon: Icons.badge_outlined,
                 title: widget.user.accountType,
-                subtitle: 'Loại tài khoản',
+                subtitle: 'Loai tai khoan',
               ),
               const SizedBox(height: 10),
               _ProfileInfoTile(
                 icon: Icons.schedule_outlined,
                 title: widget.user.timezone,
-                subtitle: 'Múi giờ',
+                subtitle: 'Mui gio',
               ),
             ],
           ),
@@ -211,7 +384,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               border: Border.all(color: _editTertiary.withValues(alpha: 0.16)),
             ),
             child: Text(
-              'Màn này đã dùng dữ liệu thật từ session hiện tại. Chức năng cập nhật hồ sơ sẽ bật tiếp khi identity-service có write API.',
+              'Sau khi luu thanh cong, profile header se cap nhat ngay trong app ma khong can dang nhap lai.',
               style: GoogleFonts.workSans(
                 fontSize: 12,
                 color: _editNeutral.withValues(alpha: 0.82),
@@ -220,6 +393,68 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AvatarPreview extends StatelessWidget {
+  const _AvatarPreview({required this.imageUrl, required this.displayName});
+
+  final String imageUrl;
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 108,
+      height: 108,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: _editSecondary.withValues(alpha: 0.42),
+          width: 3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _editPrimary.withValues(alpha: 0.10),
+            blurRadius: 22,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(54),
+        child: imageUrl.isEmpty
+            ? _AvatarFallback(displayName: displayName)
+            : Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _AvatarFallback(displayName: displayName),
+              ),
+      ),
+    );
+  }
+}
+
+class _AvatarFallback extends StatelessWidget {
+  const _AvatarFallback({required this.displayName});
+
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _editSurfaceStrong,
+      alignment: Alignment.center,
+      child: Text(
+        _initialsFor(displayName),
+        style: GoogleFonts.workSans(
+          color: _editNeutral,
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -282,6 +517,9 @@ class _FormField extends StatelessWidget {
     this.maxLength,
     this.footer,
     this.onChanged,
+    this.hintText,
+    this.keyboardType,
+    this.readOnly = false,
   });
 
   final TextEditingController controller;
@@ -291,6 +529,9 @@ class _FormField extends StatelessWidget {
   final int? maxLength;
   final String? footer;
   final ValueChanged<String>? onChanged;
+  final String? hintText;
+  final TextInputType? keyboardType;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +552,8 @@ class _FormField extends StatelessWidget {
           maxLines: maxLines,
           maxLength: maxLength,
           onChanged: onChanged,
+          readOnly: readOnly,
+          keyboardType: keyboardType,
           style: GoogleFonts.workSans(
             color: _editNeutral,
             fontSize: 15,
@@ -325,6 +568,7 @@ class _FormField extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
             counterText: '',
+            hintText: hintText,
             hintStyle: GoogleFonts.workSans(
               color: _editMuted.withValues(alpha: 0.72),
             ),

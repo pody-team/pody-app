@@ -1,6 +1,7 @@
 import 'package:pody/core/network/api_client.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pody/models/news/article_podcast_job.dart';
 import 'package:pody/models/news/news_article.dart';
 import 'package:pody/models/news/news_category.dart';
 import 'package:pody/models/social/comment.dart';
@@ -259,5 +260,47 @@ class ArticleApiService {
       debugPrint('Error creating comment: $e');
       return null;
     }
+  }
+
+  Future<ArticlePodcastJobSummary> createPodcastJob({
+    required List<int> articleIds,
+    String? voice,
+    int targetMinutes = 6,
+    String languageCode = 'vi',
+  }) async {
+    final response = await _apiClient.post(
+      '$_protectedBasePath/podcast-jobs',
+      body: {
+        'article_ids': articleIds,
+        if (voice != null && voice.isNotEmpty) 'voice': voice,
+        'target_minutes': targetMinutes,
+        'language_code': languageCode,
+      },
+      requiresAuth: true,
+    );
+    return ArticlePodcastJobSummary.fromJson(response);
+  }
+
+  Future<List<ArticlePodcastJobSummary>> fetchPodcastJobs() async {
+    final response = await _apiClient.get(
+      '$_protectedBasePath/podcast-jobs',
+      requiresAuth: true,
+    );
+    final jobs = response['jobs'];
+    if (jobs is! List) {
+      return const <ArticlePodcastJobSummary>[];
+    }
+    return jobs
+        .whereType<Map<String, dynamic>>()
+        .map(ArticlePodcastJobSummary.fromJson)
+        .toList();
+  }
+
+  Future<ArticlePodcastJobDetail> fetchPodcastJobDetail(String jobId) async {
+    final response = await _apiClient.get(
+      '$_protectedBasePath/podcast-jobs/$jobId',
+      requiresAuth: true,
+    );
+    return ArticlePodcastJobDetail.fromJson(response);
   }
 }

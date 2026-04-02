@@ -67,5 +67,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pody can access your photo library so you can upload a profile avatar.</string>
 </dict>
 </plist>

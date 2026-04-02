@@ -17,6 +17,25 @@ class AuthSession {
   final DateTime refreshTokenExpiresAt;
   final String tokenType;
 
+  AuthSession copyWith({
+    AuthUser? user,
+    String? accessToken,
+    String? refreshToken,
+    DateTime? accessTokenExpiresAt,
+    DateTime? refreshTokenExpiresAt,
+    String? tokenType,
+  }) {
+    return AuthSession(
+      user: user ?? this.user,
+      accessToken: accessToken ?? this.accessToken,
+      refreshToken: refreshToken ?? this.refreshToken,
+      accessTokenExpiresAt: accessTokenExpiresAt ?? this.accessTokenExpiresAt,
+      refreshTokenExpiresAt:
+          refreshTokenExpiresAt ?? this.refreshTokenExpiresAt,
+      tokenType: tokenType ?? this.tokenType,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'user': user.toJson(),
