@@ -240,6 +240,40 @@ void main() {
     expect(find.text('Chỉnh sửa plan'), findsOneWidget);
     expect(find.text('Tạo show từ bản draft này'), findsOneWidget);
   });
+
+  testWidgets('edit screen loads voice profiles from API instead of hardcoded list', (
+    WidgetTester tester,
+  ) async {
+    final aiRemote = _FakeAIRemoteDataSource(
+      ApiClient(baseUrl: 'http://localhost:8080'),
+    );
+    final authController = await _buildAuthenticatedController();
+    final plan = await aiRemote.getDraft('draft-1');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIScope(
+          repository: AIRepository(aiRemote),
+          child: AuthScope(
+            controller: authController,
+            child: EditPlanScreen(plan: plan),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(aiRemote.listVoiceProfilesCalls, 1);
+    expect(find.text('Nova DB Voice'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Nova').first);
+    await tester.tap(find.text('Nova').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nova DB Voice'), findsWidgets);
+    expect(find.text('Atlas DB Voice'), findsOneWidget);
+    expect(find.text('Trung tính'), findsNothing);
+  });
 }
 
 const _createScreenPrompts = <String>[
@@ -291,10 +325,34 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
   int createThreadCalls = 0;
   int addThreadMessageCalls = 0;
   int createShowFromPlanCalls = 0;
+  int listVoiceProfilesCalls = 0;
   bool holdNextAddThread = false;
 
   AIChatThread? _currentThread;
   Completer<AIChatThread>? _pendingAddThreadCompleter;
+
+  @override
+  Future<List<AIVoiceProfile>> listVoiceProfiles() async {
+    listVoiceProfilesCalls += 1;
+    return const [
+      AIVoiceProfile(
+        id: 'voice-1',
+        name: 'Nova DB Voice',
+        provider: 'google',
+        providerVoiceId: 'gemini-nova-vi-001',
+        languageCode: 'vi',
+        gender: 'neutral',
+      ),
+      AIVoiceProfile(
+        id: 'voice-2',
+        name: 'Atlas DB Voice',
+        provider: 'google',
+        providerVoiceId: 'gemini-atlas-vi-001',
+        languageCode: 'vi',
+        gender: 'male',
+      ),
+    ];
+  }
 
   @override
   Future<AIChatThread> createThread({required String prompt}) async {
@@ -560,7 +618,13 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
         title: 'AI Builder Lab',
         description: 'Plan generated for testing.',
         primaryCategory: 'Cong nghe',
-        hosts: [AIHostDraft(displayName: 'Nova', role: 'narrator')],
+        hosts: [
+          AIHostDraft(
+            displayName: 'Nova',
+            role: 'narrator',
+            voiceProfileId: 'voice-1',
+          ),
+        ],
         categories: ['Cong nghe'],
         tags: ['ai'],
         languageCode: 'vi',
@@ -595,7 +659,13 @@ class _FakeAIRemoteDataSource extends AIRemoteDataSource {
         title: 'Midnight Reset',
         description: 'A calm late-night storytelling draft.',
         primaryCategory: 'Truyen ke',
-        hosts: [AIHostDraft(displayName: 'Lumi', role: 'narrator')],
+        hosts: [
+          AIHostDraft(
+            displayName: 'Lumi',
+            role: 'narrator',
+            voiceProfileId: 'voice-2',
+          ),
+        ],
         categories: ['Truyen ke'],
         tags: ['night'],
         languageCode: 'vi',

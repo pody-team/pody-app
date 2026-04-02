@@ -371,10 +371,18 @@ class ArticleAPIRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "One or more categories do not exist or are inactive")
 
-    def test_post_reaction_requires_auth_or_legacy_user_id(self):
+    def test_post_reaction_requires_auth_header(self):
         client, _ = create_client()
 
         response = client.post("/api/v1/article/1/reactions", json={"type": "LIKE"})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["detail"], "missing auth user id")
+
+    def test_post_reaction_rejects_legacy_user_id_body_fallback(self):
+        client, _ = create_client()
+
+        response = client.post("/api/v1/article/1/reactions", json={"type": "LIKE", "user_id": "5"})
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["detail"], "missing auth user id")
@@ -419,6 +427,17 @@ class ArticleAPIRouteTests(unittest.TestCase):
         payload = list_response.json()
         self.assertEqual(payload["total"], 1)
         self.assertEqual(payload["comments"][0]["content"], "Bai viet rat huu ich")
+
+    def test_create_comment_requires_auth_header_even_with_legacy_user_id(self):
+        client, _ = create_client()
+
+        response = client.post(
+            "/api/v1/article/1/comments",
+            json={"content": "Bai viet rat huu ich", "user_id": "8"},
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["detail"], "missing auth user id")
 
 
 if __name__ == "__main__":

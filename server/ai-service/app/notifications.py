@@ -43,7 +43,6 @@ class NotificationClient:
             ),
             "actor_snapshot": {
                 "display_name": "Pody AI",
-                "avatar_url": "https://picsum.photos/seed/pody-ai/200/200",
             },
             "target_snapshot": {
                 "title": show_title,
@@ -86,7 +85,6 @@ class NotificationClient:
             ),
             "actor_snapshot": {
                 "display_name": "Pody AI",
-                "avatar_url": "https://picsum.photos/seed/pody-ai/200/200",
             },
             "target_snapshot": {
                 "title": episode_title,

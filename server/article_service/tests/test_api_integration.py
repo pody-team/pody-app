@@ -62,16 +62,24 @@ async def test_api():
 
         # Test 5: Interaction
         print(f"\n5. Testing Interaction on Article {article_id}...")
-        payload = {"user_id": 999, "type": "LOVE"}
-        resp = await client.post(f"{BASE_URL}/article/{article_id}/interaction", json=payload)
+        payload = {"type": "LOVE"}
+        resp = await client.post(
+            f"{BASE_URL}/article/{article_id}/interaction",
+            json=payload,
+            headers={"X-Auth-User-ID": "999"},
+        )
         print(f"Status: {resp.status_code}")
         print(f"Body: {resp.text}")
         assert resp.status_code == 200
 
         # Test 6: Metric tracking
         print(f"\n6. Testing Reading Metric for Article {article_id}...")
-        payload = {"user_id": 999, "reading_time_seconds": 120}
-        resp = await client.post(f"{BASE_URL}/article/{article_id}/metric", json=payload)
+        payload = {"reading_time_seconds": 120}
+        resp = await client.post(
+            f"{BASE_URL}/article/{article_id}/metric",
+            json=payload,
+            headers={"X-Auth-User-ID": "999"},
+        )
         print(f"Status: {resp.status_code}")
         print(f"Body: {resp.text}")
         assert resp.status_code == 200

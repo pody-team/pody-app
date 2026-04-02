@@ -82,4 +82,24 @@ void main() {
       },
     );
   });
+
+  group('shouldShowReturnToCurrentTranscriptButton', () {
+    test('shows the button when transcript drifts away from the live line', () {
+      final visible = shouldShowReturnToCurrentTranscriptButton(
+        currentOffset: 420,
+        targetOffset: 240,
+      );
+
+      expect(visible, isTrue);
+    });
+
+    test('hides the button when transcript is already near the live line', () {
+      final visible = shouldShowReturnToCurrentTranscriptButton(
+        currentOffset: 248,
+        targetOffset: 240,
+      );
+
+      expect(visible, isFalse);
+    });
+  });
 }

@@ -59,7 +59,7 @@ def load_settings() -> Settings:
         content_database_url=_required_env("CONTENT_DATABASE_URL"),
         port=int(os.getenv("PORT", "8085")),
         google_api_key=_optional_env("GOOGLE_API_KEY", "GEMINI_API_KEY"),
-        google_model=os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash",
+        google_model=os.getenv("GOOGLE_GENAI_MODEL", "gemini-3-flash-preview").strip() or "gemini-3-flash-preview",
         google_tts_model=os.getenv("GOOGLE_TTS_MODEL", "gemini-2.5-flash-tts").strip() or "gemini-2.5-flash-tts",
         google_base_url=_optional_env("GOOGLE_GENAI_BASE_URL"),
         google_cloud_project=_optional_env("GOOGLE_CLOUD_PROJECT"),

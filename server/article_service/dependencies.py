@@ -63,9 +63,7 @@ def get_optional_auth_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid auth user id") from exc
 
 
-def resolve_user_id(auth_user: Optional[AuthenticatedUser], fallback_user_id: Optional[str]) -> str:
+def resolve_user_id(auth_user: Optional[AuthenticatedUser]) -> str:
     if auth_user is not None:
         return auth_user.user_id
-    if fallback_user_id is not None and fallback_user_id.strip():
-        return fallback_user_id.strip()
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing auth user id")

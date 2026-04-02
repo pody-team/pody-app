@@ -19,17 +19,14 @@ class AuthenticatedUser(BaseModel):
 
 class ReactionRequest(BaseModel):
     type: str = Field(..., description="LIKE, LOVE, or DISLIKE")
-    user_id: Optional[str] = Field(default=None, description="Legacy fallback when auth header is unavailable")
 
 
 class MetricRequest(BaseModel):
-    user_id: Optional[str] = Field(default=None, description="Legacy fallback when auth header is unavailable")
     reading_time_seconds: int = Field(..., ge=0)
 
 
 class CommentCreateRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=5000)
-    user_id: Optional[str] = Field(default=None, description="Legacy fallback when auth header is unavailable")
     user_name: Optional[str] = Field(default=None, max_length=255)
 
 

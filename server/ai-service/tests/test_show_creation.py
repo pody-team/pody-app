@@ -13,11 +13,19 @@ from app.show_creation import (
     _build_episode_segments,
     _build_episode_turns,
     _build_speech_config,
+    _normalize_hosts,
+    _resolve_voice_name,
     _resolve_category,
 )
 
 
-def _voice_profile(id_value: str, name: str, provider_voice_id: str) -> VoiceProfile:
+def _voice_profile(
+    id_value: str,
+    name: str,
+    provider_voice_id: str,
+    *,
+    tts_voice_name: str,
+) -> VoiceProfile:
     now = datetime.now(timezone.utc)
     return VoiceProfile(
         id=UUID(id_value),
@@ -26,7 +34,7 @@ def _voice_profile(id_value: str, name: str, provider_voice_id: str) -> VoicePro
         provider_voice_id=provider_voice_id,
         language_code="vi",
         gender="neutral",
-        metadata={},
+        metadata={"tts_voice_name": tts_voice_name},
         created_at=now,
         updated_at=now,
     )
@@ -85,6 +93,26 @@ def test_build_episode_turns_creates_two_host_dialogue_for_podcast() -> None:
     assert "AI Agents cho Product" in turns[0].text
 
 
+def test_normalize_hosts_does_not_invent_avatar_urls() -> None:
+    hosts = _normalize_hosts(
+        content_type="podcast",
+        hosts=[
+            AIHostDraft(
+                display_name="Atlas",
+                role="host",
+            ),
+            AIHostDraft(
+                display_name="Mira",
+                role="co_host",
+                avatar_url="https://cdn.pody.vn/hosts/mira.png",
+            ),
+        ],
+    )
+
+    assert hosts[0].avatar_url is None
+    assert hosts[1].avatar_url == "https://cdn.pody.vn/hosts/mira.png"
+
+
 def test_build_speech_config_uses_multi_speaker_for_two_hosts() -> None:
     plan = _plan_with_two_hosts()
     voice_profiles = [
@@ -92,11 +120,13 @@ def test_build_speech_config_uses_multi_speaker_for_two_hosts() -> None:
             "71000000-0000-0000-0000-000000000005",
             "Atlas",
             "gemini-atlas-vi-001",
+            tts_voice_name="Puck",
         ),
         _voice_profile(
             "71000000-0000-0000-0000-000000000006",
             "Mira",
             "gemini-minh-tra-vi-001",
+            tts_voice_name="Charon",
         ),
     ]
 
@@ -111,6 +141,75 @@ def test_build_speech_config_uses_multi_speaker_for_two_hosts() -> None:
     assert [config.speaker for config in configs] == ["Atlas", "Mira"]
     assert configs[0].voice_config.prebuilt_voice_config.voice_name == "Puck"
     assert configs[1].voice_config.prebuilt_voice_config.voice_name == "Charon"
+
+
+def test_resolve_voice_name_uses_tts_voice_name_from_metadata() -> None:
+    host = AIHostDraft(
+        display_name="Atlas",
+        role="host",
+        voice_profile_id=UUID("71000000-0000-0000-0000-000000000005"),
+    )
+    voice_profiles = [
+        _voice_profile(
+            "71000000-0000-0000-0000-000000000005",
+            "Atlas",
+            "gemini-atlas-vi-001",
+            tts_voice_name="Puck",
+        )
+    ]
+
+    assert _resolve_voice_name(host, voice_profiles) == "Puck"
+
+
+def test_resolve_voice_name_raises_when_metadata_tts_voice_name_is_missing() -> None:
+    host = AIHostDraft(
+        display_name="Atlas",
+        role="host",
+        voice_profile_id=UUID("71000000-0000-0000-0000-000000000005"),
+    )
+    now = datetime.now(timezone.utc)
+    voice_profiles = [
+        VoiceProfile(
+            id=UUID("71000000-0000-0000-0000-000000000005"),
+            name="Atlas",
+            provider="google",
+            provider_voice_id="gemini-atlas-vi-001",
+            language_code="vi",
+            gender="neutral",
+            metadata={},
+            created_at=now,
+            updated_at=now,
+        )
+    ]
+
+    try:
+        _resolve_voice_name(host, voice_profiles)
+    except ValueError as exc:
+        assert "metadata.tts_voice_name" in str(exc)
+    else:
+        raise AssertionError("expected ValueError when tts_voice_name metadata is missing")
+
+
+def test_resolve_voice_name_raises_when_host_missing_voice_profile_id() -> None:
+    host = AIHostDraft(
+        display_name="Atlas",
+        role="host",
+    )
+    voice_profiles = [
+        _voice_profile(
+            "71000000-0000-0000-0000-000000000005",
+            "Atlas",
+            "gemini-atlas-vi-001",
+            tts_voice_name="Puck",
+        )
+    ]
+
+    try:
+        _resolve_voice_name(host, voice_profiles)
+    except ValueError as exc:
+        assert "missing voice_profile_id" in str(exc)
+    else:
+        raise AssertionError("expected ValueError when host has no voice_profile_id")
 
 
 def test_build_episode_segments_maps_turns_to_matching_hosts() -> None:
@@ -162,24 +261,64 @@ def test_build_tts_prompt_chunks_splits_long_dialogue_without_truncating_text() 
     assert "Mira:" in "".join(chunks)
 
 
-def test_resolve_category_maps_business_alias_to_cong_nghe() -> None:
-    class FakeConn:
-        def execute(self, _query, params):
-            candidate = params[0]
-            if candidate == "cong-nghe":
-                return type(
-                    "FakeResult",
-                    (),
-                    {
-                        "fetchone": lambda self: {
-                            "id": "51000000-0000-0000-0000-000000000001",
-                            "name": "Cong nghe",
-                        }
-                    },
-                )()
-            return type("FakeResult", (), {"fetchone": lambda self: None})()
+def test_resolve_category_matches_exact_db_name() -> None:
+    class FakeResult:
+        def fetchall(self):
+            return [
+                {
+                    "id": "51000000-0000-0000-0000-000000000001",
+                    "slug": "cong-nghe",
+                    "name": "Cong nghe",
+                }
+            ]
 
-    category_name, category_id = _resolve_category(FakeConn(), "Business")
+    class FakeConn:
+        def execute(self, _query, _params=None):
+            return FakeResult()
+
+    category_name, category_id = _resolve_category(FakeConn(), "Cong nghe")
 
     assert category_name == "Cong nghe"
     assert category_id == "51000000-0000-0000-0000-000000000001"
+
+
+def test_resolve_category_matches_vietnamese_name_via_slugified_lookup() -> None:
+    class FakeResult:
+        def fetchall(self):
+            return [
+                {
+                    "id": "51000000-0000-0000-0000-000000000001",
+                    "slug": "cong-nghe",
+                    "name": "Cong nghe",
+                }
+            ]
+
+    class FakeConn:
+        def execute(self, _query, _params=None):
+            return FakeResult()
+
+    category_name, category_id = _resolve_category(FakeConn(), "Công nghệ")
+
+    assert category_name == "Cong nghe"
+    assert category_id == "51000000-0000-0000-0000-000000000001"
+def test_resolve_category_raises_for_unknown_value() -> None:
+    class FakeResult:
+        def fetchall(self):
+            return [
+                {
+                    "id": "51000000-0000-0000-0000-000000000004",
+                    "slug": "giai-thich-de-hieu",
+                    "name": "Giai thich de hieu",
+                }
+            ]
+
+    class FakeConn:
+        def execute(self, _query, _params=None):
+            return FakeResult()
+
+    try:
+        _resolve_category(FakeConn(), "Unknown taxonomy bucket")
+    except ValueError as exc:
+        assert "primary category was not found" in str(exc)
+    else:
+        raise AssertionError("expected ValueError for unknown category")

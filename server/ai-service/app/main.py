@@ -102,9 +102,15 @@ def create_app(service: AIService | None = None, settings: Settings | None = Non
         pool = create_pool(resolved_settings.database_url)
         repository = AIRepository(pool)
         content_pool = create_content_pool(resolved_settings.content_database_url)
-        create_agent = build_create_agent(resolved_settings)
+        create_agent = build_create_agent(
+            resolved_settings,
+            content_pool=content_pool,
+        )
         dialogue_agent = build_dialogue_agent(resolved_settings)
-        planner = build_planner(resolved_settings)
+        planner = build_planner(
+            resolved_settings,
+            content_pool=content_pool,
+        )
         provider_name = "google-genai" if resolved_settings.use_google_provider else "stub"
         app.state.ai_service = AIService(
             repository,
@@ -166,7 +172,7 @@ def create_app(service: AIService | None = None, settings: Settings | None = Non
         openapi_schema = _normalize_openapi_3_0(openapi_schema)
         openapi_schema.get("paths", {}).pop("/healthz", None)
         openapi_schema["openapi"] = "3.0.3"
-        openapi_schema["servers"] = [{"url": "http://localhost:8080"}]
+        openapi_schema.pop("servers", None)
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
