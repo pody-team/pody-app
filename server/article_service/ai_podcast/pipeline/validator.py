@@ -4,6 +4,19 @@ import re
 
 from ai_podcast.schemas import ScriptDraft, ValidationReport
 
+WORDS_PER_MINUTE = 150
+MIN_DURATION_RATIO = 0.85
+
+
+def estimate_duration_seconds(*, word_count: int) -> int:
+    return round((word_count / WORDS_PER_MINUTE) * 60) if word_count > 0 else 0
+
+
+def minimum_word_count_for_target_minutes(target_minutes: int) -> int:
+    target_seconds = max(60, target_minutes * 60)
+    minimum_seconds = round(target_seconds * MIN_DURATION_RATIO)
+    return max(1, round((minimum_seconds / 60) * WORDS_PER_MINUTE))
+
 
 def validate_script(*, draft: ScriptDraft, target_minutes: int) -> ValidationReport:
     errors: list[str] = []
@@ -19,9 +32,9 @@ def validate_script(*, draft: ScriptDraft, target_minutes: int) -> ValidationRep
         errors.append("outline is required")
 
     word_count = len(re.findall(r"\w+", script, flags=re.UNICODE))
-    estimated_duration_seconds = round((word_count / 150.0) * 60) if word_count > 0 else 0
+    estimated_duration_seconds = estimate_duration_seconds(word_count=word_count)
     target_seconds = max(60, target_minutes * 60)
-    if estimated_duration_seconds < round(target_seconds * 0.6):
+    if estimated_duration_seconds < round(target_seconds * MIN_DURATION_RATIO):
         warnings.append("script may be shorter than target duration")
 
     normalized_script = re.sub(r"\s+", " ", script).strip().lower()

@@ -15,14 +15,20 @@ class ArticlePodcastJobSummary {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  bool get isCompleted => status == 'completed';
+
   factory ArticlePodcastJobSummary.fromJson(Map<String, dynamic> json) {
     return ArticlePodcastJobSummary(
       jobId: (json['job_id'] as String?)?.trim() ?? '',
       status: (json['status'] as String?)?.trim() ?? 'queued',
       title: (json['title'] as String?)?.trim(),
       audioUrl: (json['audio_url'] as String?)?.trim(),
-      createdAt: DateTime.tryParse((json['created_at'] as String?)?.trim() ?? ''),
-      updatedAt: DateTime.tryParse((json['updated_at'] as String?)?.trim() ?? ''),
+      createdAt: DateTime.tryParse(
+        (json['created_at'] as String?)?.trim() ?? '',
+      ),
+      updatedAt: DateTime.tryParse(
+        (json['updated_at'] as String?)?.trim() ?? '',
+      ),
     );
   }
 }
@@ -86,8 +92,12 @@ class ArticlePodcastJobDetail {
       audioUrl: (json['audio_url'] as String?)?.trim(),
       durationSeconds: _readInt(json['duration_seconds']),
       error: (json['error'] as String?)?.trim(),
-      createdAt: DateTime.tryParse((json['created_at'] as String?)?.trim() ?? ''),
-      updatedAt: DateTime.tryParse((json['updated_at'] as String?)?.trim() ?? ''),
+      createdAt: DateTime.tryParse(
+        (json['created_at'] as String?)?.trim() ?? '',
+      ),
+      updatedAt: DateTime.tryParse(
+        (json['updated_at'] as String?)?.trim() ?? '',
+      ),
     );
   }
 

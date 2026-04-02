@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class ArticlePodcastCreateRequest(BaseModel):
-    article_ids: list[int] = Field(..., min_length=1)
+    article_ids: list[int] = Field(default_factory=list)
     voice: str | None = None
     target_minutes: int | None = Field(default=6, ge=1, le=30)
     language_code: str | None = Field(default="vi", min_length=2, max_length=16)

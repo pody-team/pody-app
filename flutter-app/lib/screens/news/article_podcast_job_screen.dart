@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
+import 'package:pody/screens/news/article_podcast_playback.dart';
 import 'package:pody/utils/player_utils.dart';
 
 const Color _podcastCanvas = Color(0xFFFFFBF6);
@@ -25,18 +26,26 @@ class ArticlePodcastJobScreen extends StatefulWidget {
   final List<NewsArticle> initialArticles;
 
   @override
-  State<ArticlePodcastJobScreen> createState() => _ArticlePodcastJobScreenState();
+  State<ArticlePodcastJobScreen> createState() =>
+      _ArticlePodcastJobScreenState();
 }
 
-class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
+class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen>
+    with SingleTickerProviderStateMixin {
   Timer? _pollingTimer;
   bool _isLoading = true;
   String? _errorMessage;
   ArticlePodcastJobDetail? _detail;
+  late final AnimationController _progressSpinController;
 
   @override
   void initState() {
     super.initState();
+    _progressSpinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
+    _progressSpinController.repeat();
     _loadDetail();
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_detail?.isTerminal == true) {
@@ -50,6 +59,7 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _progressSpinController.dispose();
     super.dispose();
   }
 
@@ -61,9 +71,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
       });
     }
     try {
-      final detail = await ArticleScope.of(context).fetchPodcastJobDetail(
-        widget.jobId,
-      );
+      final detail = await ArticleScope.of(
+        context,
+      ).fetchPodcastJobDetail(widget.jobId);
       if (!mounted) {
         return;
       }
@@ -72,6 +82,7 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
         _isLoading = false;
         _errorMessage = null;
       });
+      _syncAnimationForStatus(detail.status);
       if (detail.isTerminal) {
         _pollingTimer?.cancel();
       }
@@ -83,6 +94,7 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
         _isLoading = false;
         _errorMessage = error.message;
       });
+      _progressSpinController.stop();
     } catch (_) {
       if (!mounted) {
         return;
@@ -91,65 +103,32 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
         _isLoading = false;
         _errorMessage = 'Khong tai duoc trang thai podcast luc nay.';
       });
+      _progressSpinController.stop();
     }
   }
 
   void _openGeneratedAudio() {
     final detail = _detail;
-    if (detail == null || !detail.isCompleted || (detail.audioUrl?.isEmpty ?? true)) {
+    if (detail == null ||
+        !detail.isCompleted ||
+        (detail.audioUrl?.isEmpty ?? true)) {
       return;
     }
-    final playable = _buildPlayableContent(detail);
-    openPlayerScreen(
-      context,
-      show: playable.$1,
-      episode: playable.$2,
-    );
+    final playable = buildArticlePodcastPlayable(detail);
+    openPlayerScreen(context, show: playable.$1, episode: playable.$2);
   }
 
-  (Show, Episode) _buildPlayableContent(ArticlePodcastJobDetail detail) {
-    final host = Host(
-      id: 'article-podcast-host',
-      name: 'Pody News AI',
-      avatarUrl: 'https://picsum.photos/seed/article-podcast-host/200/200',
-      voiceId: 'kore',
-    );
-    final episode = Episode(
-      id: detail.jobId,
-      showId: 'article-podcast-show-${detail.jobId}',
-      episodeNumber: 1,
-      title: detail.podcastTitle?.trim().isNotEmpty == true
-          ? detail.podcastTitle!.trim()
-          : 'Podcast bai bao',
-      description:
-          detail.podcastDescription?.trim().isNotEmpty == true
-          ? detail.podcastDescription!.trim()
-          : 'Ban audio tong hop tu cac bai bao da chon.',
-      duration: Duration(seconds: detail.durationSeconds ?? 60),
-      images: const ['https://picsum.photos/seed/article-podcast-cover/800/800'],
-      audioUrl: detail.audioUrl,
-      bubbles: [
-        if ((detail.scriptText ?? '').trim().isNotEmpty)
-          ChatBubble(
-            speakerId: host.id,
-            speaker: host.name,
-            text: detail.scriptText!.trim(),
-            isRight: false,
-          ),
-      ],
-    );
-    final show = Show(
-      id: 'article-podcast-show-${detail.jobId}',
-      title: 'Article Podcast',
-      hosts: [host],
-      category: 'News',
-      imageUrl: 'https://picsum.photos/seed/article-podcast-cover/800/800',
-      episodes: [episode],
-      subscriberCount: '0',
-      totalEpisodeCount: 1,
-      authorId: 'article-service',
-    );
-    return (show, episode);
+  void _syncAnimationForStatus(String? status) {
+    final normalizedStatus = (status ?? '').trim().toLowerCase();
+    final shouldSpin = normalizedStatus.isEmpty ||
+        (normalizedStatus != 'completed' && normalizedStatus != 'failed');
+    if (shouldSpin) {
+      if (!_progressSpinController.isAnimating) {
+        _progressSpinController.repeat();
+      }
+      return;
+    }
+    _progressSpinController.stop();
   }
 
   @override
@@ -211,7 +190,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if ((detail?.researchSummary ?? '').trim().isNotEmpty) ...[
+                        if ((detail?.researchSummary ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           _buildLabel('Research summary'),
                           Text(
                             detail!.researchSummary!,
@@ -222,7 +203,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
                           ),
                           const SizedBox(height: 14),
                         ],
-                        if ((detail?.podcastDescription ?? '').trim().isNotEmpty) ...[
+                        if ((detail?.podcastDescription ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           _buildLabel('Mo ta'),
                           Text(
                             detail!.podcastDescription!,
@@ -233,7 +216,8 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
                           ),
                           const SizedBox(height: 14),
                         ],
-                        if ((detail?.outline ?? const <String>[]).isNotEmpty) ...[
+                        if ((detail?.outline ?? const <String>[])
+                            .isNotEmpty) ...[
                           _buildLabel('Outline'),
                           for (final item in detail!.outline)
                             Padding(
@@ -270,6 +254,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
   Widget _buildHero(ArticlePodcastJobDetail? detail) {
     final status = detail?.status ?? 'queued';
     final statusLabel = _statusLabel(status);
+    final progressValue = _statusProgressValue(status);
+    final isTerminal = detail?.isTerminal == true;
+    final hasFailed = status == 'failed';
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -284,20 +271,34 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: _podcastSurface,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              statusLabel,
-              style: GoogleFonts.workSans(
-                color: _podcastPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _podcastSurface,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: GoogleFonts.workSans(
+                      color: _podcastPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              _buildStatusOrb(
+                isTerminal: isTerminal,
+                hasFailed: hasFailed,
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Text(
@@ -325,11 +326,15 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
             ),
           ),
           const SizedBox(height: 18),
+          _buildProgressTimeline(status, progressValue),
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: detail?.isCompleted == true ? _openGeneratedAudio : null,
+                  onPressed: detail?.isCompleted == true
+                      ? _openGeneratedAudio
+                      : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: _podcastPrimary,
                     foregroundColor: Colors.white,
@@ -361,6 +366,123 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatusOrb({
+    required bool isTerminal,
+    required bool hasFailed,
+  }) {
+    final orbColor = hasFailed
+        ? Colors.redAccent
+        : isTerminal
+        ? Colors.green
+        : _podcastPrimary;
+    final icon = hasFailed
+        ? Icons.close_rounded
+        : isTerminal
+        ? Icons.check_rounded
+        : Icons.autorenew_rounded;
+
+    final orb = Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _podcastSurface,
+        boxShadow: [
+          BoxShadow(
+            color: orbColor.withValues(alpha: 0.18),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Container(
+        margin: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: orbColor.withValues(alpha: 0.22),
+          ),
+          color: orbColor.withValues(alpha: 0.10),
+        ),
+        child: Icon(icon, color: orbColor, size: 24),
+      ),
+    );
+
+    if (isTerminal) {
+      return orb;
+    }
+
+    return RotationTransition(
+      turns: _progressSpinController,
+      child: orb,
+    );
+  }
+
+  Widget _buildProgressTimeline(String status, double progressValue) {
+    final activeIndex = _statusStepIndex(status);
+    final steps = const <String>[
+      'Cho xu ly',
+      'Research',
+      'Draft',
+      'Audio',
+      'Hoan tat',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: progressValue,
+            minHeight: 10,
+            backgroundColor: _podcastSurface,
+            valueColor: const AlwaysStoppedAnimation<Color>(_podcastPrimary),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            for (var index = 0; index < steps.length; index++) ...[
+              Expanded(
+                child: Column(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: index <= activeIndex
+                            ? _podcastPrimary
+                            : _podcastPrimary.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      steps[index],
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.workSans(
+                        color: index <= activeIndex
+                            ? _podcastNeutral
+                            : _podcastMuted,
+                        fontSize: 11,
+                        fontWeight: index <= activeIndex
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (index < steps.length - 1) const SizedBox(width: 4),
+            ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -459,6 +581,46 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
         return 'That bai';
       default:
         return 'Dang xep hang';
+    }
+  }
+
+  int _statusStepIndex(String status) {
+    switch (status) {
+      case 'researching':
+        return 1;
+      case 'drafting':
+      case 'validating':
+        return 2;
+      case 'synthesizing':
+      case 'uploading':
+        return 3;
+      case 'completed':
+        return 4;
+      case 'failed':
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  double _statusProgressValue(String status) {
+    switch (status) {
+      case 'researching':
+        return 0.24;
+      case 'drafting':
+        return 0.46;
+      case 'validating':
+        return 0.58;
+      case 'synthesizing':
+        return 0.76;
+      case 'uploading':
+        return 0.9;
+      case 'completed':
+        return 1;
+      case 'failed':
+        return 0.76;
+      default:
+        return 0.08;
     }
   }
 }
