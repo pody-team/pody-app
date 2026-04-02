@@ -8,6 +8,7 @@ import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
 import 'package:pody/screens/creation/ai_summary_setup_screen.dart';
 import 'package:pody/screens/news/article_detail_screen.dart';
+import 'package:pody/screens/news/article_podcast_library_screen.dart';
 import 'package:pody/screens/news/article_podcast_job_screen.dart';
 import 'package:pody/screens/user/favorite_news_categories_screen.dart';
 
@@ -353,9 +354,9 @@ class _NewsScreenState extends State<NewsScreen> {
       final message = error.isUnauthorized
           ? 'Ban can dang nhap de tao podcast bai bao.'
           : error.message;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) {
         return;
@@ -389,6 +390,36 @@ class _NewsScreenState extends State<NewsScreen> {
       return;
     }
     await _fetchArticles(reset: true);
+  }
+
+  Future<void> _openPodcastLibrary() async {
+    try {
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => const ArticlePodcastLibraryScreen(),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final message = error.isUnauthorized
+          ? 'Ban can dang nhap de xem podcast bao da tao.'
+          : error.message;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Khong mo duoc danh sach podcast bao luc nay.'),
+        ),
+      );
+    }
   }
 
   String get _heroTitle {
@@ -629,7 +660,9 @@ class _NewsScreenState extends State<NewsScreen> {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: _isCreatingPodcast ? null : _createPodcastFromSelection,
+                  onPressed: _isCreatingPodcast
+                      ? null
+                      : _createPodcastFromSelection,
                   style: FilledButton.styleFrom(
                     backgroundColor: _newsPrimary,
                     foregroundColor: Colors.white,
@@ -642,8 +675,21 @@ class _NewsScreenState extends State<NewsScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  child: Text(_isCreatingPodcast ? 'Dang tao...' : 'Tạo và nghe'),
+                  child: Text(
+                    _isCreatingPodcast ? 'Dang tao...' : 'Tạo và nghe',
+                  ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              IconButton.filledTonal(
+                onPressed: _openPodcastLibrary,
+                tooltip: 'Mo podcast bao cua toi',
+                style: IconButton.styleFrom(
+                  backgroundColor: _newsSurface,
+                  foregroundColor: _newsPrimary,
+                  minimumSize: const Size(48, 48),
+                ),
+                icon: const Icon(Icons.library_music_rounded),
               ),
               const SizedBox(width: 12),
               IconButton.filledTonal(

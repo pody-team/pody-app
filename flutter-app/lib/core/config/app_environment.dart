@@ -4,7 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class AppEnvironment {
   AppEnvironment._();
 
-  static const _defaultApiBaseUrl = 'http://192.168.100.206:8080';
+  static const _defaultApiBaseUrl = 'http://172.11.67.156:8080';
   static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const _configuredGoogleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',

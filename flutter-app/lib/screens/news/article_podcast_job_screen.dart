@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pody/core/network/api_exception.dart';
 import 'package:pody/data/article_scope.dart';
 import 'package:pody/models/models.dart';
+import 'package:pody/screens/news/article_podcast_playback.dart';
 import 'package:pody/utils/player_utils.dart';
 
 const Color _podcastCanvas = Color(0xFFFFFBF6);
@@ -25,7 +26,8 @@ class ArticlePodcastJobScreen extends StatefulWidget {
   final List<NewsArticle> initialArticles;
 
   @override
-  State<ArticlePodcastJobScreen> createState() => _ArticlePodcastJobScreenState();
+  State<ArticlePodcastJobScreen> createState() =>
+      _ArticlePodcastJobScreenState();
 }
 
 class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
@@ -61,9 +63,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
       });
     }
     try {
-      final detail = await ArticleScope.of(context).fetchPodcastJobDetail(
-        widget.jobId,
-      );
+      final detail = await ArticleScope.of(
+        context,
+      ).fetchPodcastJobDetail(widget.jobId);
       if (!mounted) {
         return;
       }
@@ -96,60 +98,13 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
 
   void _openGeneratedAudio() {
     final detail = _detail;
-    if (detail == null || !detail.isCompleted || (detail.audioUrl?.isEmpty ?? true)) {
+    if (detail == null ||
+        !detail.isCompleted ||
+        (detail.audioUrl?.isEmpty ?? true)) {
       return;
     }
-    final playable = _buildPlayableContent(detail);
-    openPlayerScreen(
-      context,
-      show: playable.$1,
-      episode: playable.$2,
-    );
-  }
-
-  (Show, Episode) _buildPlayableContent(ArticlePodcastJobDetail detail) {
-    final host = Host(
-      id: 'article-podcast-host',
-      name: 'Pody News AI',
-      avatarUrl: 'https://picsum.photos/seed/article-podcast-host/200/200',
-      voiceId: 'kore',
-    );
-    final episode = Episode(
-      id: detail.jobId,
-      showId: 'article-podcast-show-${detail.jobId}',
-      episodeNumber: 1,
-      title: detail.podcastTitle?.trim().isNotEmpty == true
-          ? detail.podcastTitle!.trim()
-          : 'Podcast bai bao',
-      description:
-          detail.podcastDescription?.trim().isNotEmpty == true
-          ? detail.podcastDescription!.trim()
-          : 'Ban audio tong hop tu cac bai bao da chon.',
-      duration: Duration(seconds: detail.durationSeconds ?? 60),
-      images: const ['https://picsum.photos/seed/article-podcast-cover/800/800'],
-      audioUrl: detail.audioUrl,
-      bubbles: [
-        if ((detail.scriptText ?? '').trim().isNotEmpty)
-          ChatBubble(
-            speakerId: host.id,
-            speaker: host.name,
-            text: detail.scriptText!.trim(),
-            isRight: false,
-          ),
-      ],
-    );
-    final show = Show(
-      id: 'article-podcast-show-${detail.jobId}',
-      title: 'Article Podcast',
-      hosts: [host],
-      category: 'News',
-      imageUrl: 'https://picsum.photos/seed/article-podcast-cover/800/800',
-      episodes: [episode],
-      subscriberCount: '0',
-      totalEpisodeCount: 1,
-      authorId: 'article-service',
-    );
-    return (show, episode);
+    final playable = buildArticlePodcastPlayable(detail);
+    openPlayerScreen(context, show: playable.$1, episode: playable.$2);
   }
 
   @override
@@ -211,7 +166,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if ((detail?.researchSummary ?? '').trim().isNotEmpty) ...[
+                        if ((detail?.researchSummary ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           _buildLabel('Research summary'),
                           Text(
                             detail!.researchSummary!,
@@ -222,7 +179,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
                           ),
                           const SizedBox(height: 14),
                         ],
-                        if ((detail?.podcastDescription ?? '').trim().isNotEmpty) ...[
+                        if ((detail?.podcastDescription ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           _buildLabel('Mo ta'),
                           Text(
                             detail!.podcastDescription!,
@@ -233,7 +192,8 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
                           ),
                           const SizedBox(height: 14),
                         ],
-                        if ((detail?.outline ?? const <String>[]).isNotEmpty) ...[
+                        if ((detail?.outline ?? const <String>[])
+                            .isNotEmpty) ...[
                           _buildLabel('Outline'),
                           for (final item in detail!.outline)
                             Padding(
@@ -329,7 +289,9 @@ class _ArticlePodcastJobScreenState extends State<ArticlePodcastJobScreen> {
             children: [
               Expanded(
                 child: FilledButton(
-                  onPressed: detail?.isCompleted == true ? _openGeneratedAudio : null,
+                  onPressed: detail?.isCompleted == true
+                      ? _openGeneratedAudio
+                      : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: _podcastPrimary,
                     foregroundColor: Colors.white,
