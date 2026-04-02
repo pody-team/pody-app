@@ -26,6 +26,8 @@ Muc tieu:
 - co mo bai, than bai, ket bai
 - do dai kich ban phai ty le voi target_minutes va so luong bai bao
 - neu co nhieu bai bao thi phai tong hop sau hon, chuyen y muot hon, khong viet qua ngan
+- phai dat it nhat minimum_words tu de audio thuc te khong bi qua ngan
+- neu attempt_feedback co noi rang ban nhap truoc qua ngan thi phai mo rong ro rang hon va tang chi tiet de dat target
 
 Tra dung JSON:
 {

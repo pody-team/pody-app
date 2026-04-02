@@ -14,7 +14,7 @@ from ai_podcast.models import (
 )
 from ai_podcast.pipeline.audio_worker import synthesize_audio
 from ai_podcast.pipeline.research import build_research_pack, build_search_tool
-from ai_podcast.pipeline.script_writer import build_script
+from ai_podcast.pipeline.script_writer import build_script, expand_script_to_target
 from ai_podcast.pipeline.synthesis import build_synthesis
 from ai_podcast.pipeline.validator import validate_script
 from ai_podcast.providers.text_generation import build_text_generation_provider
@@ -36,6 +36,7 @@ from ai_podcast.utils.slug import slugify
 from config.database import DatabaseManager, get_db_session
 
 logger = logging.getLogger(__name__)
+_MAX_SCRIPT_DRAFT_ATTEMPTS = 3
 
 
 class AIPodcastService:
@@ -169,16 +170,14 @@ class AIPodcastRuntime:
                 research_pack=research_pack,
                 text_provider=self.text_provider,
             )
-            script_draft = build_script(
+            script_draft, validation = self._build_script_with_retries(
                 research_pack=research_pack,
                 synthesis=synthesis,
-                text_provider=self.text_provider,
                 target_minutes=job.target_minutes,
                 language_code=job.language_code,
             )
 
             await repository.update_job_status(job_id=job.id, status="validating")
-            validation = validate_script(draft=script_draft, target_minutes=job.target_minutes)
             if not validation.valid:
                 raise RuntimeError("; ".join(validation.errors) or "podcast draft validation failed")
 
@@ -227,3 +226,54 @@ class AIPodcastRuntime:
         except Exception as exc:
             await repository.update_job_status(job_id=job.id, status="failed", error_message=str(exc))
             logger.exception("ai podcast job failed", extra={"job_id": job.id})
+
+    def _build_script_with_retries(
+        self,
+        *,
+        research_pack,
+        synthesis,
+        target_minutes: int,
+        language_code: str,
+    ):
+        attempt_feedback: str | None = None
+        last_draft = None
+        last_validation = None
+
+        for _ in range(_MAX_SCRIPT_DRAFT_ATTEMPTS):
+            draft = build_script(
+                research_pack=research_pack,
+                synthesis=synthesis,
+                text_provider=self.text_provider,
+                target_minutes=target_minutes,
+                language_code=language_code,
+                attempt_feedback=attempt_feedback,
+            )
+            validation = validate_script(draft=draft, target_minutes=target_minutes)
+            last_draft = draft
+            last_validation = validation
+            if validation.valid and not self._is_script_too_short(
+                validation=validation,
+                target_minutes=target_minutes,
+            ):
+                return draft, validation
+
+            attempt_feedback = (
+                "Ban script vua roi qua ngan so voi muc tieu. "
+                f"Hien tai chi uoc tinh {validation.estimated_duration_seconds} giay, "
+                f"can mo rong ro rang hon de dat toi thieu khoang {round(target_minutes * 60 * 0.85)} giay."
+            )
+        expanded_draft = expand_script_to_target(
+            draft=last_draft,
+            synthesis=synthesis,
+            target_minutes=target_minutes,
+        )
+        expanded_validation = validate_script(
+            draft=expanded_draft,
+            target_minutes=target_minutes,
+        )
+        return expanded_draft, expanded_validation
+
+    @staticmethod
+    def _is_script_too_short(*, validation, target_minutes: int) -> bool:
+        target_seconds = max(60, target_minutes * 60)
+        return validation.estimated_duration_seconds < round(target_seconds * 0.85)

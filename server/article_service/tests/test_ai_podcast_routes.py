@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ai_podcast.dependencies import get_ai_podcast_service
 from ai_podcast.pipeline.research import build_research_pack
 from ai_podcast.pipeline.validator import validate_script
+from ai_podcast.providers.text_generation import StubTextGenerationProvider
 from ai_podcast.repository import (
     AIPodcastRepository,
     MissingSelectedArticlesError,
@@ -171,6 +172,41 @@ class AIPodcastValidatorTests(unittest.TestCase):
         self.assertFalse(report.valid)
         self.assertTrue(report.errors)
 
+    def test_validator_warns_when_script_is_far_below_target_duration(self):
+        report = validate_script(
+            draft=ScriptDraft(
+                podcast_title="Podcast bao chi",
+                podcast_description="desc",
+                outline=["Mo dau"],
+                script_text=" ".join(["ngan"] * 200),
+            ),
+            target_minutes=12,
+        )
+
+        self.assertTrue(report.valid)
+        self.assertIn("script may be shorter than target duration", report.warnings)
+
+    def test_stub_writer_scales_script_close_to_target_minutes(self):
+        draft = StubTextGenerationProvider().write_script(
+            payload={
+                "synthesis": {
+                    "topic": "AI chip race",
+                    "key_insights": ["insight 1", "insight 2", "insight 3"],
+                    "external_context": ["ctx 1", "ctx 2", "ctx 3"],
+                },
+                "research_pack": {
+                    "primary_sources": [{"article_id": index} for index in range(1, 21)],
+                },
+                "target_minutes": 12,
+                "minimum_words": 1530,
+            }
+        )
+
+        report = validate_script(draft=draft, target_minutes=12)
+
+        self.assertTrue(report.valid)
+        self.assertGreaterEqual(report.estimated_duration_seconds, round(12 * 60 * 0.85))
+
 
 class AIPodcastResearchTests(unittest.TestCase):
     def test_research_pack_truncates_long_topic_hint(self):
@@ -220,6 +256,29 @@ class AIPodcastResearchTests(unittest.TestCase):
         self.assertEqual(research_pack.primary_sources[0]["title"], "AI chip race")
         self.assertEqual(research_pack.external_context_sources, [])
         self.assertIn("External research unavailable", research_pack.research_summary)
+
+    def test_research_pack_compacts_large_selected_article_payloads(self):
+        article_content = " ".join(["noi dung"] * 5000)
+
+        research_pack = build_research_pack(
+            selected_articles=[
+                {
+                    "article_id": index,
+                    "title": f"AI chip race {index}",
+                    "summary": article_content,
+                    "content": article_content,
+                    "original_url": f"https://example.com/{index}",
+                    "published_at": "2026-04-02T10:00:00Z",
+                }
+                for index in range(1, 21)
+            ],
+            search_tool=type("NoopSearchTool", (), {"search": lambda self, query: {"query": query, "results": []}})(),
+        )
+
+        total_content_chars = sum(len(str(item.get("content") or "")) for item in research_pack.primary_sources)
+        self.assertEqual(len(research_pack.primary_sources), 20)
+        self.assertLessEqual(total_content_chars, 20000)
+        self.assertIn("Da rut gon noi dung", research_pack.research_summary)
 
 
 class _FakeSession:

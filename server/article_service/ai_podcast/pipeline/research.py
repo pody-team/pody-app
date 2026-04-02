@@ -11,6 +11,11 @@ from ai_podcast.schemas import ResearchPack
 logger = logging.getLogger(__name__)
 
 _MAX_QUERY_LENGTH = 180
+_MAX_SOURCE_TITLE_LENGTH = 180
+_MAX_SOURCE_SUMMARY_LENGTH = 360
+_MAX_SOURCE_CONTENT_LENGTH = 1200
+_MAX_TOTAL_PRIMARY_CONTENT_CHARS = 12000
+_MAX_EXTERNAL_DESCRIPTION_LENGTH = 240
 
 
 class DisabledSearchTool:
@@ -49,7 +54,10 @@ class BraveSearchTool:
                 {
                     "title": str(item.get("title") or "").strip(),
                     "url": str(item.get("url") or "").strip(),
-                    "description": str(item.get("description") or "").strip(),
+                    "description": _compact_text(
+                        str(item.get("description") or "").strip(),
+                        _MAX_EXTERNAL_DESCRIPTION_LENGTH,
+                    ),
                 }
             )
         return {"query": query, "results": results}
@@ -66,6 +74,57 @@ def _normalize_topic_fragment(value: str) -> str:
     normalized = normalized.replace('"', " ").replace("'", " ")
     normalized = re.sub(r"\s+", " ", normalized).strip(" ,.-")
     return normalized
+
+
+def _compact_text(value: str, max_length: int) -> str:
+    normalized = re.sub(r"\s+", " ", (value or "").strip())
+    if len(normalized) <= max_length:
+        return normalized
+    shortened = normalized[:max_length]
+    last_space = shortened.rfind(" ")
+    if last_space >= max_length // 2:
+        shortened = shortened[:last_space]
+    return shortened.rstrip(" ,.-") + "..."
+
+
+def _compact_selected_articles(selected_articles: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    compacted_articles: list[dict[str, Any]] = []
+    remaining_content_budget = _MAX_TOTAL_PRIMARY_CONTENT_CHARS
+    truncated_count = 0
+
+    for article in selected_articles:
+        summary = _compact_text(
+            str(article.get("summary") or ""),
+            _MAX_SOURCE_SUMMARY_LENGTH,
+        )
+        content_limit = min(_MAX_SOURCE_CONTENT_LENGTH, max(240, remaining_content_budget))
+        content = _compact_text(
+            str(article.get("content") or ""),
+            content_limit,
+        )
+        title = _compact_text(
+            str(article.get("title") or ""),
+            _MAX_SOURCE_TITLE_LENGTH,
+        )
+
+        original_content = re.sub(r"\s+", " ", str(article.get("content") or "").strip())
+        original_summary = re.sub(r"\s+", " ", str(article.get("summary") or "").strip())
+        if content != original_content or summary != original_summary or title != str(article.get("title") or "").strip():
+            truncated_count += 1
+
+        compacted_articles.append(
+            {
+                "article_id": article.get("article_id"),
+                "title": title,
+                "summary": summary,
+                "content": content,
+                "original_url": str(article.get("original_url") or "").strip(),
+                "published_at": article.get("published_at"),
+            }
+        )
+        remaining_content_budget = max(240, remaining_content_budget - len(content))
+
+    return compacted_articles, truncated_count
 
 
 def _build_topic_hint(selected_articles: list[dict[str, Any]]) -> str:
@@ -96,7 +155,8 @@ def build_research_pack(
     selected_articles: list[dict[str, Any]],
     search_tool: Any,
 ) -> ResearchPack:
-    topic_hint = _build_topic_hint(selected_articles)
+    compacted_articles, truncated_count = _compact_selected_articles(selected_articles)
+    topic_hint = _build_topic_hint(compacted_articles)
     search_payload: dict[str, Any]
     try:
         search_payload = search_tool.search(
@@ -114,12 +174,16 @@ def build_research_pack(
         "Tong hop nhom bai bao nguoi dung da chon.",
         f"So bai goc: {len(selected_articles)}.",
     ]
+    if truncated_count:
+        summary_parts.append(
+            f"Da rut gon noi dung cua {truncated_count} bai de phu hop gioi han xu ly khi tong hop podcast."
+        )
     if external_sources:
         summary_parts.append(f"Da bo sung {len(external_sources)} nguon web de mo rong boi canh.")
     if search_payload.get("error"):
         summary_parts.append(str(search_payload["error"]))
     return ResearchPack(
-        primary_sources=selected_articles,
+        primary_sources=compacted_articles,
         external_context_sources=external_sources,
         research_summary=" ".join(summary_parts),
     )
