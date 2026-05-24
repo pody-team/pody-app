@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant U as User (Flutter)
+    participant GW as API Gateway
+    participant AS as Article Service
+    participant DB as Article DB
+
+    U->>GW: GET /article/{article_id}
+    GW->>GW: Verify JWT
+    GW->>AS: Proxy request
+    AS->>DB: Query article detail
+    AS->>DB: Increment view_count (article_stats)
+    AS->>DB: Get reaction summary
+    AS->>DB: Count comments
+    AS->>DB: Get categories for article
+    DB-->>AS: Article + stats + reactions + comments + categories
+    AS-->>U: Article detail response
+
+    U->>GW: POST /article/{id}/reactions
+    GW->>AS: Proxy request
+    AS->>DB: UPSERT article_interactions
+    AS-->>U: Reaction saved
+
+    U->>GW: POST /article/{id}/comments
+    GW->>AS: Proxy request
+    AS->>DB: INSERT article_comments
+    AS-->>U: Comment created

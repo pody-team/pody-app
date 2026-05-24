@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../../core/config/app_environment.dart';
 import '../../../core/network/api_client.dart';
 import '../domain/auth_session.dart';
 import '../domain/auth_user.dart';
@@ -120,7 +121,7 @@ class AuthRemoteDataSource {
       },
     );
 
-    return AuthUser.fromJson(
+    return _parseAuthUser(
       response['user'] as Map<String, dynamic>? ?? const {},
     );
   }
@@ -138,7 +139,7 @@ class AuthRemoteDataSource {
       requiresAuth: true,
     );
 
-    return response['avatar_url'] as String? ?? '';
+    return _normalizeAvatarUrl(response['avatar_url'] as String? ?? '');
   }
 
   Future<AuthUser> me() async {
@@ -147,7 +148,7 @@ class AuthRemoteDataSource {
       requiresAuth: true,
     );
 
-    return AuthUser.fromJson(
+    return _parseAuthUser(
       response['user'] as Map<String, dynamic>? ?? const {},
     );
   }
@@ -173,12 +174,85 @@ class AuthRemoteDataSource {
     final tokens = response['tokens'] as Map<String, dynamic>? ?? const {};
 
     return AuthSession.fromJson({
-      'user': user,
+      'user': _normalizedUserJson(user),
       'access_token': tokens['access_token'],
       'refresh_token': tokens['refresh_token'],
       'access_token_expires_at': tokens['access_token_expires_at'],
       'refresh_token_expires_at': tokens['refresh_token_expires_at'],
       'token_type': tokens['token_type'],
     });
+  }
+
+  AuthUser _parseAuthUser(Map<String, dynamic> user) {
+    return AuthUser.fromJson(_normalizedUserJson(user));
+  }
+
+  Map<String, dynamic> _normalizedUserJson(Map<String, dynamic> user) {
+    final normalized = Map<String, dynamic>.from(user);
+    final avatarUrl = user['avatar_url'] as String?;
+    if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+      normalized['avatar_url'] = _normalizeAvatarUrl(avatarUrl);
+    }
+    return normalized;
+  }
+
+  String _normalizeAvatarUrl(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty) {
+      return '';
+    }
+
+    final uri = Uri.tryParse(raw);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      return raw;
+    }
+
+    final apiBaseUri = Uri.tryParse(AppEnvironment.apiBaseUrl.trim());
+    if (apiBaseUri == null ||
+        !apiBaseUri.hasScheme ||
+        apiBaseUri.host.isEmpty) {
+      return raw;
+    }
+
+    final pathSegments = uri.pathSegments
+        .where((segment) => segment.isNotEmpty)
+        .toList();
+    if (pathSegments.isEmpty) {
+      return raw;
+    }
+
+    if (uri.host == apiBaseUri.host && pathSegments.first == 'minio') {
+      return raw;
+    }
+
+    final shouldRewriteInternalHost = _isInternalMinioHost(uri.host);
+    final shouldRewriteMissingMinioPrefix =
+        uri.host == apiBaseUri.host && pathSegments.first == 'identity-avatars';
+    if (!shouldRewriteInternalHost && !shouldRewriteMissingMinioPrefix) {
+      return raw;
+    }
+
+    final normalizedPathSegments = <String>[
+      ...apiBaseUri.pathSegments.where((segment) => segment.isNotEmpty),
+      'minio',
+      ...pathSegments.where((segment) => segment != 'minio'),
+    ];
+
+    return apiBaseUri
+        .replace(
+          pathSegments: normalizedPathSegments,
+          query: uri.hasQuery ? uri.query : null,
+          fragment: uri.hasFragment ? uri.fragment : null,
+        )
+        .toString();
+  }
+
+  bool _isInternalMinioHost(String host) {
+    final normalized = host.trim().toLowerCase();
+    return normalized == 'localhost' ||
+        normalized == '127.0.0.1' ||
+        normalized == '0.0.0.0' ||
+        normalized == 'minio' ||
+        normalized == 'pody-minio';
   }
 }

@@ -1,0 +1,1865 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.12)  24 MAY 2026 21:49
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**BTL_MAD_TV2_Article_Embedding.tex
+(./BTL_MAD_TV2_Article_Embedding.tex
+LaTeX2e <2025-11-01>
+L3 programming layer <2026-01-19>
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/extsizes/extreport.cls
+Document Class: extreport 1996/10/08 v1.0 Non Standard LaTeX document class
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/extsizes/size14.clo
+File: size14.clo 1999/11/11 v1.4a NON-Standard LaTeX file (size option)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/base/exscale.sty
+Package: exscale 2025/06/05 v2.1i Standard LaTeX package exscale
+LaTeX Font Info:    Redeclaring symbol font `largesymbols' on input line 57.
+LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `normal'
+(Font)                  OMX/cmex/m/n --> OMX/cmex/m/n on input line 57.
+LaTeX Font Info:    Overwriting symbol font `largesymbols' in version `bold'
+(Font)                  OMX/cmex/m/n --> OMX/cmex/m/n on input line 57.
+\big@size=\dimen148
+)
+\c@part=\count275
+\c@chapter=\count276
+\c@section=\count277
+\c@subsection=\count278
+\c@subsubsection=\count279
+\c@paragraph=\count280
+\c@subparagraph=\count281
+\c@figure=\count282
+\c@table=\count283
+\abovecaptionskip=\skip49
+\belowcaptionskip=\skip50
+\bibindent=\dimen149
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/base/inputenc.sty
+Package: inputenc 2024/02/08 v1.3d Input encoding file
+\inpenc@prehook=\toks17
+\inpenc@posthook=\toks18
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/base/fontenc.sty
+Package: fontenc 2025/07/18 v2.1d Standard LaTeX package
+
+(/Users/promex04/Library/texmf/tex/latex/vntex/t5enc.def
+File: t5enc.def 2006/11/21 v1.4 Vietnamese T5 encoding
+Now handling font encoding T5 ...
+... processing UTF-8 mapping file for font encoding T5
+
+(/Users/promex04/Library/texmf/tex/latex/vntex/t5enc.dfu
+File: t5enc.dfu 2006/08/19 v1.1 UTF8 support for Vietnamese
+   defining Unicode char U+00AB (decimal 171)
+   defining Unicode char U+00BB (decimal 187)
+   defining Unicode char U+00C0 (decimal 192)
+   defining Unicode char U+00C1 (decimal 193)
+   defining Unicode char U+00C2 (decimal 194)
+   defining Unicode char U+00C3 (decimal 195)
+   defining Unicode char U+00C8 (decimal 200)
+   defining Unicode char U+00C9 (decimal 201)
+   defining Unicode char U+00CA (decimal 202)
+   defining Unicode char U+00CC (decimal 204)
+   defining Unicode char U+00CD (decimal 205)
+   defining Unicode char U+00D2 (decimal 210)
+   defining Unicode char U+00D3 (decimal 211)
+   defining Unicode char U+00D4 (decimal 212)
+   defining Unicode char U+00D5 (decimal 213)
+   defining Unicode char U+00D9 (decimal 217)
+   defining Unicode char U+00DA (decimal 218)
+   defining Unicode char U+00DD (decimal 221)
+   defining Unicode char U+00E0 (decimal 224)
+   defining Unicode char U+00E1 (decimal 225)
+   defining Unicode char U+00E2 (decimal 226)
+   defining Unicode char U+00E3 (decimal 227)
+   defining Unicode char U+00E8 (decimal 232)
+   defining Unicode char U+00E9 (decimal 233)
+   defining Unicode char U+00EA (decimal 234)
+   defining Unicode char U+00EC (decimal 236)
+   defining Unicode char U+00ED (decimal 237)
+   defining Unicode char U+00F2 (decimal 242)
+   defining Unicode char U+00F3 (decimal 243)
+   defining Unicode char U+00F4 (decimal 244)
+   defining Unicode char U+00F5 (decimal 245)
+   defining Unicode char U+00F9 (decimal 249)
+   defining Unicode char U+00FA (decimal 250)
+   defining Unicode char U+00FD (decimal 253)
+   defining Unicode char U+0102 (decimal 258)
+   defining Unicode char U+0103 (decimal 259)
+   defining Unicode char U+0110 (decimal 272)
+   defining Unicode char U+0111 (decimal 273)
+   defining Unicode char U+0128 (decimal 296)
+   defining Unicode char U+0129 (decimal 297)
+   defining Unicode char U+0131 (decimal 305)
+   defining Unicode char U+0168 (decimal 360)
+   defining Unicode char U+0169 (decimal 361)
+   defining Unicode char U+01A0 (decimal 416)
+   defining Unicode char U+01A1 (decimal 417)
+   defining Unicode char U+01AF (decimal 431)
+   defining Unicode char U+01B0 (decimal 432)
+   defining Unicode char U+1EA0 (decimal 7840)
+   defining Unicode char U+1EA1 (decimal 7841)
+   defining Unicode char U+1EA2 (decimal 7842)
+   defining Unicode char U+1EA3 (decimal 7843)
+   defining Unicode char U+1EA4 (decimal 7844)
+   defining Unicode char U+1EA5 (decimal 7845)
+   defining Unicode char U+1EA6 (decimal 7846)
+   defining Unicode char U+1EA7 (decimal 7847)
+   defining Unicode char U+1EA8 (decimal 7848)
+   defining Unicode char U+1EA9 (decimal 7849)
+   defining Unicode char U+1EAA (decimal 7850)
+   defining Unicode char U+1EAB (decimal 7851)
+   defining Unicode char U+1EAC (decimal 7852)
+   defining Unicode char U+1EAD (decimal 7853)
+   defining Unicode char U+1EAE (decimal 7854)
+   defining Unicode char U+1EAF (decimal 7855)
+   defining Unicode char U+1EB0 (decimal 7856)
+   defining Unicode char U+1EB1 (decimal 7857)
+   defining Unicode char U+1EB2 (decimal 7858)
+   defining Unicode char U+1EB3 (decimal 7859)
+   defining Unicode char U+1EB4 (decimal 7860)
+   defining Unicode char U+1EB5 (decimal 7861)
+   defining Unicode char U+1EB6 (decimal 7862)
+   defining Unicode char U+1EB7 (decimal 7863)
+   defining Unicode char U+1EB8 (decimal 7864)
+   defining Unicode char U+1EB9 (decimal 7865)
+   defining Unicode char U+1EBA (decimal 7866)
+   defining Unicode char U+1EBB (decimal 7867)
+   defining Unicode char U+1EBC (decimal 7868)
+   defining Unicode char U+1EBD (decimal 7869)
+   defining Unicode char U+1EBE (decimal 7870)
+   defining Unicode char U+1EBF (decimal 7871)
+   defining Unicode char U+1EC0 (decimal 7872)
+   defining Unicode char U+1EC1 (decimal 7873)
+   defining Unicode char U+1EC2 (decimal 7874)
+   defining Unicode char U+1EC3 (decimal 7875)
+   defining Unicode char U+1EC4 (decimal 7876)
+   defining Unicode char U+1EC5 (decimal 7877)
+   defining Unicode char U+1EC6 (decimal 7878)
+   defining Unicode char U+1EC7 (decimal 7879)
+   defining Unicode char U+1EC8 (decimal 7880)
+   defining Unicode char U+1EC9 (decimal 7881)
+   defining Unicode char U+1ECA (decimal 7882)
+   defining Unicode char U+1ECB (decimal 7883)
+   defining Unicode char U+1ECC (decimal 7884)
+   defining Unicode char U+1ECD (decimal 7885)
+   defining Unicode char U+1ECE (decimal 7886)
+   defining Unicode char U+1ECF (decimal 7887)
+   defining Unicode char U+1ED0 (decimal 7888)
+   defining Unicode char U+1ED1 (decimal 7889)
+   defining Unicode char U+1ED2 (decimal 7890)
+   defining Unicode char U+1ED3 (decimal 7891)
+   defining Unicode char U+1ED4 (decimal 7892)
+   defining Unicode char U+1ED5 (decimal 7893)
+   defining Unicode char U+1ED6 (decimal 7894)
+   defining Unicode char U+1ED7 (decimal 7895)
+   defining Unicode char U+1ED8 (decimal 7896)
+   defining Unicode char U+1ED9 (decimal 7897)
+   defining Unicode char U+1EDA (decimal 7898)
+   defining Unicode char U+1EDB (decimal 7899)
+   defining Unicode char U+1EDC (decimal 7900)
+   defining Unicode char U+1EDD (decimal 7901)
+   defining Unicode char U+1EDE (decimal 7902)
+   defining Unicode char U+1EDF (decimal 7903)
+   defining Unicode char U+1EE0 (decimal 7904)
+   defining Unicode char U+1EE1 (decimal 7905)
+   defining Unicode char U+1EE2 (decimal 7906)
+   defining Unicode char U+1EE3 (decimal 7907)
+   defining Unicode char U+1EE4 (decimal 7908)
+   defining Unicode char U+1EE5 (decimal 7909)
+   defining Unicode char U+1EE6 (decimal 7910)
+   defining Unicode char U+1EE7 (decimal 7911)
+   defining Unicode char U+1EE8 (decimal 7912)
+   defining Unicode char U+1EE9 (decimal 7913)
+   defining Unicode char U+1EEA (decimal 7914)
+   defining Unicode char U+1EEB (decimal 7915)
+   defining Unicode char U+1EEC (decimal 7916)
+   defining Unicode char U+1EED (decimal 7917)
+   defining Unicode char U+1EEE (decimal 7918)
+   defining Unicode char U+1EEF (decimal 7919)
+   defining Unicode char U+1EF0 (decimal 7920)
+   defining Unicode char U+1EF1 (decimal 7921)
+   defining Unicode char U+1EF2 (decimal 7922)
+   defining Unicode char U+1EF3 (decimal 7923)
+   defining Unicode char U+1EF4 (decimal 7924)
+   defining Unicode char U+1EF5 (decimal 7925)
+   defining Unicode char U+1EF6 (decimal 7926)
+   defining Unicode char U+1EF7 (decimal 7927)
+   defining Unicode char U+1EF8 (decimal 7928)
+   defining Unicode char U+1EF9 (decimal 7929)
+   defining Unicode char U+200C (decimal 8204)
+   defining Unicode char U+2013 (decimal 8211)
+   defining Unicode char U+2014 (decimal 8212)
+   defining Unicode char U+2018 (decimal 8216)
+   defining Unicode char U+2019 (decimal 8217)
+   defining Unicode char U+201A (decimal 8218)
+   defining Unicode char U+201C (decimal 8220)
+   defining Unicode char U+201D (decimal 8221)
+   defining Unicode char U+201E (decimal 8222)
+   defining Unicode char U+2030 (decimal 8240)
+   defining Unicode char U+2031 (decimal 8241)
+   defining Unicode char U+2039 (decimal 8249)
+   defining Unicode char U+203A (decimal 8250)
+   defining Unicode char U+2423 (decimal 9251)
+))
+LaTeX Font Info:    Trying to load font information for T5+cmr on input line 11
+6.
+
+(/Users/promex04/Library/texmf/tex/latex/vntex/t5cmr.fd
+File: t5cmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+))
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/babel/babel.sty
+Package: babel 2026/02/14 v26.3 The multilingual framework for LuaLaTeX, pdfLaT
+eX and XeLaTeX
+\babel@savecnt=\count284
+LaTeX Encoding Info:    Redeclaring text command \ij (encoding OT1) on input li
+ne 2078.
+LaTeX Encoding Info:    Redeclaring text command \IJ (encoding OT1) on input li
+ne 2080.
+LaTeX Encoding Info:    Redeclaring text command \ij (encoding T1) on input lin
+e 2082.
+LaTeX Encoding Info:    Redeclaring text command \IJ (encoding T1) on input lin
+e 2083.
+LaTeX Encoding Info:    Ignoring declaration for text command \ij (encoding ?) 
+on input line 2084.
+LaTeX Encoding Info:    Ignoring declaration for text command \IJ (encoding ?) 
+on input line 2086.
+LaTeX Encoding Info:    Ignoring declaration for text command \SS (encoding ?) 
+on input line 2111.
+\U@D=\dimen150
+\l@unhyphenated=\language23
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/babel/txtbabel.def)
+\bbl@readstream=\read2
+\bbl@dirlevel=\count285
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/babel/locale/vi/babel-viet
+namese.tex)
+Package babel Info: Importing font and identification data for vietnamese
+(babel)             from babel-vi.ini. Reported on input line 4330.
+
+(/Users/promex04/Library/texmf/tex/generic/babel-vietnamese/vietnamese.ldf
+Language: vietnamese 
+
+
+Package babel Warning: No hyphenation patterns were preloaded for
+(babel)                the language 'Vietnamese' into the format.
+(babel)                Please, configure your TeX system to add them and
+(babel)                rebuild the format. Now I will use the patterns
+(babel)                preloaded for \language=0 instead on input line 36.
+
+Package babel Info: Hyphen rules for 'vietnamese' set to \l@english
+(babel)             (\language0). Reported on input line 37.
+Package babel Info: Hyphen rules for 'vietnam' set to \l@english
+(babel)             (\language0). Reported on input line 38.
+Loading definitions for the Vietnamese font encoding
+(/Users/promex04/Library/texmf/tex/latex/vntex/t5enc.def
+File: t5enc.def 2006/11/21 v1.4 Vietnamese T5 encoding
+LaTeX Font Info:    Redeclaring font encoding T5 on input line 75.
+LaTeX Encoding Info:    Redeclaring text command \` (encoding T5) on input line
+ 79.
+LaTeX Encoding Info:    Redeclaring text command \' (encoding T5) on input line
+ 80.
+LaTeX Encoding Info:    Redeclaring text command \^ (encoding T5) on input line
+ 81.
+LaTeX Encoding Info:    Redeclaring text command \~ (encoding T5) on input line
+ 82.
+LaTeX Encoding Info:    Redeclaring text command \" (encoding T5) on input line
+ 83.
+LaTeX Encoding Info:    Redeclaring text command \r (encoding T5) on input line
+ 84.
+LaTeX Encoding Info:    Redeclaring text command \v (encoding T5) on input line
+ 85.
+LaTeX Encoding Info:    Redeclaring text command \u (encoding T5) on input line
+ 86.
+LaTeX Encoding Info:    Redeclaring text command \= (encoding T5) on input line
+ 87.
+LaTeX Encoding Info:    Redeclaring text command \. (encoding T5) on input line
+ 88.
+LaTeX Encoding Info:    Redeclaring text command \b (encoding T5) on input line
+ 90.
+LaTeX Encoding Info:    Redeclaring text command \c (encoding T5) on input line
+ 94.
+LaTeX Encoding Info:    Redeclaring text command \d (encoding T5) on input line
+ 98.
+LaTeX Encoding Info:    Redeclaring text command \h (encoding T5) on input line
+ 103.
+LaTeX Encoding Info:    Redeclaring text symbol \quotesinglbase (encoding T5) o
+n input line 105.
+LaTeX Encoding Info:    Redeclaring text symbol \guilsinglleft (encoding T5) on
+ input line 106.
+LaTeX Encoding Info:    Redeclaring text symbol \guilsinglright (encoding T5) o
+n input line 107.
+LaTeX Encoding Info:    Redeclaring text symbol \textquotedblleft (encoding T5)
+ on input line 108.
+LaTeX Encoding Info:    Redeclaring text symbol \textquotedblright (encoding T5
+) on input line 109.
+LaTeX Encoding Info:    Redeclaring text symbol \quotedblbase (encoding T5) on 
+input line 110.
+LaTeX Encoding Info:    Redeclaring text symbol \guillemotleft (encoding T5) on
+ input line 111.
+LaTeX Encoding Info:    Redeclaring text symbol \guillemotright (encoding T5) o
+n input line 112.
+LaTeX Encoding Info:    Redeclaring text symbol \textendash (encoding T5) on in
+put line 113.
+LaTeX Encoding Info:    Redeclaring text symbol \textemdash (encoding T5) on in
+put line 114.
+LaTeX Encoding Info:    Redeclaring text symbol \textcompwordmark (encoding T5)
+ on input line 115.
+LaTeX Encoding Info:    Redeclaring text command \textperthousand (encoding T5)
+ on input line 117.
+LaTeX Encoding Info:    Redeclaring text command \textpertenthousand (encoding 
+T5) on input line 118.
+LaTeX Encoding Info:    Redeclaring text symbol \i (encoding T5) on input line 
+119.
+LaTeX Encoding Info:    Redeclaring text symbol \textvisiblespace (encoding T5)
+ on input line 121.
+LaTeX Encoding Info:    Redeclaring text symbol \textquotedbl (encoding T5) on 
+input line 122.
+LaTeX Encoding Info:    Redeclaring text symbol \textdollar (encoding T5) on in
+put line 123.
+LaTeX Encoding Info:    Redeclaring text symbol \textquoteright (encoding T5) o
+n input line 124.
+LaTeX Encoding Info:    Redeclaring text symbol \textless (encoding T5) on inpu
+t line 125.
+LaTeX Encoding Info:    Redeclaring text symbol \textgreater (encoding T5) on i
+nput line 126.
+LaTeX Encoding Info:    Redeclaring text symbol \textbackslash (encoding T5) on
+ input line 127.
+LaTeX Encoding Info:    Redeclaring text symbol \textasciicircum (encoding T5) 
+on input line 128.
+LaTeX Encoding Info:    Redeclaring text symbol \textunderscore (encoding T5) o
+n input line 129.
+LaTeX Encoding Info:    Redeclaring text symbol \textquoteleft (encoding T5) on
+ input line 130.
+LaTeX Encoding Info:    Redeclaring text symbol \textbraceleft (encoding T5) on
+ input line 131.
+LaTeX Encoding Info:    Redeclaring text symbol \textbar (encoding T5) on input
+ line 132.
+LaTeX Encoding Info:    Redeclaring text symbol \textbraceright (encoding T5) o
+n input line 133.
+LaTeX Encoding Info:    Redeclaring text symbol \textasciitilde (encoding T5) o
+n input line 134.
+LaTeX Encoding Info:    Redeclaring text command \horn (encoding T5) on input l
+ine 137.
+LaTeX Encoding Info:    Redeclaring text symbol \DJ (encoding T5) on input line
+ 306.
+LaTeX Encoding Info:    Redeclaring text symbol \dj (encoding T5) on input line
+ 307.
+LaTeX Encoding Info:    Redeclaring text symbol \Acircumflex (encoding T5) on i
+nput line 312.
+LaTeX Encoding Info:    Redeclaring text symbol \Abreve (encoding T5) on input 
+line 319.
+LaTeX Encoding Info:    Redeclaring text symbol \Ecircumflex (encoding T5) on i
+nput line 326.
+LaTeX Encoding Info:    Redeclaring text symbol \Ocircumflex (encoding T5) on i
+nput line 333.
+LaTeX Encoding Info:    Redeclaring text symbol \Ohorn (encoding T5) on input l
+ine 340.
+LaTeX Encoding Info:    Redeclaring text symbol \Uhorn (encoding T5) on input l
+ine 347.
+LaTeX Encoding Info:    Redeclaring text symbol \acircumflex (encoding T5) on i
+nput line 354.
+LaTeX Encoding Info:    Redeclaring text symbol \abreve (encoding T5) on input 
+line 361.
+LaTeX Encoding Info:    Redeclaring text symbol \ecircumflex (encoding T5) on i
+nput line 368.
+LaTeX Encoding Info:    Redeclaring text symbol \ocircumflex (encoding T5) on i
+nput line 375.
+LaTeX Encoding Info:    Redeclaring text symbol \ohorn (encoding T5) on input l
+ine 382.
+LaTeX Encoding Info:    Redeclaring text symbol \uhorn (encoding T5) on input l
+ine 389.
+LaTeX Encoding Info:    Redeclaring text symbol \ACIRCUMFLEX (encoding T5) on i
+nput line 397.
+LaTeX Encoding Info:    Redeclaring text symbol \ABREVE (encoding T5) on input 
+line 404.
+LaTeX Encoding Info:    Redeclaring text symbol \ECIRCUMFLEX (encoding T5) on i
+nput line 411.
+LaTeX Encoding Info:    Redeclaring text symbol \OCIRCUMFLEX (encoding T5) on i
+nput line 418.
+LaTeX Encoding Info:    Redeclaring text symbol \OHORN (encoding T5) on input l
+ine 425.
+LaTeX Encoding Info:    Redeclaring text symbol \UHORN (encoding T5) on input l
+ine 432.
+)
+Package babel Info: Making " an active character on input line 147.
+))
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/psnfss/times.sty
+Package: times 2020/03/25 PSNFSS-v9.3 (SPQR) 
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/geometry/geometry.sty
+Package: geometry 2020/01/02 v5.9 Page Geometry
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics/keyval.sty
+Package: keyval 2022/05/29 v1.15 key=value parser (DPC)
+\KV@toks@=\toks19
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/iftex/ifvtex.sty
+Package: ifvtex 2019/10/25 v1.7 ifvtex legacy package. Use iftex instead.
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/iftex/iftex.sty
+Package: iftex 2024/12/12 v1.0g TeX engine tests
+))
+\Gm@cnth=\count286
+\Gm@cntv=\count287
+\c@Gm@tempcnt=\count288
+\Gm@bindingoffset=\dimen151
+\Gm@wd@mp=\dimen152
+\Gm@odd@mp=\dimen153
+\Gm@even@mp=\dimen154
+\Gm@layoutwidth=\dimen155
+\Gm@layoutheight=\dimen156
+\Gm@layouthoffset=\dimen157
+\Gm@layoutvoffset=\dimen158
+\Gm@dimlist=\toks20
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics/graphicx.sty
+Package: graphicx 2024/12/31 v1.2e Enhanced LaTeX Graphics (DPC,SPQR)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics/graphics.sty
+Package: graphics 2024/08/06 v1.4g Standard LaTeX Graphics (DPC,SPQR)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics/trig.sty
+Package: trig 2023/12/02 v1.11 sin cos tan (DPC)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics-cfg/graphics.cfg
+File: graphics.cfg 2016/06/04 v1.11 sample graphics configuration
+)
+Package graphics Info: Driver file: pdftex.def on input line 106.
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics-def/pdftex.def
+File: pdftex.def 2025/09/29 v1.2d Graphics/color driver for pdftex
+))
+\Gin@req@height=\dimen159
+\Gin@req@width=\dimen160
+)
+(/Users/promex04/Library/texmf/tex/latex/float/float.sty
+Package: float 2001/11/08 v1.3d Float enhancements (AL)
+\c@float@type=\count289
+\float@exts=\toks21
+\float@box=\box53
+\@float@everytoks=\toks22
+\@floatcapt=\box54
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/tools/array.sty
+Package: array 2025/09/25 v2.6n Tabular extension package (FMi)
+\col@sep=\dimen161
+\ar@mcellbox=\box55
+\extrarowheight=\dimen162
+\NC@list=\toks23
+\extratabsurround=\skip51
+\backup@length=\skip52
+\ar@cellbox=\box56
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/booktabs/booktabs.sty
+Package: booktabs 2020/01/12 v1.61803398 Publication quality tables
+\heavyrulewidth=\dimen163
+\lightrulewidth=\dimen164
+\cmidrulewidth=\dimen165
+\belowrulesep=\dimen166
+\belowbottomsep=\dimen167
+\aboverulesep=\dimen168
+\abovetopsep=\dimen169
+\cmidrulesep=\dimen170
+\cmidrulekern=\dimen171
+\defaultaddspace=\dimen172
+\@cmidla=\count290
+\@cmidlb=\count291
+\@aboverulesep=\dimen173
+\@belowrulesep=\dimen174
+\@thisruleclass=\count292
+\@lastruleclass=\count293
+\@thisrulewidth=\dimen175
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/tools/longtable.sty
+Package: longtable 2025-10-13 v4.24 Multi-page Table package (DPC)
+\LTleft=\skip53
+\LTright=\skip54
+\LTpre=\skip55
+\LTpost=\skip56
+\LTchunksize=\count294
+\LTcapwidth=\dimen176
+\LT@head=\box57
+\LT@firsthead=\box58
+\LT@foot=\box59
+\LT@lastfoot=\box60
+\LT@gbox=\box61
+\LT@cols=\count295
+\LT@rows=\count296
+\c@LT@tables=\count297
+\c@LT@chunks=\count298
+\LT@p@ftn=\toks24
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/tools/tabularx.sty
+Package: tabularx 2023/12/11 v2.12a `tabularx' package (DPC)
+\TX@col@width=\dimen177
+\TX@old@table=\dimen178
+\TX@old@col=\dimen179
+\TX@target=\dimen180
+\TX@delta=\dimen181
+\TX@cols=\count299
+\TX@ftn=\toks25
+)
+(/Users/promex04/Library/texmf/tex/latex/enumitem/enumitem.sty
+Package: enumitem 2025/02/06 v3.11 Customized lists
+\labelindent=\skip57
+\enit@outerparindent=\dimen182
+\enit@toks=\toks26
+\enit@inbox=\box62
+\enit@count@id=\count300
+\enitdp@description=\count301
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/hyperref/hyperref.sty
+Package: hyperref 2026-01-29 v7.01p Hypertext links for LaTeX
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty
+Package: kvsetkeys 2022-10-05 v1.19 Key value parser (HO)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.
+sty
+Package: kvdefinekeys 2019-12-19 v1.6 Define keys (HO)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/pdfescape/pdfescape.sty
+Package: pdfescape 2019/12/09 v1.15 Implements pdfTeX's escape features (HO)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty
+Package: ltxcmds 2023-12-04 v1.26 LaTeX kernel commands for general use (HO)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+Package: pdftexcmds 2020-06-27 v0.33 Utility functions of pdfTeX for LuaTeX (HO
+)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/infwarerr/infwarerr.sty
+Package: infwarerr 2019/12/03 v1.5 Providing info/warning/error messages (HO)
+)
+Package pdftexcmds Info: \pdf@primitive is available.
+Package pdftexcmds Info: \pdf@ifprimitive is available.
+Package pdftexcmds Info: \pdfdraftmode found.
+)) (/usr/local/texlive/2026basic/texmf-dist/tex/latex/hycolor/hycolor.sty
+Package: hycolor 2020-01-27 v1.10 Color options for hyperref/bookmark (HO)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/hyperref/nameref.sty
+Package: nameref 2026-01-29 v2.58 Cross-referencing by name of section
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/refcount/refcount.sty
+Package: refcount 2019/12/15 v3.6 Data extraction from label references (HO)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/gettitlestring/gettitlestr
+ing.sty
+Package: gettitlestring 2019/12/15 v1.6 Cleanup title references (HO)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/kvoptions/kvoptions.sty
+Package: kvoptions 2022-06-15 v3.15 Key value format for package options (HO)
+))
+\c@section@level=\count302
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/etoolbox/etoolbox.sty
+Package: etoolbox 2025/10/02 v2.5m e-TeX tools for LaTeX (JAW)
+\etb@tempcnta=\count303
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/stringenc/stringenc.sty
+Package: stringenc 2019/11/29 v1.12 Convert strings between diff. encodings (HO
+)
+)
+\@linkdim=\dimen183
+\Hy@linkcounter=\count304
+\Hy@pagecounter=\count305
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/hyperref/pd1enc.def
+File: pd1enc.def 2026-01-29 v7.01p Hyperref: PDFDocEncoding definition (HO)
+Now handling font encoding PD1 ...
+... no UTF-8 mapping file for font encoding PD1
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/intcalc/intcalc.sty
+Package: intcalc 2019/12/15 v1.3 Expandable calculations with integers (HO)
+)
+\Hy@SavedSpaceFactor=\count306
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/hyperref/puenc.def
+File: puenc.def 2026-01-29 v7.01p Hyperref: PDF Unicode definition (HO)
+Now handling font encoding PU ...
+... no UTF-8 mapping file for font encoding PU
+)
+Package hyperref Info: Hyper figures OFF on input line 4201.
+Package hyperref Info: Link nesting OFF on input line 4206.
+Package hyperref Info: Hyper index ON on input line 4209.
+Package hyperref Info: Plain pages OFF on input line 4216.
+Package hyperref Info: Backreferencing OFF on input line 4221.
+Package hyperref Info: Implicit mode ON; LaTeX internals redefined.
+Package hyperref Info: Bookmarks ON on input line 4468.
+\c@Hy@tempcnt=\count307
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/url/url.sty
+\Urlmuskip=\muskip17
+Package: url 2013/09/16  ver 3.4  Verb mode for urls, etc.
+)
+LaTeX Info: Redefining \url on input line 4807.
+\XeTeXLinkMargin=\dimen184
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/bitset/bitset.sty
+Package: bitset 2019/12/09 v1.3 Handle bit-vector datatype (HO)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty
+Package: bigintcalc 2019/12/15 v1.5 Expandable calculations on big integers (HO
+)
+))
+\Fld@menulength=\count308
+\Field@Width=\dimen185
+\Fld@charsize=\dimen186
+Package hyperref Info: Hyper figures OFF on input line 6084.
+Package hyperref Info: Link nesting OFF on input line 6089.
+Package hyperref Info: Hyper index ON on input line 6092.
+Package hyperref Info: backreferencing OFF on input line 6099.
+Package hyperref Info: Link coloring OFF on input line 6104.
+Package hyperref Info: Link coloring with OCG OFF on input line 6109.
+Package hyperref Info: PDF/A mode OFF on input line 6114.
+\Hy@abspage=\count309
+\c@Item=\count310
+\c@Hfootnote=\count311
+)
+Package hyperref Info: Driver (autodetected): hpdftex.
+ (/usr/local/texlive/2026basic/texmf-dist/tex/latex/hyperref/hpdftex.def
+File: hpdftex.def 2026-01-29 v7.01p Hyperref driver for pdfTeX
+\Fld@listcount=\count312
+\c@bookmark@seq@number=\count313
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/rerunfilecheck/rerunfilechec
+k.sty
+Package: rerunfilecheck 2025-06-21 v1.11 Rerun checks for auxiliary files (HO)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/generic/uniquecounter/uniquecounte
+r.sty
+Package: uniquecounter 2019/12/15 v1.4 Provide unlimited unique counter (HO)
+)
+Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
+84.
+)
+\Hy@SectionHShift=\skip58
+) (/usr/local/texlive/2026basic/texmf-dist/tex/latex/xcolor/xcolor.sty
+Package: xcolor 2024/09/29 v3.02 LaTeX color extensions (UK)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics-cfg/color.cfg
+File: color.cfg 2016/01/02 v1.6 sample color configuration
+)
+Package xcolor Info: Driver file: pdftex.def on input line 274.
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/graphics/mathcolor.ltx)
+Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1349.
+Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1353.
+Package xcolor Info: Model `RGB' extended on input line 1365.
+Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1367.
+Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1368.
+Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1369.
+Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1370.
+Package xcolor Info: Model `Gray' substituted by `gray' on input line 1371.
+Package xcolor Info: Model `wave' substituted by `hsb' on input line 1372.
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty
+Package: fancyhdr 2025/02/07 v5.2 Extensive control of page headers and footers
+
+\f@nch@headwidth=\skip59
+\f@nch@offset@elh=\skip60
+\f@nch@offset@erh=\skip61
+\f@nch@offset@olh=\skip62
+\f@nch@offset@orh=\skip63
+\f@nch@offset@elf=\skip64
+\f@nch@offset@erf=\skip65
+\f@nch@offset@olf=\skip66
+\f@nch@offset@orf=\skip67
+\f@nch@height=\skip68
+\f@nch@footalignment=\skip69
+\f@nch@widthL=\skip70
+\f@nch@widthC=\skip71
+\f@nch@widthR=\skip72
+\@temptokenb=\toks27
+)
+(/Users/promex04/Library/texmf/tex/latex/titlesec/titlesec.sty
+Package: titlesec 2025/01/04 v2.17 Sectioning titles
+\ttl@box=\box63
+\beforetitleunit=\skip73
+\aftertitleunit=\skip74
+\ttl@plus=\dimen187
+\ttl@minus=\dimen188
+\ttl@toksa=\toks28
+\titlewidth=\dimen189
+\titlewidthlast=\dimen190
+\titlewidthfirst=\dimen191
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/caption/caption.sty
+Package: caption 2023/08/05 v3.6o Customizing captions (AR)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/caption/caption3.sty
+Package: caption3 2023/07/31 v2.4d caption3 kernel (AR)
+\caption@tempdima=\dimen192
+\captionmargin=\dimen193
+\caption@leftmargin=\dimen194
+\caption@rightmargin=\dimen195
+\caption@width=\dimen196
+\caption@indent=\dimen197
+\caption@parindent=\dimen198
+\caption@hangindent=\dimen199
+Package caption Info: Standard document class detected.
+)
+\c@caption@flags=\count314
+\c@continuedfloat=\count315
+Package caption Info: float package is loaded.
+Package caption Info: hyperref package is loaded.
+Package caption Info: longtable package is loaded.
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/caption/ltcaption.sty
+Package: ltcaption 2021/01/08 v1.4c longtable captions (AR)
+))
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/tools/indentfirst.sty
+Package: indentfirst 2023/07/02 v1.03 Indent first paragraph (DPC)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/setspace/setspace.sty
+Package: setspace 2022/12/04 v6.7b set line spacing
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/listings/listings.sty
+\lst@mode=\count316
+\lst@gtempboxa=\box64
+\lst@token=\toks29
+\lst@length=\count317
+\lst@currlwidth=\dimen256
+\lst@column=\count318
+\lst@pos=\count319
+\lst@lostspace=\dimen257
+\lst@width=\dimen258
+\lst@newlines=\count320
+\lst@lineno=\count321
+\lst@maxwidth=\dimen259
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/listings/lstpatch.sty
+File: lstpatch.sty 2025/11/14 1.11b (Carsten Heinz)
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2025/11/14 1.11b (Carsten Heinz)
+\c@lstnumber=\count322
+\lst@skipnumbers=\count323
+\lst@framebox=\box65
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/listings/listings.cfg
+File: listings.cfg 2025/11/14 1.11b listings configuration
+))
+Package: listings 2025/11/14 1.11b (Carsten Heinz)
+
+==> First Aid for listings.sty no longer applied!
+    Expected:
+        2024/09/23 1.10c (Carsten Heinz)
+    but found:
+        2025/11/14 1.11b (Carsten Heinz)
+    so I'm assuming it got fixed.
+(/Users/promex04/Library/texmf/tex/latex/pgf/frontendlayer/tikz.sty
+(/Users/promex04/Library/texmf/tex/latex/pgf/basiclayer/pgf.sty
+(/Users/promex04/Library/texmf/tex/latex/pgf/utilities/pgfrcs.sty
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgfutil-common.tex
+\pgfutil@everybye=\toks30
+\pgfutil@tempdima=\dimen260
+\pgfutil@tempdimb=\dimen261
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgfutil-latex.def
+\pgfutil@abb=\box66
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgfrcs.code.tex
+(/Users/promex04/Library/texmf/tex/generic/pgf/pgf.revision.tex)
+Package: pgfrcs 2025-08-29 v3.1.11a (3.1.11a)
+))
+Package: pgf 2025-08-29 v3.1.11a (3.1.11a)
+
+(/Users/promex04/Library/texmf/tex/latex/pgf/basiclayer/pgfcore.sty
+(/Users/promex04/Library/texmf/tex/latex/pgf/systemlayer/pgfsys.sty
+(/Users/promex04/Library/texmf/tex/generic/pgf/systemlayer/pgfsys.code.tex
+Package: pgfsys 2025-08-29 v3.1.11a (3.1.11a)
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgfkeys.code.tex
+\pgfkeys@pathtoks=\toks31
+\pgfkeys@temptoks=\toks32
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgfkeyslibraryfiltered
+.code.tex
+\pgfkeys@tmptoks=\toks33
+))
+\pgf@x=\dimen262
+\pgf@y=\dimen263
+\pgf@xa=\dimen264
+\pgf@ya=\dimen265
+\pgf@xb=\dimen266
+\pgf@yb=\dimen267
+\pgf@xc=\dimen268
+\pgf@yc=\dimen269
+\pgf@xd=\dimen270
+\pgf@yd=\dimen271
+\w@pgf@writea=\write3
+\r@pgf@reada=\read3
+\c@pgf@counta=\count324
+\c@pgf@countb=\count325
+\c@pgf@countc=\count326
+\c@pgf@countd=\count327
+\t@pgf@toka=\toks34
+\t@pgf@tokb=\toks35
+\t@pgf@tokc=\toks36
+\pgf@sys@id@count=\count328
+ (/Users/promex04/Library/texmf/tex/generic/pgf/systemlayer/pgf.cfg
+File: pgf.cfg 2025-08-29 v3.1.11a (3.1.11a)
+)
+Driver file for pgf: pgfsys-pdftex.def
+(/Users/promex04/Library/texmf/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+File: pgfsys-pdftex.def 2025-08-29 v3.1.11a (3.1.11a)
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/systemlayer/pgfsys-common-pdf.de
+f
+File: pgfsys-common-pdf.def 2025-08-29 v3.1.11a (3.1.11a)
+)))
+(/Users/promex04/Library/texmf/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.
+tex
+File: pgfsyssoftpath.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfsyssoftpath@smallbuffer@items=\count329
+\pgfsyssoftpath@bigbuffer@items=\count330
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/systemlayer/pgfsysprotocol.code.
+tex
+File: pgfsysprotocol.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+))
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcore.code.tex
+Package: pgfcore 2025-08-29 v3.1.11a (3.1.11a)
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmath.code.tex
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathutil.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathparser.code.tex
+\pgfmath@dimen=\dimen272
+\pgfmath@count=\count331
+\pgfmath@box=\box67
+\pgfmath@toks=\toks37
+\pgfmath@stack@operand=\toks38
+\pgfmath@stack@operation=\toks39
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.basic.code
+.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.trigonomet
+ric.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.random.cod
+e.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.comparison
+.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.base.code.
+tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.round.code
+.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.misc.code.
+tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfunctions.integerari
+thmetics.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmathfloat.code.tex
+\c@pgfmathroundto@lastzeros=\count332
+))
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfint.code.tex)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorepoints.code.te
+x
+File: pgfcorepoints.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@picminx=\dimen273
+\pgf@picmaxx=\dimen274
+\pgf@picminy=\dimen275
+\pgf@picmaxy=\dimen276
+\pgf@pathminx=\dimen277
+\pgf@pathmaxx=\dimen278
+\pgf@pathminy=\dimen279
+\pgf@pathmaxy=\dimen280
+\pgf@xx=\dimen281
+\pgf@xy=\dimen282
+\pgf@yx=\dimen283
+\pgf@yy=\dimen284
+\pgf@zx=\dimen285
+\pgf@zy=\dimen286
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorepathconstruct.
+code.tex
+File: pgfcorepathconstruct.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@path@lastx=\dimen287
+\pgf@path@lasty=\dimen288
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorepathusage.code
+.tex
+File: pgfcorepathusage.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@shorten@end@additional=\dimen289
+\pgf@shorten@start@additional=\dimen290
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorescopes.code.te
+x
+File: pgfcorescopes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfpic=\box68
+\pgf@hbox=\box69
+\pgf@layerbox@main=\box70
+\pgf@picture@serial@count=\count333
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoregraphicstate.c
+ode.tex
+File: pgfcoregraphicstate.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgflinewidth=\dimen291
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoretransformation
+s.code.tex
+File: pgfcoretransformations.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@pt@x=\dimen292
+\pgf@pt@y=\dimen293
+\pgf@pt@temp=\dimen294
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorequick.code.tex
+File: pgfcorequick.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoreobjects.code.t
+ex
+File: pgfcoreobjects.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorepathprocessing
+.code.tex
+File: pgfcorepathprocessing.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorearrows.code.te
+x
+File: pgfcorearrows.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfarrowsep=\dimen295
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex
+File: pgfcoreshade.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@max=\dimen296
+\pgf@sys@shading@range@num=\count334
+\pgf@shadingcount=\count335
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex
+File: pgfcoreimage.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoreexternal.code.
+tex
+File: pgfcoreexternal.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfexternal@startupbox=\box71
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorelayers.code.te
+x
+File: pgfcorelayers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcoretransparency.c
+ode.tex
+File: pgfcoretransparency.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorepatterns.code.
+tex
+File: pgfcorepatterns.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex
+File: pgfcorerdf.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)))
+(/Users/promex04/Library/texmf/tex/generic/pgf/modules/pgfmoduleshapes.code.tex
+File: pgfmoduleshapes.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfnodeparttextbox=\box72
+) (/Users/promex04/Library/texmf/tex/generic/pgf/modules/pgfmoduleplot.code.tex
+File: pgfmoduleplot.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)
+(/Users/promex04/Library/texmf/tex/latex/pgf/compatibility/pgfcomp-version-0-65
+.sty
+Package: pgfcomp-version-0-65 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@nodesepstart=\dimen297
+\pgf@nodesepend=\dimen298
+)
+(/Users/promex04/Library/texmf/tex/latex/pgf/compatibility/pgfcomp-version-1-18
+.sty
+Package: pgfcomp-version-1-18 2025-08-29 v3.1.11a (3.1.11a)
+)) (/Users/promex04/Library/texmf/tex/latex/pgf/utilities/pgffor.sty
+(/Users/promex04/Library/texmf/tex/latex/pgf/utilities/pgfkeys.sty
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(/Users/promex04/Library/texmf/tex/latex/pgf/math/pgfmath.sty
+(/Users/promex04/Library/texmf/tex/generic/pgf/math/pgfmath.code.tex))
+(/Users/promex04/Library/texmf/tex/generic/pgf/utilities/pgffor.code.tex
+Package: pgffor 2025-08-29 v3.1.11a (3.1.11a)
+\pgffor@iter=\dimen299
+\pgffor@skip=\dimen300
+\pgffor@stack=\toks40
+\pgffor@toks=\toks41
+))
+(/Users/promex04/Library/texmf/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+Package: tikz 2025-08-29 v3.1.11a (3.1.11a)
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/libraries/pgflibraryplothandlers
+.code.tex
+File: pgflibraryplothandlers.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgf@plot@mark@count=\count336
+\pgfplotmarksize=\dimen301
+)
+\tikz@lastx=\dimen302
+\tikz@lasty=\dimen303
+\tikz@lastxsaved=\dimen304
+\tikz@lastysaved=\dimen305
+\tikz@lastmovetox=\dimen306
+\tikz@lastmovetoy=\dimen307
+\tikzleveldistance=\dimen308
+\tikzsiblingdistance=\dimen309
+\tikz@figbox=\box73
+\tikz@figbox@bg=\box74
+\tikz@tempbox=\box75
+\tikz@tempbox@bg=\box76
+\tikztreelevel=\count337
+\tikznumberofchildren=\count338
+\tikznumberofcurrentchild=\count339
+\tikz@fig@count=\count340
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/modules/pgfmodulematrix.code.tex
+File: pgfmodulematrix.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+\pgfmatrixcurrentrow=\count341
+\pgfmatrixcurrentcolumn=\count342
+\pgf@matrix@numberofcolumns=\count343
+)
+\tikz@expandcount=\count344
+
+(/Users/promex04/Library/texmf/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarytopaths.code.tex
+File: tikzlibrarytopaths.code.tex 2025-08-29 v3.1.11a (3.1.11a)
+)))
+Package hyperref Info: Option `colorlinks' set `true' on input line 58.
+LaTeX Font Info:    Trying to load font information for T5+ptm on input line 93
+.
+
+(/Users/promex04/Library/texmf/tex/latex/vntex/t5ptm.fd
+File: t5utm.fd 2005/08/24 Fontinst v1.929 font definitions for T5/ptm.
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/l3backend/l3backend-pdftex.d
+ef
+File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
+\l__color_backend_stack_int=\count345
+) (./BTL_MAD_TV2_Article_Embedding.aux
+Package babel Info: 'vietnamese' activates 'vietnamese' shorthands.
+(babel)             Reported on input line 8.
+)
+\openout1 = `BTL_MAD_TV2_Article_Embedding.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for T5/cmr/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 93.
+LaTeX Font Info:    ... okay on input line 93.
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+*geometry* verbose mode - [ preamble ] result:
+* driver: pdftex
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(85.35826pt, 455.24411pt, 56.9055pt)
+* v-part:(T,H,B)=(71.13188pt, 702.78308pt, 71.13188pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=455.24411pt
+* \textheight=702.78308pt
+* \oddsidemargin=13.08827pt
+* \evensidemargin=13.08827pt
+* \topmargin=-40.1381pt
+* \headheight=14.0pt
+* \headsep=25.0pt
+* \topskip=14.0pt
+* \footskip=30.0pt
+* \marginparwidth=15.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=12.0pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+\scratchcounter=\count346
+\scratchdimen=\dimen310
+\scratchbox=\box77
+\nofMPsegments=\count347
+\nofMParguments=\count348
+\everyMPshowfont=\toks42
+\MPscratchCnt=\count349
+\MPscratchDim=\dimen311
+\MPnumerator=\count350
+\makeMPintoPDFobject=\count351
+\everyMPtoPDFconversion=\toks43
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.s
+ty
+Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
+Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
+85.
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg
+File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
+e
+))
+Package hyperref Info: Link coloring ON on input line 93.
+ (./BTL_MAD_TV2_Article_Embedding.out) (./BTL_MAD_TV2_Article_Embedding.out)
+\@outlinefile=\write4
+\openout4 = `BTL_MAD_TV2_Article_Embedding.out'.
+
+Package caption Info: Begin \AtBeginDocument code.
+Package caption Info: listings package is loaded.
+Package caption Info: End \AtBeginDocument code.
+\c@lstlisting=\count352
+<assets/logo_ptit.png, id=244, 1024.0659pt x 1024.0659pt>
+File: assets/logo_ptit.png Graphic file (type png)
+<use assets/logo_ptit.png>
+Package pdftex.def Info: assets/logo_ptit.png  used on input line 107.
+(pdftex.def)             Requested size: 68.28644pt x 68.28548pt.
+LaTeX Font Info:    External font `cmex7' loaded for size
+(Font)              <7> on input line 121.
+
+[1
+
+{/Users/promex04/Library/texlive/2026basic/texmf-var/fonts/map/pdftex/updmap/pd
+ftex.map}{/Users/promex04/Library/texmf/fonts/enc/dvips/vntex/t5.enc} <./assets
+/logo_ptit.png>] (/Users/promex04/Library/texmf/tex/latex/vntex/t5pcr.fd)
+Underfull \hbox (badness 2671) in paragraph at lines 209--209
+[]|\T5/ptm/b/n/12 Ph¤m vi phö tr¡ch &
+ []
+
+
+Underfull \hbox (badness 5036) in paragraph at lines 209--209
+[]|\T5/ptm/m/n/12 AI t¤o pod-cast -- \T5/pcr/m/n/12 ai-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 service\T5/ptm/m/n/12 , \T5/pcr/m/n/12 content-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 service\T5/ptm/m/n/12 . Phö tr¡ch
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/ptm/m/n/12 luçng cre-ator t¤o pod-
+ []
+
+
+Underfull \hbox (badness 2285) in paragraph at lines 209--209
+\T5/ptm/m/n/12 pro-duc-tion plan, job t¤o
+ []
+
+
+Underfull \hbox (badness 5756) in paragraph at lines 209--209
+[]|\T5/ptm/m/n/12 B¡o v  pod-cast b¡o --
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 ar-ti-cle_service\T5/ptm/m/n/12 ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 em-bed-ding_service\T5/ptm/m/n/12 .
+ []
+
+
+Underfull \hbox (badness 5924) in paragraph at lines 209--209
+\T5/ptm/m/n/12 cat-e-gory, t÷ìng t¡c b i
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/ptm/m/n/12 se-man-tic, g¡n cat-e-gory
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+[]|\T5/ptm/m/n/12 H¤ t¦ng v  x¡c thüc
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/ptm/m/n/12 -- \T5/pcr/m/n/12 api-gateway\T5/ptm/m/n/12 ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 identity-service\T5/ptm/m/n/12 .
+ []
+
+
+Underfull \hbox (badness 7468) in paragraph at lines 209--209
+\T5/ptm/m/n/12 Phö tr¡ch cûa v o h»
+ []
+
+
+Underfull \hbox (badness 2671) in paragraph at lines 209--209
+\T5/ptm/m/n/12 ^^_«ng kþ/^^_«ng nhªp, x¡c
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/ptm/m/n/12 minh email, pass-word
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+[]|\T5/ptm/m/n/12 Thæng b¡o --
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 notification-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/pcr/m/n/12 service\T5/ptm/m/n/12 . Phö tr¡ch
+ []
+
+
+Underfull \hbox (badness 1622) in paragraph at lines 209--209
+\T5/ptm/m/n/12 count, set-tings, email h»
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 209--209
+\T5/ptm/m/n/12 thèng, con-sume Kafka
+ []
+
+
+pdfTeX warning (ext4): destination with the same identifier (name{page.1}) has 
+been already used, duplicate ignored
+<to be read again> 
+                   \relax 
+l.215 \newpage
+               [1] (./BTL_MAD_TV2_Article_Embedding.toc
+LaTeX Font Info:    Trying to load font information for OT1+ptm on input line 1
+.
+
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/psnfss/ot1ptm.fd
+File: ot1ptm.fd 2001/06/04 font definitions for OT1/ptm.
+) [2
+
+])
+\tf@toc=\write5
+\openout5 = `BTL_MAD_TV2_Article_Embedding.toc'.
+
+
+[3] (./BTL_MAD_TV2_Article_Embedding.lof)
+\tf@lof=\write6
+\openout6 = `BTL_MAD_TV2_Article_Embedding.lof'.
+
+ [4
+
+]
+(./BTL_MAD_TV2_Article_Embedding.lot)
+\tf@lot=\write7
+\openout7 = `BTL_MAD_TV2_Article_Embedding.lot'.
+
+ [5
+
+]
+Overfull \hbox (18.79861pt too wide) in alignment at lines 239--243
+ [] [] 
+ []
+
+
+Overfull \hbox (18.79861pt too wide) in alignment at lines 243--248
+ [] [] 
+ []
+
+
+Overfull \hbox (18.79861pt too wide) in alignment at lines 248--268
+ [] [] 
+ []
+
+[6]
+Ch\uhorn \ohorn ng 1.
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 2
+83.
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/psnfss/ts1ptm.fd
+File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
+) [7
+
+{/usr/local/texlive/2026basic/texmf-dist/fonts/enc/dvips/base/8r.enc}] [8]
+Underfull \hbox (badness 10000) in paragraph at lines 406--406
+[]|\T5/ptm/m/n/12 Méi ser-vice cung c§p end-point health check
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 406--406
+\T5/ptm/m/n/12 (\T5/pcr/m/n/12 /healthz\T5/ptm/m/n/12 ) v  t i li»u API tü ^^_ë
+ng (Ope-
+ []
+
+[9]
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
+[]|\T5/ptm/m/n/12 Framework ^^_a n·n t£ng
+ []
+
+
+Underfull \hbox (badness 2772) in paragraph at lines 461--461
+\T5/ptm/m/n/12 (iOS/Android) vîi hi»u n«ng cao,
+ []
+
+
+Underfull \hbox (badness 1009) in paragraph at lines 461--461
+\T5/ptm/m/n/12 phong phó, phò hñp cho vi»c x¥y
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
+[]|\T5/ptm/m/n/12 Sû döng cho \T5/pcr/m/n/12 identity-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
+\T5/pcr/m/n/12 service\T5/ptm/m/n/12 , \T5/pcr/m/n/12 content-service\T5/ptm/m/
+n/12 ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
+\T5/pcr/m/n/12 notification-service\T5/ptm/m/n/12 . Go
+ []
+
+
+Underfull \hbox (badness 1546) in paragraph at lines 461--461
+\T5/ptm/m/n/12 phò hñp cho ser-vice back-end nhí
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
+[]|\T5/ptm/m/n/12 Sû döng cho \T5/pcr/m/n/12 ai-service\T5/ptm/m/n/12 ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 461--461
+\T5/pcr/m/n/12 ar-ti-cle_service\T5/ptm/m/n/12 , \T5/pcr/m/n/12 em-bed-
+ []
+
+
+Underfull \hbox (badness 1838) in paragraph at lines 461--461
+\T5/ptm/m/n/12 ti¸p trong Post-greSQL, khæng c¦n
+ []
+
+[10]
+Overfull \vbox (81.41719pt too high) has occurred while \output is active []
+
+
+[11]
+Ch\uhorn \ohorn ng 2.
+
+Overfull \hbox (1.59436pt too wide) in paragraph at lines 506--507
+[]\T5/ptm/m/n/14.4 Cung c§p route meta-data (\T5/pcr/m/n/14.4 /api/v1/_meta/rou
+tes\T5/ptm/m/n/14.4 ) v  têng
+ []
+
+
+Underfull \hbox (badness 3229) in paragraph at lines 542--542
+\T5/ptm/m/n/12 cat-e-gory, tag, home feed, book-mark,
+ []
+
+
+Underfull \hbox (badness 2591) in paragraph at lines 542--542
+[]|\T5/ptm/m/n/12 AI t¤o pod-cast: voice pro-files, chat-
+ []
+
+
+Underfull \hbox (badness 5446) in paragraph at lines 542--542
+[]|\T5/ptm/m/n/12 B i b¡o: crawl RSS, ar-ti-cles, cat-e-
+ []
+
+
+Underfull \hbox (badness 2189) in paragraph at lines 542--542
+[]|\T5/ptm/m/n/12 Embedding & search: con-sume CDC
+ []
+
+
+Underfull \hbox (badness 1072) in paragraph at lines 542--542
+[]|\T5/ptm/m/n/12 Thæng b¡o: no-ti-fi-ca-tion in-box, un-read
+ []
+
+[12
+
+] [13]
+Overfull \hbox (66.21863pt too wide) in paragraph at lines 599--600
+[]\T5/ptm/m/n/14.4 Request ^^_i qua API Gate-way (route pub-lic \T5/pcr/m/n/14.
+4 /api/v1/public/identity/*\T5/ptm/m/n/14.4 ). 
+ []
+
+
+Overfull \hbox (3.78293pt too wide) in paragraph at lines 603--604
+[]\T5/ptm/b/n/14.4 ^^^«ng kþ: \T5/ptm/m/n/14.4 T¤o user, t¤o email ver-i-fi-ca-
+tion to-ken, ghi out-box event. 
+ []
+
+[14]
+Overfull \hbox (119.42752pt too wide) in paragraph at lines 609--610
+[]\T5/ptm/m/n/14.4 Ng÷íi dòng b§m link ver-ify $\OMS/cmsy/m/n/14.4 !$ \T5/pcr/m
+/n/14.4 identity-service \T5/ptm/m/n/14.4 cªp nhªt \T5/pcr/m/n/14.4 email_verif
+ied_at\T5/ptm/m/n/14.4 . 
+ []
+
+[15]
+Overfull \hbox (11.01187pt too wide) in paragraph at lines 638--639
+[]\T5/ptm/m/n/14.4 Job \T5/pcr/m/n/14.4 script_generation\T5/ptm/m/n/14.4 : Gåi
+ Gem-ini sinh script cho episode. 
+ []
+
+
+Overfull \hbox (3.07751pt too wide) in paragraph at lines 640--641
+[]\T5/ptm/m/n/14.4 Job \T5/pcr/m/n/14.4 tran-script_generation\T5/ptm/m/n/14.4 
+: Align-ment tran-script vîi au-
+ []
+
+
+Overfull \hbox (12.86667pt too wide) in paragraph at lines 643--644
+[]\T5/ptm/m/n/14.4 Khi ho n th nh, \T5/pcr/m/n/14.4 ai-service \T5/ptm/m/n/14.4
+ gåi in-ter-nal API cõa \T5/pcr/m/n/14.4 notification-
+ []
+
+
+Overfull \hbox (36.71297pt too wide) in paragraph at lines 650--651
+[]\T5/ptm/m/n/14.4 B i b¡o mîi ^^_÷ñc l÷u v o Ar-ti-cle DB (b£ng \T5/pcr/m/n/14
+.4 ar-ti-cles\T5/ptm/m/n/14.4 , \T5/pcr/m/n/14.4 news_sources\T5/ptm/m/n/14.4 )
+. 
+ []
+
+
+Overfull \hbox (182.01184pt too wide) in paragraph at lines 658--659
+[]\T5/ptm/m/n/14.4 Publish k¸t qu£ g¡n cat-e-gory l¶n Kafka topic \T5/pcr/m/n/1
+4.4 ar-ti-cle.category.matches.generated\T5/ptm/m/n/14.4 . 
+ []
+
+[16] [17] [18]
+Underfull \hbox (badness 10000) in paragraph at lines 835--835
+[]|\T5/ptm/m/n/12 Li¶n k¸t show -- cat-e-gory (nhi·u-nhi·u), câ
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 835--835
+[]|\T5/ptm/m/n/12 Host cõa show: dis-play name, avatar, role
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 835--835
+\T5/ptm/m/n/12 (host/co_host/guest/narrator), per-sona type (hu-
+ []
+
+[19]
+Underfull \hbox (badness 10000) in paragraph at lines 872--872
+[]|\T5/ptm/m/n/12 Hç sì giång nâi: provider
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 872--872
+\T5/ptm/m/n/12 (google/openai/elevenlabs), voice ID,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 872--872
+[]|\T5/ptm/m/n/12 Tin nh­n trong thread: role
+ []
+
+
+Underfull \hbox (badness 3713) in paragraph at lines 872--872
+\T5/ptm/m/n/12 (user/assistant/system), text con-tent, plan
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 872--872
+[]|\T5/ptm/m/n/12 Job t¤o nëi dung:
+ []
+
+
+Overfull \hbox (62.14778pt too wide) in paragraph at lines 872--872
+\T5/ptm/m/n/12 plan/script/audio/image/transcript/show_creation/publish,
+ []
+
+[20]
+Underfull \hbox (badness 1997) in paragraph at lines 907--907
+[]|\T5/ptm/m/n/12 Li¶n k¸t ar-ti-cle -- cat-e-gory: as-sign-ment source (man-
+ []
+
+[21]
+Overfull \hbox (6.20192pt too wide) in paragraph at lines 943--944
+[]\T5/ptm/m/n/14.4 Database cõa \T5/pcr/m/n/14.4 notification-service\T5/ptm/m/
+n/14.4 , qu£n lþ thæng b¡o v  gûi email. 
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 967--967
+[]|\T5/ptm/m/n/12 C i ^^_°t thæng b¡o: push/email/new
+ []
+
+[22]
+Underfull \hbox (badness 1194) in paragraph at lines 1042--1042
+[]|\T5/ptm/m/n/12 Init-container: ch¤y mi-gra-tion cho Iden-tity,
+ []
+
+[23]
+Overfull \hbox (8.83444pt too wide) in paragraph at lines 1050--1051
+[]\T5/ptm/b/n/14.4 Infrastructure: \T5/ptm/m/n/14.4 Kafka, Re-dis, MinIO, Post-
+greSQL in-stances khði ^^_ëng
+ []
+
+
+Overfull \hbox (22.04039pt too wide) in paragraph at lines 1051--1052
+\T5/ptm/m/n/14.4 v  \T5/pcr/m/n/14.4 article-db-init\T5/ptm/m/n/14.4 , \T5/pcr/
+m/n/14.4 embedding-db-init \T5/ptm/m/n/14.4 ch¤y mi-gra-tion/seed. 
+ []
+
+[24]
+Overfull \hbox (48.0756pt too wide) in paragraph at lines 1064--1065
+[]\T5/ptm/m/n/14.4 Route meta-data: \T5/pcr/m/n/14.4 http://localhost:8080/api/
+v1/_meta/routes 
+ []
+
+
+Overfull \hbox (104.03407pt too wide) in paragraph at lines 1065--1066
+[]\T5/ptm/m/n/14.4 Identity docs: \T5/pcr/m/n/14.4 http://localhost:8080/api/v1
+/public/identity/docs 
+ []
+
+
+Overfull \hbox (95.66766pt too wide) in paragraph at lines 1066--1067
+[]\T5/ptm/m/n/14.4 Content docs: \T5/pcr/m/n/14.4 http://localhost:8080/api/v1/
+public/content/docs 
+ []
+
+
+Overfull \hbox (22.58685pt too wide) in paragraph at lines 1067--1068
+[]\T5/ptm/m/n/14.4 AI docs: \T5/pcr/m/n/14.4 http://localhost:8080/api/v1/publi
+c/ai/docs 
+ []
+
+
+Overfull \hbox (171.1092pt too wide) in paragraph at lines 1068--1069
+[]\T5/ptm/m/n/14.4 Notification docs: \T5/pcr/m/n/14.4 http://localhost:8080/ap
+i/v1/public/notifications/docs 
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1111--1111
+[]|\T5/pcr/m/n/8 POST /ai/chat-create/threads\T5/ptm/m/n/8 ,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1111--1111
+[]|\T5/pcr/m/n/8 GET /ar-ti-cle\T5/ptm/m/n/8 , \T5/pcr/m/n/8 /ar-ti-cle/{id}\T5
+/ptm/m/n/8 , \T5/pcr/m/n/8 POST /ar-ti-
+ []
+
+[25] [26]
+Ch\uhorn \ohorn ng 3.
+
+Overfull \hbox (10.46881pt too wide) in paragraph at lines 1124--1124
+|[]\T5/ptm/b/n/17.28 Vô ^^^ùc Th nh -- B¡o v  pod-cast b¡o: \T5/pcr/b/n/17.28 a
+r-ti-cle_service
+ []
+
+
+Underfull \hbox (badness 1360) in paragraph at lines 1160--1160
+\T5/ptm/m/n/12 count v  tr£ re-ac-tion/comment
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1160--1160
+[]|\T5/ptm/m/n/12 Ng÷íi dòng t÷ìng t¡c vîi
+ []
+
+
+Underfull \hbox (badness 4467) in paragraph at lines 1160--1160
+\T5/ptm/m/n/12 b i b¡o, ser-vice l÷u in-ter-ac-
+ []
+
+[27
+
+
+]
+<diagrams/component_article_embedding.pdf, id=534, 614.295pt x 794.97pt>
+File: diagrams/component_article_embedding.pdf Graphic file (type pdf)
+<use diagrams/component_article_embedding.pdf>
+Package pdftex.def Info: diagrams/component_article_embedding.pdf  used on inpu
+t line 1167.
+(pdftex.def)             Requested size: 423.60155pt x 548.19025pt.
+ [28]
+Overfull \hbox (49.89334pt too wide) in paragraph at lines 1174--1175
+\T5/pcr/m/n/14.4 gories\T5/ptm/m/n/14.4 , \T5/pcr/m/n/14.4 cat-e-gory_articles\
+T5/ptm/m/n/14.4 , \T5/pcr/m/n/14.4 ar-ti-cle_stats\T5/ptm/m/n/14.4 , \T5/pcr/m/
+n/14.4 ar-ti-cle_interactions\T5/ptm/m/n/14.4 ,
+ []
+
+
+Overfull \hbox (1.3942pt too wide) in paragraph at lines 1174--1175
+\T5/pcr/m/n/14.4 ar-ti-cle_comments\T5/ptm/m/n/14.4 , \T5/pcr/m/n/14.4 ar-ti-cl
+e_metrics\T5/ptm/m/n/14.4 , \T5/pcr/m/n/14.4 ar-ti-cle_podcast_jobs\T5/ptm/m/n/
+14.4 ,
+ []
+
+
+Overfull \hbox (11.6603pt too wide) in paragraph at lines 1174--1175
+\T5/pcr/m/n/14.4 ar-ti-cle_podcast_assets\T5/ptm/m/n/14.4 . Em-bed-ding DB l÷u 
+doc-u-ment/chunk/vector/job
+ []
+
+[29 <./diagrams/component_article_embedding.pdf>]
+<diagrams/er_article_embedding.pdf, id=552, 614.295pt x 794.97pt>
+File: diagrams/er_article_embedding.pdf Graphic file (type pdf)
+<use diagrams/er_article_embedding.pdf>
+Package pdftex.def Info: diagrams/er_article_embedding.pdf  used on input line 
+1178.
+(pdftex.def)             Requested size: 423.60155pt x 548.19025pt.
+<diagrams/seq_article_detail.pdf, id=553, 614.295pt x 794.97pt>
+File: diagrams/seq_article_detail.pdf Graphic file (type pdf)
+<use diagrams/seq_article_detail.pdf>
+Package pdftex.def Info: diagrams/seq_article_detail.pdf  used on input line 11
+87.
+(pdftex.def)             Requested size: 423.60155pt x 548.19025pt.
+ [30 <./diagrams/er_article_embedding.pdf>]
+<diagrams/seq_article_podcast.pdf, id=573, 614.295pt x 794.97pt>
+File: diagrams/seq_article_podcast.pdf Graphic file (type pdf)
+<use diagrams/seq_article_podcast.pdf>
+Package pdftex.def Info: diagrams/seq_article_podcast.pdf  used on input line 1
+194.
+(pdftex.def)             Requested size: 423.60155pt x 548.19025pt.
+ [31 <./diagrams/seq_article_detail.pdf>] [32 <./diagrams/seq_article_podcast.p
+df>]
+Underfull \hbox (badness 1533) in paragraph at lines 1256--1256
+[]|\T5/ptm/m/n/8 Crawl/read ar-ti-cle, re-ac-tion/comment/metric, ar-ti-cle
+ []
+
+[33]
+Ch\uhorn \ohorn ng 4.
+
+Underfull \hbox (badness 10000) in paragraph at lines 1325--1325
+[]|\T5/ptm/m/n/12 Crawl/seed ar-ti-cle, list/detail ar-ti-cle, cat-e-gory, re-a
+c-
+ []
+
+
+Underfull \hbox (badness 1648) in paragraph at lines 1325--1325
+\T5/ptm/m/n/12 tion/comment/metric, ar-ti-cle pod-cast job, CDC em-bed-ding,
+ []
+
+[34
+
+
+]
+Overfull \hbox (75.3761pt too wide) in paragraph at lines 1348--1349
+[]\T5/ptm/m/n/14.4 Ch¤y Flut-ter App v  trä base URL v· API Gate-way \T5/pcr/m/
+n/14.4 http://localhost:8080\T5/ptm/m/n/14.4 . 
+ []
+
+[35] (/usr/local/texlive/2026basic/texmf-dist/tex/latex/listings/lstlang1.sty
+File: lstlang1.sty 2025/11/14 1.11b listings language file
+)
+(/usr/local/texlive/2026basic/texmf-dist/tex/latex/listings/lstlang1.sty
+File: lstlang1.sty 2025/11/14 1.11b listings language file
+)
+Package hyperref Info: bookmark level for unknown lstlisting defaults to 0 on i
+nput line 1352.
+
+Underfull \hbox (badness 7814) in paragraph at lines 1388--1388
+[]|\T5/ptm/b/n/14.4 Nhâm chùc
+ []
+
+
+Overfull \hbox (53.86444pt too wide) in alignment at lines 1384--1390
+ [] [] [] [] [] 
+ []
+
+
+Underfull \hbox (badness 7814) in paragraph at lines 1392--1392
+[]|\T5/ptm/b/n/14.4 Nhâm chùc
+ []
+
+
+Overfull \hbox (53.86444pt too wide) in alignment at lines 1390--1394
+ [] [] [] [] [] 
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1395--1395
+[]|\T5/ptm/m/n/14.4 Tr£ list câ cat-e-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1397--1397
+[]|\T5/ptm/m/n/14.4 Article de-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1397--1397
+\T5/ptm/m/n/14.4 tail hiºn thà
+ []
+
+
+Underfull \hbox (badness 6876) in paragraph at lines 1397--1397
+\T5/ptm/m/n/14.4 nëi dung v 
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1399--1399
+[]|\T5/ptm/m/n/14.4 Reaction/comment
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1399--1399
+[]|\T5/ptm/m/n/14.4 Ghi in-ter-ac-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1399--1399
+\T5/ptm/m/n/14.4 tion/comment theo
+ []
+
+
+Underfull \hbox (badness 1472) in paragraph at lines 1399--1399
+[]|\T5/ptm/m/n/14.4 Dú li»u ^^_÷ñc
+ []
+
+
+Underfull \hbox (badness 6995) in paragraph at lines 1401--1401
+[]|\T5/ptm/m/n/14.4 Article Pod-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1401--1401
+[]|\T5/ptm/m/n/14.4 Job
+ []
+
+
+Overfull \hbox (48.65295pt too wide) in paragraph at lines 1401--1401
+\T5/ptm/m/n/14.4 queued/processing/completed
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1401--1401
+[]|\T5/ptm/m/n/14.4 Job ^^_÷ñc
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1401--1401
+\T5/ptm/m/n/14.4 t¤o; au-dio
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1401--1401
+\T5/ptm/m/n/14.4 phö thuëc
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1401--1402
+[]|\T5/ptm/m/n/14.4 Pass
+ []
+
+
+Underfull \hbox (badness 1533) in paragraph at lines 1403--1403
+\T5/ptm/m/n/14.4 theo vec-tor sim-i-lar-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1403--1403
+\T5/ptm/m/n/14.4 em-bed-ding
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1403--1403
+\T5/ptm/m/n/14.4 DB ^^_¢ câ
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 1403--1404
+[]|\T5/ptm/m/n/14.4 Pass
+ []
+
+
+Overfull \hbox (53.86444pt too wide) in alignment at lines 1394--1405
+ [] [] [] [] [] 
+ []
+
+
+ignored: Infinite glue shrinkage found in box being split [36]
+Underfull \hbox (badness 2189) in paragraph at lines 1432--1432
+[]|\T5/ptm/m/n/12 Seed: Vn-Ex-press, Thanh Nien, Tech
+ []
+
+[37]
+Overfull \hbox (32.66669pt too wide) in paragraph at lines 1471--1472
+[]\T5/ptm/m/n/14.4 PostgreSQL doc-u-men-ta-tion: \T5/pcr/m/n/14.4 https://www.p
+ostgresql.org/docs 
+ []
+
+
+Overfull \hbox (56.03885pt too wide) in paragraph at lines 1472--1473
+[]\T5/ptm/m/n/14.4 pgvector doc-u-men-ta-tion: \T5/pcr/m/n/14.4 https://github.
+com/pgvector/pgvector 
+ []
+
+
+Overfull \hbox (106.0644pt too wide) in paragraph at lines 1473--1474
+[]\T5/ptm/m/n/14.4 Apache Kafka doc-u-men-ta-tion: \T5/pcr/m/n/14.4 https://kaf
+ka.apache.org/documentation 
+ []
+
+[38]
+Overfull \hbox (40.74603pt too wide) in paragraph at lines 1474--1475
+[]\T5/ptm/m/n/14.4 Debezium doc-u-men-ta-tion: \T5/pcr/m/n/14.4 https://debeziu
+m.io/documentation 
+ []
+
+
+Overfull \hbox (61.51077pt too wide) in paragraph at lines 1475--1476
+[]\T5/ptm/m/n/14.4 Docker Com-pose doc-u-men-ta-tion: \T5/pcr/m/n/14.4 https://
+docs.docker.com/compose 
+ []
+
+[39] (./BTL_MAD_TV2_Article_Embedding.aux)
+ ***********
+LaTeX2e <2025-11-01>
+L3 programming layer <2026-01-19>
+ ***********
+Package rerunfilecheck Info: File `BTL_MAD_TV2_Article_Embedding.out' has not c
+hanged.
+(rerunfilecheck)             Checksum: 806CEFEC63C41D20B13BAD64AA46828E;11781.
+ ) 
+Here is how much of TeX's memory you used:
+ 26155 strings out of 469006
+ 477135 string characters out of 5454813
+ 1050016 words of memory out of 5000000
+ 54250 multiletter control sequences out of 15000+600000
+ 677256 words of font info for 81 fonts, out of 8000000 for 9000
+ 319 hyphenation exceptions out of 8191
+ 84i,11n,116p,539b,1144s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</usr/local/texlive/2026basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy1
+0.pfb></Users/promex04/Library/texmf/fonts/type1/vntex/urwvn/ucrb8v.pfb></Users
+/promex04/Library/texmf/fonts/type1/vntex/urwvn/ucrr8v.pfb></Users/promex04/Lib
+rary/texmf/fonts/type1/vntex/urwvn/utmb8v.pfb></Users/promex04/Library/texmf/fo
+nts/type1/vntex/urwvn/utmbi8v.pfb></usr/local/texlive/2026basic/texmf-dist/font
+s/type1/urw/times/utmr8a.pfb></Users/promex04/Library/texmf/fonts/type1/vntex/u
+rwvn/utmr8v.pfb></Users/promex04/Library/texmf/fonts/type1/vntex/urwvn/utmri8v.
+pfb>
+Output written on BTL_MAD_TV2_Article_Embedding.pdf (40 pages, 525962 bytes).
+PDF statistics:
+ 738 PDF objects out of 1000 (max. 8388607)
+ 657 compressed objects within 7 object streams
+ 189 named destinations out of 1000 (max. 500000)
+ 510 words of extra memory for PDF output out of 10000 (max. 10000000)
+

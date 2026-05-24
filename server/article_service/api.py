@@ -76,7 +76,7 @@ def create_api(logger) -> FastAPI:
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
         try:
-            user_id = resolve_user_id(auth_user, None)
+            user_id = resolve_user_id(auth_user)
             return await article_query_service.list_favorite_categories(user_id)
         except HTTPException:
             raise
@@ -91,7 +91,7 @@ def create_api(logger) -> FastAPI:
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
         try:
-            user_id = resolve_user_id(auth_user, None)
+            user_id = resolve_user_id(auth_user)
             return await article_query_service.replace_favorite_categories(user_id, req.category_ids)
         except HTTPException:
             raise

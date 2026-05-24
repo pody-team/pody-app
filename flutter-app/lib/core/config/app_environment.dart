@@ -29,7 +29,12 @@ class AppEnvironment {
       return _configuredBaseUrl;
     }
 
-    final envBaseUrl = dotenv.env['API_BASE_URL']?.trim() ?? '';
+    String envBaseUrl = '';
+    try {
+      envBaseUrl = dotenv.env['API_BASE_URL']?.trim() ?? '';
+    } catch (_) {
+      envBaseUrl = '';
+    }
     if (envBaseUrl.isNotEmpty) {
       return envBaseUrl;
     }
@@ -86,8 +91,12 @@ class AppEnvironment {
       }
     }
 
-    final envServerClientId =
-        dotenv.env['GOOGLE_SERVER_CLIENT_ID']?.trim() ?? '';
+    String envServerClientId = '';
+    try {
+      envServerClientId = dotenv.env['GOOGLE_SERVER_CLIENT_ID']?.trim() ?? '';
+    } catch (_) {
+      envServerClientId = '';
+    }
     if (envServerClientId.isNotEmpty) {
       return envServerClientId;
     }

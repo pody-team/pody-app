@@ -7,29 +7,34 @@ import (
 	"io"
 	"log/slog"
 	"mime/multipart"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/promex04/pody/server/identity-service/internal/auth"
 	"github.com/promex04/pody/server/identity-service/internal/config"
+	"github.com/promex04/pody/server/identity-service/internal/domain"
 	"github.com/promex04/pody/server/identity-service/internal/media"
 )
 
 type Server struct {
-	authService    auth.Service
-	logger         *slog.Logger
-	avatarStore    media.AvatarStorage
-	maxAvatarBytes int64
+	authService     auth.Service
+	logger          *slog.Logger
+	avatarStore     media.AvatarStorage
+	maxAvatarBytes  int64
+	minioBucketName string
 }
 
 func New(cfg config.Config, logger *slog.Logger, authService auth.Service, avatarStore media.AvatarStorage) *http.Server {
 	s := &Server{
-		authService:    authService,
-		logger:         logger,
-		avatarStore:    avatarStore,
-		maxAvatarBytes: cfg.MaxAvatarBytes,
+		authService:     authService,
+		logger:          logger,
+		avatarStore:     avatarStore,
+		maxAvatarBytes:  cfg.MaxAvatarBytes,
+		minioBucketName: strings.TrimSpace(cfg.MinIOBucketName),
 	}
 
 	router := chi.NewRouter()
@@ -153,7 +158,7 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, s.normalizeOutgoingAuthResponse(r, response))
 }
 
 func (s *Server) handleGoogleSignIn(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +174,7 @@ func (s *Server) handleGoogleSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, s.normalizeOutgoingAuthResponse(r, response))
 }
 
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
@@ -185,7 +190,7 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	writeJSON(w, http.StatusOK, s.normalizeOutgoingAuthResponse(r, response))
 }
 
 func (s *Server) handleSignOut(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +227,7 @@ func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"message": "email verified successfully",
-		"user":    user,
+		"user":    s.normalizeOutgoingUser(r, user),
 	})
 }
 
@@ -277,7 +282,7 @@ func (s *Server) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"message": "password reset successful",
-		"user":    user,
+		"user":    s.normalizeOutgoingUser(r, user),
 	})
 }
 
@@ -314,7 +319,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+	writeJSON(w, http.StatusOK, map[string]any{"user": s.normalizeOutgoingUser(r, user)})
 }
 
 func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
@@ -367,7 +372,7 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"user": user})
+	writeJSON(w, http.StatusOK, map[string]any{"user": s.normalizeOutgoingUser(r, user)})
 }
 
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
@@ -434,7 +439,9 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]string{"avatar_url": avatarURL})
+	writeJSON(w, http.StatusCreated, map[string]string{
+		"avatar_url": s.normalizeOutgoingAvatarURL(r, avatarURL),
+	})
 }
 
 func (s *Server) writeAuthError(w http.ResponseWriter, err error) {
@@ -485,6 +492,109 @@ func bearerToken(header string) string {
 	}
 
 	return strings.TrimSpace(strings.TrimPrefix(header, prefix))
+}
+
+func (s *Server) normalizeOutgoingAuthResponse(r *http.Request, response domain.AuthResponse) domain.AuthResponse {
+	response.User = s.normalizeOutgoingUser(r, response.User)
+	return response
+}
+
+func (s *Server) normalizeOutgoingUser(r *http.Request, user domain.User) domain.User {
+	user.AvatarURL = s.normalizeOutgoingAvatarURL(r, user.AvatarURL)
+	return user
+}
+
+func (s *Server) normalizeOutgoingAvatarURL(r *http.Request, raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed == nil || strings.TrimSpace(parsed.Host) == "" {
+		return raw
+	}
+
+	pathSegments := nonEmptySegments(parsed.Path)
+	if len(pathSegments) == 0 {
+		return raw
+	}
+
+	requestHost := forwardedHost(r)
+	requestScheme := forwardedScheme(r)
+	if requestHost == "" || requestScheme == "" {
+		return raw
+	}
+
+	if strings.EqualFold(parsed.Host, requestHost) && pathSegments[0] == "minio" {
+		return raw
+	}
+
+	shouldRewriteInternalHost := isInternalMinioHost(parsed.Host)
+	shouldRewriteBucketPath := strings.EqualFold(parsed.Host, requestHost) &&
+		s.minioBucketName != "" &&
+		pathSegments[0] == s.minioBucketName
+	if !shouldRewriteInternalHost && !shouldRewriteBucketPath {
+		return raw
+	}
+
+	normalizedSegments := []string{"minio"}
+	for _, segment := range pathSegments {
+		if segment == "minio" {
+			continue
+		}
+		normalizedSegments = append(normalizedSegments, segment)
+	}
+
+	publicURL := &url.URL{
+		Scheme:   requestScheme,
+		Host:     requestHost,
+		Path:     "/" + strings.Join(normalizedSegments, "/"),
+		RawQuery: parsed.RawQuery,
+		Fragment: parsed.Fragment,
+	}
+	return publicURL.String()
+}
+
+func forwardedHost(r *http.Request) string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
+		return forwarded
+	}
+	return strings.TrimSpace(r.Host)
+}
+
+func forwardedScheme(r *http.Request) string {
+	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
+		return forwarded
+	}
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func isInternalMinioHost(host string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(host))
+	if parsedHost, _, err := net.SplitHostPort(normalized); err == nil {
+		normalized = parsedHost
+	}
+	return normalized == "localhost" ||
+		normalized == "127.0.0.1" ||
+		normalized == "0.0.0.0" ||
+		normalized == "minio" ||
+		normalized == "pody-minio"
+}
+
+func nonEmptySegments(path string) []string {
+	parts := strings.Split(path, "/")
+	segments := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			segments = append(segments, part)
+		}
+	}
+	return segments
 }
 
 func readAvatarPayload(file multipart.File, maxReadBytes int64) ([]byte, error) {

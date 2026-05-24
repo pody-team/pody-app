@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant U as User (Flutter)
+    participant GW as API Gateway
+    participant CS as Content Service
+    participant DB as Content DB
+
+    U->>GW: GET /public/content/home
+    GW->>CS: Proxy request
+    CS->>DB: Query shows + episodes (published)
+    DB-->>CS: Show list + Episode list
+    CS-->>U: Home feed response
+
+    U->>GW: GET /public/content/shows/{showID}
+    GW->>CS: Proxy request
+    CS->>DB: Query show + hosts + episodes
+    DB-->>CS: Show detail
+    CS-->>U: Show detail + episode list
+
+    U->>GW: GET /public/content/episodes/{episodeID}
+    GW->>CS: Proxy request
+    CS->>DB: Query episode + segments + assets
+    DB-->>CS: Episode detail
+    CS-->>U: Episode detail (audio_url, segments, assets)
+
+    U->>GW: POST /content/episodes/{id}/bookmark
+    GW->>GW: Verify JWT
+    GW->>CS: Proxy request
+    CS->>DB: INSERT episode_bookmarks
+    CS-->>U: 201 Bookmarked

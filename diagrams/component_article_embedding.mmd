@@ -1,0 +1,47 @@
+flowchart LR
+    User[User / Flutter App] --> Gateway[API Gateway]
+
+    subgraph Article["article_service"]
+        ArticleAPI[Article Query API]
+        InteractionAPI[Reaction / Comment API]
+        PodcastAPI[Article Podcast Job API]
+        Crawler[RSS Crawler]
+        PodcastWorker[Podcast Worker]
+        CategoryConsumer[Category Sync Consumer]
+    end
+
+    subgraph Embedding["embedding_service"]
+        CDCConsumer[CDC Consumer]
+        Chunker[Article Chunker]
+        Embedder[Embedding Provider Adapter]
+        SearchAPI[Semantic Search API]
+        Matcher[Category Matcher]
+    end
+
+    subgraph Data["Databases"]
+        ArticleDB[(Article DB)]
+        EmbeddingDB[(Embedding DB + pgvector)]
+    end
+
+    Kafka[(Kafka)]
+    Debezium[Debezium Connect]
+    GenAI[Google GenAI]
+    Storage[MinIO / GCS]
+
+    Gateway --> ArticleAPI
+    Gateway --> InteractionAPI
+    Gateway --> PodcastAPI
+    Gateway --> SearchAPI
+    Crawler --> ArticleDB
+    ArticleAPI --> ArticleDB
+    InteractionAPI --> ArticleDB
+    PodcastAPI --> ArticleDB
+    PodcastWorker --> ArticleDB
+    PodcastWorker --> GenAI
+    PodcastWorker --> Storage
+    ArticleDB --> Debezium --> Kafka --> CDCConsumer
+    CDCConsumer --> Chunker --> Embedder --> EmbeddingDB
+    Embedder --> GenAI
+    Matcher --> EmbeddingDB
+    Matcher --> Kafka --> CategoryConsumer --> ArticleDB
+    SearchAPI --> EmbeddingDB

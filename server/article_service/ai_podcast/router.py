@@ -22,7 +22,7 @@ async def create_article_podcast_job(
     auth_user: AuthenticatedUser | None = Depends(get_optional_auth_user),
     service: AIPodcastService = Depends(get_ai_podcast_service),
 ):
-    user_id = resolve_user_id(auth_user, None)
+    user_id = resolve_user_id(auth_user)
     return await service.create_job(owner_user_id=user_id, request=request)
 
 
@@ -31,7 +31,7 @@ async def list_article_podcast_jobs(
     auth_user: AuthenticatedUser | None = Depends(get_optional_auth_user),
     service: AIPodcastService = Depends(get_ai_podcast_service),
 ):
-    user_id = resolve_user_id(auth_user, None)
+    user_id = resolve_user_id(auth_user)
     return await service.list_jobs(owner_user_id=user_id)
 
 
@@ -41,5 +41,5 @@ async def get_article_podcast_job(
     auth_user: AuthenticatedUser | None = Depends(get_optional_auth_user),
     service: AIPodcastService = Depends(get_ai_podcast_service),
 ):
-    user_id = resolve_user_id(auth_user, None)
+    user_id = resolve_user_id(auth_user)
     return await service.get_job_detail(owner_user_id=user_id, job_id=job_id)

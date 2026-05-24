@@ -1,0 +1,6 @@
+FROM python:3.12-slim
+
+WORKDIR /workspace
+
+COPY register_connector.py /workspace/debezium/register_connector.py
+COPY register-connector.json /workspace/debezium/register-connector.json

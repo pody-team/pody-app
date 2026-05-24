@@ -73,18 +73,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final avatarUrl = _previewAvatarUrl;
 
     if (displayName.isEmpty || displayName.characters.length > 120) {
-      return 'Ten hien thi phai tu 1 den 120 ky tu.';
+      return 'Tên hiển thị phải từ 1 đến 120 ký tự.';
     }
 
     final usernamePattern = RegExp(r'^[a-z0-9._]+$');
     if (username.isEmpty ||
         username.characters.length > 120 ||
         !usernamePattern.hasMatch(username)) {
-      return 'Username chi duoc gom chu thuong, so, dau cham va dau gach duoi.';
+      return 'Username chỉ được gồm chữ thường, số, dấu chấm và dấu gạch dưới.';
     }
 
     if (bioLength > 150) {
-      return 'Tieu su toi da 150 ky tu.';
+      return 'Tiểu sử tối đa 150 ký tự.';
     }
 
     if (avatarUrl.isNotEmpty) {
@@ -92,7 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (parsed == null ||
           parsed.host.isEmpty ||
           (parsed.scheme != 'http' && parsed.scheme != 'https')) {
-        return 'Avatar URL phai bat dau bang http hoac https.';
+        return 'Avatar URL phải bắt đầu bằng http hoặc https.';
       }
     }
 
@@ -120,7 +120,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Da cap nhat ho so.')));
+      ).showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ.')));
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) {
@@ -163,7 +163,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       _avatarUrlController.text = avatarUrl;
       setState(() {});
-      _showMessage('Da tai avatar len server.');
+      _showMessage('Đã tải avatar lên server.');
     } catch (error) {
       if (!mounted) {
         return;
@@ -179,11 +179,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String _humanizeError(Object error) {
     if (error is ApiException) {
       if (error.statusCode == 409) {
-        return 'Username da ton tai. Hay chon ten khac.';
+        return 'Username đã tồn tại. Hãy chọn tên khác.';
       }
       return error.message;
     }
-    return 'Khong the cap nhat ho so luc nay.';
+    return 'Không thể cập nhật hồ sơ lúc này.';
   }
 
   void _showMessage(String message) {
@@ -212,7 +212,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, color: _editNeutral),
         ),
         title: Text(
-          'Chinh sua ho so',
+          'Chỉnh sửa hồ sơ',
           style: GoogleFonts.newsreader(
             color: _editNeutral,
             fontSize: 24,
@@ -229,7 +229,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : Text(
-                    'Luu',
+                    'Lưu',
                     style: GoogleFonts.workSans(
                       color: _editPrimary,
                       fontWeight: FontWeight.w700,
@@ -256,7 +256,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Chon anh tu may cua ban, app se tai len identity-service va luu link public tren MinIO vao profile.',
+                  'Chọn ảnh từ máy của bạn, ứng dụng sẽ tải lên identity-service và lưu liên kết public trên MinIO vào hồ sơ.',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.workSans(
                     fontSize: 12,
@@ -291,8 +291,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         : const Icon(Icons.file_upload_outlined),
                     label: Text(
                       _isUploadingAvatar
-                          ? 'Dang tai avatar...'
-                          : 'Tai anh tu may',
+                          ? 'Đang tải avatar...'
+                          : 'Tải ảnh từ máy',
                       style: GoogleFonts.workSans(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -301,7 +301,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 _FormField(
                   controller: _avatarUrlController,
                   label: 'Avatar URL',
-                  hintText: 'URL se duoc dien sau khi tai len',
+                  hintText: 'URL sẽ được điền sau khi tải lên',
                   keyboardType: TextInputType.url,
                   readOnly: true,
                 ),
@@ -316,7 +316,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             setState(() {});
                           },
                     icon: const Icon(Icons.delete_outline),
-                    label: const Text('Xoa avatar'),
+                    label: const Text('Xóa avatar'),
                     style: TextButton.styleFrom(foregroundColor: _editTertiary),
                   ),
                 ),
@@ -325,24 +325,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           const SizedBox(height: 18),
           _SectionCard(
-            title: 'Thong tin cong khai',
-            subtitle: 'Nhung gi nguoi khac se nhin thay tren ho so cua ban.',
+            title: 'Thông tin công khai',
+            subtitle: 'Những gì người khác sẽ nhìn thấy trên hồ sơ của bạn.',
             children: [
               _FormField(
                 controller: _displayNameController,
-                label: 'Ten hien thi',
+                label: 'Tên hiển thị',
               ),
               const SizedBox(height: 14),
               _FormField(
                 controller: _usernameController,
-                label: 'Ten nguoi dung',
+                label: 'Tên người dùng',
                 prefix: '@',
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 14),
               _FormField(
                 controller: _bioController,
-                label: 'Tieu su',
+                label: 'Tiểu sử',
                 maxLines: 4,
                 maxLength: 150,
                 onChanged: (_) => setState(() {}),
@@ -353,25 +353,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           const SizedBox(height: 18),
           _SectionCard(
-            title: 'Tai khoan',
-            subtitle: 'Thong tin dang dong bo tu phien dang nhap hien tai.',
+            title: 'Tài khoản',
+            subtitle: 'Thông tin đang đồng bộ từ phiên đăng nhập hiện tại.',
             children: [
               _ProfileInfoTile(
                 icon: Icons.email_outlined,
                 title: widget.user.email,
-                subtitle: 'Email dang nhap',
+                subtitle: 'Email đăng nhập',
               ),
               const SizedBox(height: 10),
               _ProfileInfoTile(
                 icon: Icons.badge_outlined,
                 title: widget.user.accountType,
-                subtitle: 'Loai tai khoan',
+                subtitle: 'Loại tài khoản',
               ),
               const SizedBox(height: 10),
               _ProfileInfoTile(
                 icon: Icons.schedule_outlined,
                 title: widget.user.timezone,
-                subtitle: 'Mui gio',
+                subtitle: 'Múi giờ',
               ),
             ],
           ),
@@ -384,7 +384,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               border: Border.all(color: _editTertiary.withValues(alpha: 0.16)),
             ),
             child: Text(
-              'Sau khi luu thanh cong, profile header se cap nhat ngay trong app ma khong can dang nhap lai.',
+              'Sau khi lưu thành công, phần đầu hồ sơ sẽ cập nhật ngay trong ứng dụng mà không cần đăng nhập lại.',
               style: GoogleFonts.workSans(
                 fontSize: 12,
                 color: _editNeutral.withValues(alpha: 0.82),

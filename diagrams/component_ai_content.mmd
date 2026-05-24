@@ -1,0 +1,52 @@
+flowchart LR
+    Creator[Creator / Flutter App] --> Gateway[API Gateway]
+    Listener[Listener / Flutter App] --> Gateway
+
+    subgraph AI["ai-service"]
+        Chat[Chat Create API]
+        Planner[Production Plan Service]
+        Worker[Generation Worker]
+        Voice[Voice Profile Service]
+        Align[Transcript Alignment]
+    end
+
+    subgraph Content["content-service"]
+        Home[Home Feed API]
+        Show[Show API]
+        Episode[Episode API]
+        Bookmark[Bookmark API]
+    end
+
+    subgraph Data["Databases"]
+        AIDB[(AI DB)]
+        ContentDB[(Content DB)]
+    end
+
+    subgraph External["External providers"]
+        Gemini[Google GenAI]
+        TTS[Gemini TTS]
+        Storage[MinIO / GCS]
+        Notify[Notification Service]
+    end
+
+    Gateway --> Chat
+    Gateway --> Home
+    Gateway --> Show
+    Gateway --> Episode
+    Gateway --> Bookmark
+    Chat --> Planner
+    Planner --> Worker
+    Voice --> AIDB
+    Chat --> AIDB
+    Planner --> AIDB
+    Worker --> AIDB
+    Worker --> Gemini
+    Worker --> TTS
+    Worker --> Align
+    Worker --> Storage
+    Worker --> ContentDB
+    Worker --> Notify
+    Home --> ContentDB
+    Show --> ContentDB
+    Episode --> ContentDB
+    Bookmark --> ContentDB

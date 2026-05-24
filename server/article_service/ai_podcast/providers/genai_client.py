@@ -4,16 +4,16 @@ from typing import Any
 
 try:
     from google import genai
-    from google.genai import types
 except ImportError:  # pragma: no cover - optional dependency in tests
     genai = None
-    types = None
 
 
-def build_genai_client(*, api_key: str, base_url: str | None) -> Any | None:
-    if genai is None:
+def build_genai_client(*, project: str | None, location: str) -> Any | None:
+    project_id = (project or "").strip()
+    if genai is None or not project_id:
         return None
-    http_options = None
-    if base_url and types is not None:
-        http_options = types.HttpOptions(baseUrl=base_url)
-    return genai.Client(api_key=api_key, http_options=http_options)
+    return genai.Client(
+        vertexai=True,
+        project=project_id,
+        location=(location or "global").strip() or "global",
+    )

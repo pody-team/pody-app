@@ -1,0 +1,99 @@
+erDiagram
+    news_sources {
+        bigserial id PK
+        varchar domain
+        varchar name
+        text rss_url
+        float reliability_score
+        varchar status
+    }
+    articles {
+        bigserial id PK
+        bigint source_id FK
+        text title
+        varchar author
+        text content
+        text original_url
+        varchar thumbnail_url
+    }
+    categories {
+        uuid id PK
+        varchar slug
+        varchar name
+        text description
+        boolean is_active
+    }
+    category_articles {
+        bigserial id PK
+        bigint article_id FK
+        uuid category_id FK
+        varchar assignment_source
+        boolean is_primary
+        double score
+    }
+    article_stats {
+        bigint article_id PK
+        bigint view_count
+    }
+    article_interactions {
+        bigserial id PK
+        bigint article_id
+        varchar user_id
+        varchar interaction_type
+    }
+    article_comments {
+        bigserial id PK
+        bigint article_id
+        varchar user_id
+        text content
+    }
+    article_metrics {
+        bigserial id PK
+        bigint article_id
+        varchar user_id
+        integer reading_time_seconds
+    }
+    article_embedding_documents {
+        uuid id PK
+        bigint article_id
+        text title
+        text content_hash
+        varchar status
+    }
+    article_embedding_chunks {
+        uuid id PK
+        uuid document_id FK
+        integer chunk_index
+        text text_content
+    }
+    article_chunk_embeddings {
+        uuid id PK
+        uuid chunk_id FK
+        vector embedding
+        varchar model_name
+    }
+    category_embeddings {
+        uuid id PK
+        uuid category_id
+        vector embedding
+        varchar model_name
+    }
+    article_category_matches {
+        uuid id PK
+        uuid document_id FK
+        uuid category_id
+        double similarity_score
+        integer rank
+    }
+
+    news_sources ||--o{ articles : publishes
+    articles ||--o{ category_articles : categorized
+    categories ||--o{ category_articles : contains
+    articles ||--o| article_stats : has
+    articles ||--o{ article_interactions : has
+    articles ||--o{ article_comments : has
+    articles ||--o{ article_metrics : tracks
+    articles ||--o| article_embedding_documents : embedded
+    article_embedding_documents ||--o{ article_embedding_chunks : chunked
+    article_embedding_chunks ||--o{ article_chunk_embeddings : vectorized
+    article_embedding_documents ||--o{ article_category_matches : matched

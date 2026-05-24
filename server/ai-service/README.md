@@ -33,7 +33,7 @@
 - The relational schema lives in [ai_service.sql](/Users/promex04/Documents/Pody/Pody/server/sql/services/ai_service.sql).
 - Voice profiles are managed in the AI database and are no longer populated by demo seed migrations.
 - Creator chat, planning, dialogue generation, and TTS all call Vertex AI directly through `google-genai`.
-- The current default text model is `gemini-3-flash-preview`. On Vertex AI this model is served on the `global` endpoint, so set `GOOGLE_CLOUD_LOCATION=global` unless you intentionally move to a different model.
+- The current default text model is `gemini-3.5-flash`. On Vertex AI this model is served on the `global` endpoint, so set `GOOGLE_CLOUD_LOCATION=global` unless you intentionally move to a different model.
 - Configure `GOOGLE_CLOUD_PROJECT`, and optionally `GOOGLE_CLOUD_LOCATION` / `GOOGLE_TTS_MODEL`, to enable live AI flows.
 - If `GOOGLE_CLOUD_PROJECT` is not configured, the service falls back to a deterministic local planner so the stack still runs in dev.
 - `POST /api/v1/ai/production-plans/{plan_id}/create-show` returns `202 Accepted` and queues a background `show_creation` job.

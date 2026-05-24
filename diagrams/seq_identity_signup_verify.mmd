@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant U as User (Flutter)
+    participant GW as API Gateway
+    participant ID as Identity Service
+    participant DB as Identity DB
+    participant OP as Outbox Publisher
+    participant K as Kafka
+    participant NS as Notification Service
+
+    U->>GW: POST /public/identity/sign-up
+    GW->>ID: Proxy public request
+    ID->>DB: INSERT user + verification_token
+    ID->>DB: INSERT outbox_event
+    ID-->>U: 201 Created
+
+    OP->>DB: Poll pending outbox_event
+    OP->>K: Publish identity.email.verification.requested
+    K-->>NS: Deliver event
+    NS->>NS: Check processed_event
+    NS->>NS: Send verification email
+    NS-->>K: Commit offset
+
+    U->>GW: GET /public/identity/verify-email?token=...
+    GW->>ID: Proxy verify request
+    ID->>DB: Mark token used + user verified
+    ID-->>U: Verification result

@@ -49,6 +49,11 @@ class _MiniPlayerState extends State<MiniPlayer> {
     }
   }
 
+  Future<bool> _dismissMiniPlayer() async {
+    await _playerState.dismissPlayer();
+    return true;
+  }
+
   String _subtitleForCurrentPlayback() {
     final show = _playerState.show;
     final episode = _playerState.episode;
@@ -73,114 +78,150 @@ class _MiniPlayerState extends State<MiniPlayer> {
       return const SizedBox.shrink();
     }
 
-    return GestureDetector(
-      onTap: () => _openFullPlayer(context),
-      onVerticalDragEnd: (details) {
-        if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
-          _openFullPlayer(context);
-        }
+    return Dismissible(
+      key: ValueKey('mini-player-${episode.id}'),
+      direction: DismissDirection.horizontal,
+      dismissThresholds: const {
+        DismissDirection.startToEnd: 0.2,
+        DismissDirection.endToStart: 0.2,
       },
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: () => _openFullPlayer(context),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _miniSurface.withValues(alpha: 0.96),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: _miniPrimary.withValues(alpha: 0.12)),
-              boxShadow: [
-                BoxShadow(
-                  color: _miniNeutral.withValues(alpha: 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: _MiniArtwork(
-                    imageUrl: episode.images.isNotEmpty
-                        ? episode.images.first
-                        : show.imageUrl,
+      confirmDismiss: (_) => _dismissMiniPlayer(),
+      background: const _MiniPlayerDismissBackground(
+        alignment: Alignment.centerLeft,
+      ),
+      secondaryBackground: const _MiniPlayerDismissBackground(
+        alignment: Alignment.centerRight,
+      ),
+      child: GestureDetector(
+        onVerticalDragEnd: (details) {
+          if (details.primaryVelocity != null && details.primaryVelocity! < 0) {
+            _openFullPlayer(context);
+          }
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: () => _openFullPlayer(context),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _miniSurface.withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: _miniPrimary.withValues(alpha: 0.12)),
+                boxShadow: [
+                  BoxShadow(
+                    color: _miniNeutral.withValues(alpha: 0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        episode.title,
-                        style: GoogleFonts.workSans(
-                          color: _miniNeutral,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _subtitleForCurrentPlayback(),
-                        style: GoogleFonts.workSans(
-                          color: _miniNeutral.withValues(alpha: 0.58),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(999),
-                        child: LinearProgressIndicator(
-                          value: progressValue,
-                          backgroundColor: _miniPrimary.withValues(alpha: 0.08),
-                          color: _miniPrimary,
-                          minHeight: 4,
-                        ),
-                      ),
-                    ],
+                ],
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: _MiniArtwork(
+                      imageUrl: episode.images.isNotEmpty
+                          ? episode.images.first
+                          : show.imageUrl,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                _MiniPlayerButton(
-                  icon: Icons.skip_previous_rounded,
-                  onPressed: _playerState.hasPrevious
-                      ? () async {
-                          await _playerState.skipToPrevious();
-                        }
-                      : null,
-                ),
-                _MiniPlayerButton(
-                  icon: _playerState.isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  onPressed: () async {
-                    await _playerState.togglePlayPause();
-                  },
-                  filled: true,
-                ),
-                _MiniPlayerButton(
-                  icon: Icons.skip_next_rounded,
-                  onPressed: _playerState.hasNext
-                      ? () async {
-                          await _playerState.skipToNext();
-                        }
-                      : null,
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          episode.title,
+                          style: GoogleFonts.workSans(
+                            color: _miniNeutral,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _subtitleForCurrentPlayback(),
+                          style: GoogleFonts.workSans(
+                            color: _miniNeutral.withValues(alpha: 0.58),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: progressValue,
+                            backgroundColor: _miniPrimary.withValues(
+                              alpha: 0.08,
+                            ),
+                            color: _miniPrimary,
+                            minHeight: 4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _MiniPlayerButton(
+                    icon: Icons.skip_previous_rounded,
+                    onPressed: _playerState.hasPrevious
+                        ? () async {
+                            await _playerState.skipToPrevious();
+                          }
+                        : null,
+                  ),
+                  _MiniPlayerButton(
+                    icon: _playerState.isPlaying
+                        ? Icons.pause_rounded
+                        : Icons.play_arrow_rounded,
+                    onPressed: () async {
+                      await _playerState.togglePlayPause();
+                    },
+                    filled: true,
+                  ),
+                  _MiniPlayerButton(
+                    icon: Icons.skip_next_rounded,
+                    onPressed: _playerState.hasNext
+                        ? () async {
+                            await _playerState.skipToNext();
+                          }
+                        : null,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MiniPlayerDismissBackground extends StatelessWidget {
+  const _MiniPlayerDismissBackground({required this.alignment});
+
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      decoration: BoxDecoration(
+        color: _miniPrimary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      alignment: alignment,
+      child: Icon(Icons.close_rounded, color: _miniPrimary, size: 22),
     );
   }
 }

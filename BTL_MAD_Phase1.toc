@@ -1,0 +1,86 @@
+\babel@toc {vietnamese}{}\relax 
+\contentsline {chapter}{\numberline {1}MỞ ĐẦU VÀ YÊU CẦU}{9}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Giới thiệu ứng dụng}{9}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Lý do chọn đề tài}{9}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Concept thực hiện ứng dụng}{10}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Phân tích yêu cầu ứng dụng}{11}{section.1.4}%
+\contentsline {subsection}{\numberline {1.4.1}Yêu cầu chức năng}{11}{subsection.1.4.1}%
+\contentsline {subsection}{\numberline {1.4.2}Yêu cầu phi chức năng}{11}{subsection.1.4.2}%
+\contentsline {section}{\numberline {1.5}Phân tích và lựa chọn công nghệ}{12}{section.1.5}%
+\contentsline {chapter}{\numberline {2}PHÂN TÍCH THIẾT KẾ TỔNG QUAN}{14}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Kiến trúc tổng quan hệ thống}{14}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Tầng Client}{14}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Tầng API Gateway}{14}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}Tầng Backend Services}{15}{subsection.2.1.3}%
+\contentsline {subsection}{\numberline {2.1.4}Tầng Infrastructure}{16}{subsection.2.1.4}%
+\contentsline {section}{\numberline {2.2}Luồng xử lý tổng quan}{16}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Luồng xác thực (Authentication Flow)}{16}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Luồng nghe podcast/show (Content Flow)}{17}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Luồng tạo podcast bằng AI (AI Creator Flow)}{17}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}Luồng bài báo và podcast báo (Article \& Embedding Flow)}{18}{subsection.2.2.4}%
+\contentsline {section}{\numberline {2.3}Use case tổng quan}{19}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Tác nhân (Actor)}{19}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Danh sách use case tổng quan}{19}{subsection.2.3.2}%
+\contentsline {section}{\numberline {2.4}Mô hình dữ liệu tổng quan (ER theo cụm service)}{20}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Identity DB}{20}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Content DB}{21}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}AI DB}{22}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}Article DB}{23}{subsection.2.4.4}%
+\contentsline {subsection}{\numberline {2.4.5}Embedding DB}{24}{subsection.2.4.5}%
+\contentsline {subsection}{\numberline {2.4.6}Notification DB}{24}{subsection.2.4.6}%
+\contentsline {section}{\numberline {2.5}Mô hình triển khai}{25}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Thứ tự khởi động}{26}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}Kiểm tra hệ thống}{27}{subsection.2.5.2}%
+\contentsline {section}{\numberline {2.6}Bảng mapping Service -- Chức năng -- Database -- Endpoint chính}{28}{section.2.6}%
+\contentsline {chapter}{\numberline {3}THIẾT KẾ CHI TIẾT CÁ NHÂN}{29}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Thành viên 1 -- AI tạo podcast: \texttt {ai-service} và \texttt {content-service}}{29}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Phạm vi phụ trách}{29}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Chức năng chính}{29}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}Use case chi tiết}{30}{subsection.3.1.3}%
+\contentsline {subsection}{\numberline {3.1.4}Component diagram}{30}{subsection.3.1.4}%
+\contentsline {subsection}{\numberline {3.1.5}Mô hình dữ liệu riêng}{31}{subsection.3.1.5}%
+\contentsline {subsection}{\numberline {3.1.6}Sequence diagram}{33}{subsection.3.1.6}%
+\contentsline {subsection}{\numberline {3.1.7}API/service contract}{35}{subsection.3.1.7}%
+\contentsline {subsection}{\numberline {3.1.8}Giao diện liên quan và kết quả đạt được}{35}{subsection.3.1.8}%
+\contentsline {subsection}{\numberline {3.1.9}Hạn chế riêng}{35}{subsection.3.1.9}%
+\contentsline {section}{\numberline {3.2}Thành viên 2 -- Báo và podcast báo: \texttt {article\_service} và \texttt {embedding\_service}}{35}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Phạm vi phụ trách}{35}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Use case chi tiết}{36}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}Component diagram}{37}{subsection.3.2.3}%
+\contentsline {subsection}{\numberline {3.2.4}Mô hình dữ liệu riêng}{37}{subsection.3.2.4}%
+\contentsline {subsection}{\numberline {3.2.5}Sequence diagram}{39}{subsection.3.2.5}%
+\contentsline {subsection}{\numberline {3.2.6}API/service contract}{41}{subsection.3.2.6}%
+\contentsline {subsection}{\numberline {3.2.7}Giao diện liên quan và kết quả đạt được}{41}{subsection.3.2.7}%
+\contentsline {subsection}{\numberline {3.2.8}Hạn chế riêng}{41}{subsection.3.2.8}%
+\contentsline {section}{\numberline {3.3}Thành viên 3 -- Hạ tầng và xác thực: \texttt {api-gateway} và \texttt {identity-service}}{41}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Phạm vi phụ trách}{41}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Use case chi tiết}{42}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}Component diagram}{43}{subsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.3.4}Mô hình dữ liệu riêng}{43}{subsection.3.3.4}%
+\contentsline {subsection}{\numberline {3.3.5}Sequence diagram}{45}{subsection.3.3.5}%
+\contentsline {subsection}{\numberline {3.3.6}API/service contract}{47}{subsection.3.3.6}%
+\contentsline {subsection}{\numberline {3.3.7}Giao diện liên quan và kết quả đạt được}{47}{subsection.3.3.7}%
+\contentsline {subsection}{\numberline {3.3.8}Hạn chế riêng}{47}{subsection.3.3.8}%
+\contentsline {section}{\numberline {3.4}Thành viên 4 -- Thông báo: \texttt {notification-service}}{47}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Phạm vi phụ trách}{47}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Use case chi tiết}{48}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.4.3}Component diagram}{49}{subsection.3.4.3}%
+\contentsline {subsection}{\numberline {3.4.4}Mô hình dữ liệu riêng}{49}{subsection.3.4.4}%
+\contentsline {subsection}{\numberline {3.4.5}Sequence diagram}{51}{subsection.3.4.5}%
+\contentsline {subsection}{\numberline {3.4.6}API/service contract}{53}{subsection.3.4.6}%
+\contentsline {subsection}{\numberline {3.4.7}Giao diện liên quan và kết quả đạt được}{53}{subsection.3.4.7}%
+\contentsline {subsection}{\numberline {3.4.8}Hạn chế riêng}{53}{subsection.3.4.8}%
+\contentsline {section}{\numberline {3.5}Tổng hợp đầu ra Phase 3}{53}{section.3.5}%
+\contentsline {chapter}{\numberline {4}KẾT QUẢ, THỬ NGHIỆM VÀ ĐÁNH GIÁ}{55}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Kết quả ứng dụng}{55}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}Kết quả tổng quát cấp nhóm}{55}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}Kết quả theo phạm vi cá nhân}{56}{subsection.4.1.2}%
+\contentsline {section}{\numberline {4.2}Cài đặt và triển khai ứng dụng}{56}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Yêu cầu môi trường}{56}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Các bước triển khai local}{56}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}URL kiểm tra nhanh}{57}{subsection.4.2.3}%
+\contentsline {section}{\numberline {4.3}Kết quả thử nghiệm}{57}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Số liệu minh chứng trong CSDL}{59}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Đánh giá hạn chế}{60}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Định hướng phát triển}{61}{section.4.6}%
+\contentsline {section}{\numberline {4.7}Tài liệu tham khảo}{61}{section.4.7}%

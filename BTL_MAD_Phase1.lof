@@ -1,0 +1,21 @@
+\babel@toc {vietnamese}{}\relax 
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Component diagram cụm \texttt {ai-service} và \texttt {content-service}}}{31}{figure.caption.21}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces ER riêng cho cụm AI tạo podcast và Content}}{32}{figure.caption.22}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Sequence diagram tạo show bằng AI}}{33}{figure.caption.23}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Sequence diagram nghe episode và xem transcript}}{34}{figure.caption.24}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Component diagram cụm \texttt {article\_service} và \texttt {embedding\_service}}}{37}{figure.caption.27}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces ER riêng cho cụm Article và Embedding}}{38}{figure.caption.28}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces Sequence diagram xem chi tiết bài báo}}{39}{figure.caption.29}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces Sequence diagram tạo podcast từ nhóm bài báo}}{40}{figure.caption.30}%
+\contentsline {figure}{\numberline {3.9}{\ignorespaces Component diagram cụm \texttt {api-gateway} và \texttt {identity-service}}}{43}{figure.caption.33}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces ER riêng cho Identity DB}}{44}{figure.caption.34}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces Sequence diagram đăng ký và xác minh email}}{45}{figure.caption.35}%
+\contentsline {figure}{\numberline {3.12}{\ignorespaces Sequence diagram gọi API protected qua API Gateway}}{46}{figure.caption.36}%
+\contentsline {figure}{\numberline {3.13}{\ignorespaces Component diagram \texttt {notification-service}}}{49}{figure.caption.39}%
+\contentsline {figure}{\numberline {3.14}{\ignorespaces ER riêng cho Notification DB}}{50}{figure.caption.40}%
+\contentsline {figure}{\numberline {3.15}{\ignorespaces Sequence diagram gửi email verification/reset password}}{51}{figure.caption.41}%
+\contentsline {figure}{\numberline {3.16}{\ignorespaces Sequence diagram xem và đánh dấu thông báo}}{52}{figure.caption.42}%
+\addvspace {10\p@ }

@@ -1,0 +1,48 @@
+erDiagram
+    notifications {
+        uuid id PK
+        uuid user_id
+        uuid actor_user_id
+        text type
+        text target_type
+        uuid target_id
+        varchar title
+        text body
+        timestamp read_at
+    }
+    user_notification_settings {
+        uuid user_id PK
+        boolean email_enabled
+        boolean push_enabled
+        boolean new_episode_enabled
+        boolean comment_enabled
+        boolean marketing_enabled
+    }
+    delivery_logs {
+        uuid id PK
+        uuid notification_id FK
+        uuid user_id
+        text channel
+        text status
+        text provider_message_id
+        text error_message
+    }
+    templates {
+        uuid id PK
+        text code
+        text channel
+        text subject_template
+        text body_template
+    }
+    inbox_processed_events {
+        uuid id PK
+        text source
+        text event_id
+        text event_type
+        timestamp processed_at
+    }
+
+    notifications ||--o{ delivery_logs : produces
+    user_notification_settings ||--o{ notifications : filters
+    templates ||--o{ delivery_logs : renders
+    inbox_processed_events ||--o{ delivery_logs : guards

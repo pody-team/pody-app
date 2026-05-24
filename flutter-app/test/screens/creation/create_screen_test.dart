@@ -429,9 +429,9 @@ void main() {
 }
 
 const _createScreenPrompts = <String>[
-  'Tao mot show tin cong nghe moi sang cho founder va product manager.',
-  'Len concept show ke chuyen lich su Viet Nam theo goc nhin gan gui, de nghe.',
-  'Giup toi xay mot podcast hoc tieng Anh bang tinh huong cong so hang ngay.',
+  'Tạo một show tin công nghệ mỗi sáng cho founder và product manager.',
+  'Lên concept show kể chuyện lịch sử Việt Nam theo góc nhìn gần gũi, dễ nghe.',
+  'Giúp tôi xây một podcast học tiếng Anh bằng tình huống công sở hằng ngày.',
 ];
 
 Widget _buildScreen(

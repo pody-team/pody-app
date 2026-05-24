@@ -81,8 +81,10 @@ class StubTextGenerationProvider(TextGenerationProvider):
 
 class GoogleGenAITextGenerationProvider(TextGenerationProvider):
     def __init__(self, settings: AIPodcastSettings) -> None:
-        api_key = settings.google_api_key or "proxy-placeholder"
-        self._client = build_genai_client(api_key=api_key, base_url=settings.google_base_url)
+        self._client = build_genai_client(
+            project=settings.google_cloud_project,
+            location=settings.google_cloud_location,
+        )
         self._model = settings.google_model
 
     def synthesize(self, *, payload: dict[str, Any]) -> SynthesisDraft:

@@ -14,10 +14,10 @@ def _optional_env(*keys: str) -> str | None:
 
 @dataclass(frozen=True)
 class AIPodcastSettings:
-    google_api_key: str | None
     google_model: str
     google_tts_model: str
-    google_base_url: str | None
+    google_cloud_project: str | None
+    google_cloud_location: str
     brave_search_api_key: str | None
     brave_search_base_url: str
     provider_mode: str
@@ -36,7 +36,7 @@ class AIPodcastSettings:
             return True
         if self.provider_mode == "stub":
             return False
-        return bool(self.google_api_key or self.google_base_url)
+        return bool(self.google_cloud_project)
 
 
 def load_ai_podcast_settings() -> AIPodcastSettings:
@@ -44,12 +44,11 @@ def load_ai_podcast_settings() -> AIPodcastSettings:
     if provider_mode not in {"auto", "google", "stub"}:
         raise ValueError("AI_PROVIDER_MODE must be one of auto, google, stub")
 
-    return AIPodcastSettings(
-        google_api_key=_optional_env("GOOGLE_API_KEY", "GEMINI_API_KEY"),
+    settings = AIPodcastSettings(
         google_model=os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash",
-        google_tts_model=os.getenv("GOOGLE_TTS_MODEL", "gemini-2.5-flash-preview-tts").strip()
-        or "gemini-2.5-flash-preview-tts",
-        google_base_url=_optional_env("GOOGLE_GENAI_BASE_URL"),
+        google_tts_model=os.getenv("GOOGLE_TTS_MODEL", "gemini-2.5-flash-tts").strip() or "gemini-2.5-flash-tts",
+        google_cloud_project=_optional_env("GOOGLE_CLOUD_PROJECT"),
+        google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "global").strip() or "global",
         brave_search_api_key=_optional_env("BRAVE_SEARCH_API_KEY"),
         brave_search_base_url=os.getenv(
             "BRAVE_SEARCH_BASE_URL",
@@ -66,3 +65,8 @@ def load_ai_podcast_settings() -> AIPodcastSettings:
         article_podcast_bucket=os.getenv("ARTICLE_PODCAST_BUCKET", "article-podcasts").strip() or "article-podcasts",
         worker_poll_interval_seconds=float(os.getenv("ARTICLE_PODCAST_WORKER_POLL_SECONDS", "1.0")),
     )
+
+    if settings.provider_mode == "google" and not settings.google_cloud_project:
+        raise ValueError("GOOGLE_CLOUD_PROJECT is required when AI_PROVIDER_MODE=google")
+
+    return settings

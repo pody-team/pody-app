@@ -1,0 +1,59 @@
+erDiagram
+    users {
+        uuid id PK
+        varchar email
+        varchar display_name
+        varchar username
+        text password_hash
+        text account_type
+        timestamp email_verified_at
+        text status
+    }
+    user_identities {
+        uuid id PK
+        uuid user_id FK
+        text provider
+        text provider_user_id
+    }
+    user_devices {
+        uuid id PK
+        uuid user_id FK
+        text platform
+        text push_token
+    }
+    auth_sessions {
+        uuid id PK
+        uuid user_id FK
+        text refresh_token_hash
+        timestamp expires_at
+        timestamp revoked_at
+    }
+    email_verification_tokens {
+        uuid id PK
+        uuid user_id FK
+        text token_hash
+        timestamp expires_at
+        timestamp used_at
+    }
+    password_reset_tokens {
+        uuid id PK
+        uuid user_id FK
+        text token_hash
+        timestamp expires_at
+        timestamp used_at
+    }
+    outbox_events {
+        uuid id PK
+        text aggregate_type
+        uuid aggregate_id
+        text event_type
+        jsonb payload
+        timestamp published_at
+    }
+
+    users ||--o{ user_identities : owns
+    users ||--o{ user_devices : registers
+    users ||--o{ auth_sessions : opens
+    users ||--o{ email_verification_tokens : receives
+    users ||--o{ password_reset_tokens : receives
+    users ||--o{ outbox_events : emits

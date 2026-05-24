@@ -307,6 +307,28 @@ class PlayerState extends ChangeNotifier {
     await _finishPreviewIfNeeded(restorePlayback: true);
   }
 
+  Future<void> dismissPlayer() async {
+    if (_activePreviewId != null) {
+      _errorMessage = null;
+      await _finishPreviewIfNeeded(restorePlayback: false);
+      return;
+    }
+
+    await _audioPlayer?.stop();
+    _show = null;
+    _episode = null;
+    _queue = const [];
+    _queueIndex = -1;
+    _loadedAudioUrl = null;
+    _loadedEpisodeId = null;
+    _position = Duration.zero;
+    _duration = Duration.zero;
+    _isPlaying = false;
+    _isBuffering = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   AudioPlayer _ensureAudioPlayer() {
     final existing = _audioPlayer;
     if (existing != null) {
@@ -465,7 +487,10 @@ class PlayerState extends ChangeNotifier {
         await player.setAudioSources(
           [
             for (final queueEpisode in snapshot.queue)
-              _buildEpisodeAudioSource(show: snapshot.show, episode: queueEpisode),
+              _buildEpisodeAudioSource(
+                show: snapshot.show,
+                episode: queueEpisode,
+              ),
           ],
           initialIndex: snapshot.queueIndex,
           initialPosition: snapshot.position,

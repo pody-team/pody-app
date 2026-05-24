@@ -13,6 +13,7 @@ import 'package:pody/features/content/data/content_remote_data_source.dart';
 import 'package:pody/features/content/data/content_repository.dart';
 import 'package:pody/features/content/domain/content_models.dart';
 import 'package:pody/features/content/presentation/content_scope.dart';
+import 'package:pody/screens/user/edit_profile_screen.dart';
 import 'package:pody/screens/user/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,6 +57,40 @@ void main() {
     expect(find.text('Updated Creator'), findsOneWidget);
     expect(find.text('@updated.creator'), findsOneWidget);
     expect(find.text('Profile moi'), findsOneWidget);
+  });
+
+  testWidgets('edit profile screen shows accented Vietnamese labels', (
+    WidgetTester tester,
+  ) async {
+    final authController = await _buildAuthenticatedController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AuthScope(
+          controller: authController,
+          child: EditProfileScreen(user: authController.session!.user),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chỉnh sửa hồ sơ'), findsOneWidget);
+    expect(find.text('Tải ảnh từ máy'), findsOneWidget);
+    expect(find.text('Thông tin công khai'), findsOneWidget);
+    expect(find.text('Tên hiển thị'), findsOneWidget);
+    expect(find.text('Tên người dùng'), findsOneWidget);
+    expect(find.text('Tiểu sử'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Tài khoản'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tài khoản'), findsOneWidget);
+    expect(find.text('Múi giờ'), findsOneWidget);
+    expect(find.text('Lưu'), findsOneWidget);
   });
 }
 

@@ -334,8 +334,10 @@ class AIService:
                 self._transcript_queue.task_done()
 
     def _process_show_creation_job(self, job_id: UUID) -> None:
+        logger.info("processing show creation job", extra={"job_id": str(job_id)})
         job_context = self._repository.start_show_creation_job(job_id)
         if job_context is None:
+            logger.info("show creation job not found or already running", extra={"job_id": str(job_id)})
             return
 
         if (
@@ -368,6 +370,11 @@ class AIService:
                     for number in sorted(dialogue_history)
                     if number < episode.episode_number
                 ]
+                logger.info("generating dialogue and synthesizing audio for episode", extra={
+                    "job_id": str(job_id),
+                    "episode_number": episode.episode_number,
+                    "title": episode.title,
+                })
                 dialogue_turns = (
                     self._dialogue_agent.generate_dialogue(
                         plan=job_context.plan,
@@ -431,6 +438,11 @@ class AIService:
                 created_show.show_id,
                 completed_episode_count,
             )
+            logger.info("show creation job completed successfully", extra={
+                "job_id": str(job_id),
+                "show_id": created_show.show_id,
+                "episodes": completed_episode_count,
+            })
             if self._notification_client is not None:
                 try:
                     self._notification_client.send_show_created(

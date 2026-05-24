@@ -1,0 +1,1099 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[utf8]{vietnam}
+\usepackage{geometry}
+\geometry{left=3cm, right=2cm, top=2cm, bottom=2cm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{longtable}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Báo cáo Bài Tập Lớn - Pody},
+    pdfpagemode=FullScreen,
+}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  tabsize=2,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red}
+}
+
+% Cấu hình header và footer để báo cáo chuyên nghiệp hơn
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Báo cáo Bài Tập Lớn môn Phát triển Ứng dụng Di động}
+\fancyhead[R]{\small Hệ thống Pody}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\setlength{\headheight}{17pt} % Khắc phục cảnh báo fancyhdr
+
+\begin{document}
+
+% ==================== TRANG BÌA ====================
+\begin{titlepage}
+\begin{center}
+    \large BỘ GIÁO DỤC VÀ ĐÀO TẠO \\
+    \large \textbf{HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG} \\
+    \large \textbf{KHOA CÔNG NGHỆ THÔNG TIN 1} \\
+    \vspace{1cm}
+    \rule{6cm}{1pt} \\
+    \vspace{2cm}
+    
+    \Large \textbf{BÁO CÁO BÀI TẬP LỚN} \\
+    \Large \textbf{MÔN HỌC: PHÁT TRIỂN ỨNG DỤNG DI ĐỘNG (MAD)} \\
+    \vspace{1.5cm}
+    
+    \Huge \textbf{HỆ THỐNG PODY} \\
+    \Huge \textbf{PODCAST AI PLATFORM} \\
+    \vspace{1.5cm}
+    
+    \large \textbf{Đề tài:} Xây dựng ứng dụng di động Podcast cá nhân hóa ứng dụng Trí tuệ nhân tạo (Pody) \\
+    \vspace{2.5cm}
+    
+    \begin{flushleft}
+    \large \textbf{Nhóm QLĐT (Nhóm môn học):} Nhóm 01 \\
+    \large \textbf{Nhóm BTL:} Nhóm 01 \\
+    \large \textbf{Danh sách thành viên:} \\
+    \hspace{0.5cm} 1. Phan Thanh Tùng - MSSV: B21DCCN999 \\
+    \hspace{0.5cm} 2. Nguyễn Văn A - MSSV: B21DCCN001 \\
+    \hspace{0.5cm} 3. Trần Thị B - MSSV: B21DCCN002 \\
+    \hspace{0.5cm} 4. Phạm Văn C - MSSV: B21DCCN003 \\
+    \vspace{0.5cm}
+    \large \textbf{Sinh viên thực hiện báo cáo cá nhân:} Phan Thanh Tùng (B21DCCN999)
+    \end{flushleft}
+    
+    \vfill
+    \large Hà Nội, Năm 2026
+\end{center}
+\end{titlepage}
+
+% ==================== TRANG PHÂN CHIA NHIỆM VỤ ====================
+\newpage
+\chapter*{Bảng đóng góp của thành viên}
+\addcontentsline{toc}{chapter}{Bảng đóng góp của thành viên}
+
+Dưới đây là chi tiết phân chia công việc và mức độ đóng góp của từng thành viên trong nhóm 01 đối với Bài Tập Lớn môn học Phát triển Ứng dụng Di động:
+
+\vspace{0.5cm}
+\begin{table}[h!]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{c p{2.0cm} c p{2.8cm} p{4.4cm} c}
+\toprule
+\textbf{STT} & \textbf{Họ và Tên} & \textbf{MSSV} & \textbf{Phạm vi phụ trách} & \textbf{Công việc cụ thể} & \textbf{Đóng góp} \\
+\midrule
+1 & Phan Thanh Tùng & B21DCCN999 & AI tạo podcast \newline (\texttt{ai-service}, \newline \texttt{content-}\newline \texttt{service}) & Nhóm trưởng, thiết kế hệ thống, sinh kịch bản đối thoại đa MC ảo và TTS, quản lý show/episode, viết báo cáo. & 25\% \\
+\midrule
+2 & Nguyễn Văn A & B21DCCN001 & Báo và podcast báo \newline (\texttt{article\_}\newline \texttt{service}, \newline \texttt{embedding\_}\newline \texttt{service}) & Tích hợp cào tin tự động từ RSS, chunking bài báo, tạo embedding vector và semantic search. & 25\% \\
+\midrule
+3 & Trần Thị B & B21DCCN002 & Hạ tầng và xác thực \newline (\texttt{api-gateway}, \newline \texttt{identity-}\newline \texttt{service}) & Phát triển Gateway, JWT auth middleware, xác thực Google Sign-in, Outbox pattern. & 25\% \\
+\midrule
+4 & Phạm Văn C & B21DCCN003 & Thông báo \newline (\texttt{notification-}\newline \texttt{service}) & Nhận thông báo in-app, unread count, email delivery logs, consumer Kafka retry và DLQ. & 25\% \\
+\bottomrule
+\end{tabular}
+\caption{Bảng phân chia công việc và đóng góp thành viên}
+\label{tab:contributions}
+\end{table}
+
+\newpage
+
+% ==================== MỤC LỤC & DANH SÁCH ====================
+\tableofcontents
+\newpage
+\listoftables
+\newpage
+\listoffigures
+\newpage
+
+% ==================== DANH MỤC TỪ VIẾT TẮT ====================
+\chapter*{Danh sách từ viết tắt}
+\addcontentsline{toc}{chapter}{Danh sách từ viết tắt}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{p{3cm} p{11cm}}
+\toprule
+\textbf{Từ viết tắt} & \textbf{Ý nghĩa đầy đủ} \\
+\midrule
+\textbf{AI} & Artificial Intelligence (Trí tuệ nhân tạo) \\
+\textbf{TTS} & Text To Speech (Chuyển đổi văn bản thành giọng nói) \\
+\textbf{CDC} & Change Data Capture (Ghi nhận sự thay đổi dữ liệu cơ sở dữ liệu) \\
+\textbf{API} & Application Programming Interface (Giao diện lập trình ứng dụng) \\
+\textbf{JWT} & JSON Web Token (Mã xác thực dạng chuỗi ký số JSON) \\
+\textbf{ERD} & Entity Relationship Diagram (Sơ đồ thực thể quan hệ) \\
+\textbf{RDBMS} & Relational Database Management System (Hệ quản trị CSDL quan hệ) \\
+\textbf{FCM} & Firebase Cloud Messaging (Dịch vụ gửi thông báo đẩy của Firebase) \\
+\textbf{S3} & Simple Storage Service (Chuẩn lưu trữ đối tượng đám mây) \\
+\textbf{SMTP} & Simple Mail Transfer Protocol (Giao thức truyền tải thư tín đơn giản) \\
+\textbf{LLM} & Large Language Model (Mô hình ngôn ngữ lớn) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\newpage
+
+% ==================== CHƯƠNG 1 ====================
+\chapter{Giới thiệu ứng dụng và Phân tích yêu cầu}
+
+\section{Giới thiệu về ứng dụng Pody}
+Hệ thống \textbf{Pody} là một nền tảng nghe và tự động sản xuất podcast thế hệ mới, tích hợp sâu công nghệ Trí tuệ nhân tạo (Podcast AI Platform) nhằm mang lại trải nghiệm âm thanh cá nhân hóa vượt trội. Điểm khác biệt lớn nhất của Pody so với các nền tảng podcast truyền thống là khả năng chuyển đổi trực tiếp văn bản (tin tức báo chí, kịch bản hội thoại) thành các tệp âm thanh podcast sinh động nhờ MC ảo và giọng đọc nhân tạo.
+
+Đối với người nghe (Listener), Pody là một ứng dụng di động thông minh cho phép họ không chỉ thưởng thức các nội dung podcast thông thường, mà còn có thể đọc báo và yêu cầu hệ thống tự động tóm tắt tin tức để nghe dưới dạng podcast tin tức ngắn (AI News Digest Podcast). Đối với nhà sáng tạo (Creator), Pody cung cấp một bộ công cụ hỗ trợ toàn diện từ khâu lập kế hoạch sản xuất (Production Plan), sinh kịch bản đối thoại đa nhân vật tự động bằng Mô hình ngôn ngữ lớn (LLM), cho đến khâu sản xuất tệp tin âm thanh đi kèm phụ đề chạy chữ được đồng bộ hóa chuẩn xác ở cấp độ từ ngữ (Word-level Aligned Transcript).
+
+Hệ thống được thiết kế và triển khai trên nền tảng kiến trúc Microservices phân tán với các dịch vụ độc lập, giao tiếp thông qua API Gateway và hệ thống hàng đợi sự kiện Apache Kafka, kết hợp với ứng dụng di động Flutter mang lại hiệu năng cao và khả năng mở rộng tối ưu.
+
+\section{Lý do chọn đề tài}
+Trong thời đại bùng nổ thông tin số, khối lượng nội dung dạng văn bản (tin tức, bài phân tích, tài liệu học tập) tăng trưởng nhanh chóng mỗi ngày, khiến con người gặp nhiều khó khăn trong việc dành thời gian tập trung đọc hiểu. Đồng thời, xu hướng tiêu thụ nội dung âm thanh (Audio format) đang trở nên vô cùng ưu việt và phổ biến do tính linh hoạt cao, giúp người dùng tận dụng thời gian rảnh rỗi khi đang lái xe, tập thể dục, dọn dẹp nhà cửa để tiếp cận tri thức.
+
+Tuy nhiên, thị trường podcast hiện nay đang tồn tại hai thách thức lớn:
+\begin{itemize}
+    \item \textbf{Đối với người nghe:} Nội dung các kênh podcast mang tính chất đại trà, chưa được cá nhân hóa hoặc cập nhật theo đúng sở thích và nhu cầu tức thời của từng cá nhân tại thời điểm nghe.
+    \item \textbf{Đối với nhà sáng tạo nội dung:} Quy trình sản xuất một tập podcast truyền thống đòi hỏi đầu tư rất lớn về thiết bị thu âm chất lượng cao, phòng thu tiêu âm, kỹ năng viết kịch bản hấp dẫn, cũng như chi phí và thời gian biên tập, hậu kỳ âm thanh phức tạp.
+\end{itemize}
+
+Xuất phát từ thực tiễn đó, nhóm nghiên cứu lựa chọn đề tài xây dựng ứng dụng \textbf{Pody} nhằm kết hợp sức mạnh của thiết bị di động với Trí tuệ nhân tạo tạo sinh (Generative AI). Đề tài này không chỉ giải quyết bài toán tóm tắt tin tức cá nhân hóa cho người dùng mà còn tối ưu hóa quy trình làm podcast cho các nhà sáng tạo thông qua các MC ảo. Về mặt kỹ thuật, đề tài cung cấp một cơ hội lý tưởng để áp dụng các công nghệ phát triển ứng dụng di động (Flutter), kiến trúc Microservices (Go, Python FastAPI), lưu trữ và truy vấn vector (PostgreSQL với pgvector), cơ chế đồng bộ hướng sự kiện (Kafka, Debezium, Outbox Pattern) và hệ thống thông báo thời gian thực.
+
+\section{Concept thực hiện ứng dụng}
+Triết lý và concept cốt lõi của ứng dụng Pody được gói gọn trong khẩu hiệu: \textbf{"Đọc nhanh, nghe sau, tạo podcast bằng AI"}. Hệ thống được thiết kế xoay quanh hai luồng nghiệp vụ chính tương ứng với hai đối tượng người dùng mục tiêu:
+
+\subsection{Luồng Listener (Người nghe thông tin)}
+Luồng Listener hướng tới việc cá nhân hóa trải nghiệm tiêu thụ tin tức hằng ngày của người dùng:
+\begin{itemize}
+    \item \textbf{Khám phá nội dung:} Người dùng có thể tìm kiếm, đọc các bài báo mới nhất được cào tự động từ các nguồn tin uy tín, hoặc duyệt danh sách các Show podcast truyền thống.
+    \item \textbf{Nghe tin tức cá nhân hóa:} Người dùng lựa chọn một nhóm bài báo mà mình quan tâm, sau đó yêu cầu hệ thống tự động biên tập và sinh podcast tin tức ngắn (AI News Digest Podcast).
+    \item \textbf{Trình phát nhạc thông minh:} Hỗ trợ phát tệp âm thanh đồng thời hiển thị kịch bản chữ chạy tự động cuộn (Auto-scroll) và tô sáng (Highlight) từ ngữ tương ứng với giọng nói của MC ảo.
+    \item \textbf{Lưu trữ và Tương tác:} Cho phép đánh dấu (Bookmark) các tập podcast yêu thích, bình luận và bày tỏ cảm xúc trên các bài báo/tập podcast, đồng thời nhận các thông báo mới từ hệ thống.
+\end{itemize}
+
+\subsection{Luồng Creator (Nhà sáng tạo nội dung)}
+Luồng Creator tập trung vào việc đơn giản hóa quy trình sản xuất nội dung số bằng AI:
+\begin{itemize}
+    \item \textbf{Lên ý tưởng và Lập kế hoạch:} Creator trò chuyện với Trí tuệ nhân tạo (AI Chat-create) để tìm kiếm ý tưởng, tinh chỉnh chủ đề và sinh kế hoạch sản xuất tập podcast (Production Plan).
+    \item \textbf{MC ảo đa giọng đọc (Multi-host AI):} Thiết lập danh sách các MC ảo tham gia dẫn chương trình với các cấu hình giọng đọc khác nhau (Voice Profiles).
+    \item \textbf{Sinh kịch bản và Âm thanh tự động:} Hệ thống tự động sinh kịch bản hội thoại đối đáp tự nhiên giữa các MC ảo, chuyển đổi kịch bản thành giọng nói tiếng Việt chất lượng cao (TTS), tự động ghép nối và xuất bản tập podcast hoàn chỉnh kèm theo tệp tin transcript đồng bộ.
+\end{itemize}
+
+\section{Phân tích yêu cầu ứng dụng}
+
+\subsection{Yêu cầu chức năng}
+Hệ thống Pody phải đáp ứng đầy đủ các nhóm chức năng nghiệp vụ sau:
+\begin{enumerate}
+    \item \textbf{Xác thực và Quản lý người dùng:}
+    \begin{itemize}
+        \item Đăng ký tài khoản mới bằng địa chỉ email.
+        \item Xác minh tài khoản thông qua mã kích hoạt được gửi tự động qua email (Email Verification).
+        \item Đăng nhập bằng tài khoản email mật khẩu truyền thống hoặc đăng nhập nhanh bằng tài khoản Google (Google Sign-In).
+        \item Quên mật khẩu và đặt lại mật khẩu mới thông qua mã OTP bảo mật gửi qua email.
+        \item Xem và cập nhật thông tin cá nhân (tên hiển thị, ảnh đại diện, tiểu sử).
+    \end{itemize}
+    \item \textbf{Quản lý và Duyệt Podcast:}
+    \begin{itemize}
+        \item Xem danh sách các Show podcast và các danh mục phân loại.
+        \item Xem thông tin chi tiết của từng Show và danh sách các tập phát sóng (Episodes) trực thuộc.
+        \item Xem chi tiết một tập podcast, hiển thị thông tin MC, thời lượng và phát âm thanh.
+        \item Đăng ký/theo dõi (Subscribe) các kênh podcast ưa thích và lưu các tập podcast vào danh sách yêu thích (Bookmark).
+    \end{itemize}
+    \item \textbf{Quản lý và Tương tác Tin tức:}
+    \begin{itemize}
+        \item Đọc nội dung các bài báo được cào tự động và cập nhật liên tục từ các nguồn tin RSS.
+        \item Lọc và tìm kiếm các bài viết theo từ khóa hoặc theo danh mục chủ đề.
+        \item Thực hiện bày tỏ cảm xúc (Reaction - Like/Love) và viết bình luận (Comment) dưới mỗi bài viết.
+        \item Thu thập dữ liệu hành vi đọc của người dùng để đo lường các chỉ số tương tác (Metrics).
+    \end{itemize}
+    \item \textbf{Luồng tạo Podcast tin tức từ AI (AI Podcast Flow):}
+    \begin{itemize}
+        \item Cho phép người dùng chọn nhiều bài báo cùng lúc để gửi yêu cầu sinh podcast.
+        \item Cấu hình các tùy chọn cho Job: lựa chọn giọng đọc AI (Voice Profile), thời lượng tóm tắt mong muốn (Target minutes), ngôn ngữ.
+        \item Theo dõi trạng thái tiến độ xử lý của Job thông qua các trạng thái tuần tự bất đồng bộ: \texttt{queued} $\to$ \texttt{researching} $\to$ \texttt{drafting} $\to$ \texttt{validating} $\to$ \texttt{synthesizing} $\to$ \texttt{uploading} $\to$ \texttt{completed} (hoặc \texttt{failed}).
+        \item Cho phép phát tệp âm thanh wav kết quả kèm theo transcript JSON đồng bộ.
+    \end{itemize}
+    \item \textbf{Luồng tạo Show bằng AI (AI Show Creator):}
+    \begin{itemize}
+        \item Creator thiết lập thông tin Show, ảnh bìa và cấu hình các MC ảo.
+        \item Khởi tạo cuộc trò chuyện với AI dưới dạng Thread để sinh kế hoạch sản xuất (Production Plan).
+        \item Tạo tập phát sóng (Episode) mới tự động từ Production Plan đã được AI duyệt.
+    \end{itemize}
+    \item \textbf{Hệ thống thông báo (Notification System):}
+    \begin{itemize}
+        \item Xem danh sách thông báo in-app trong hòm thư cá nhân (Notification Inbox) kèm theo đếm số lượng tin nhắn chưa đọc (Unread Count).
+        \item Đánh dấu các thông báo đã đọc (Mark as read) hoặc đọc tất cả (Mark all as read).
+        \item Điều chỉnh cài đặt nhận thông báo (Notification Settings) trong tài khoản.
+        \item Gửi các email hệ thống tự động (OTP xác minh, mật khẩu mới, thông báo Job hoàn thành).
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Yêu cầu phi chức năng}
+Để hệ thống vận hành trơn tru và đạt chất lượng tốt nhất, các yêu cầu phi chức năng sau cần được tuân thủ nghiêm ngặt:
+\begin{enumerate}
+    \item \textbf{Kiến trúc Microservices độc lập:} Hệ thống được chia tách thành các dịch vụ độc lập theo miền nghiệp vụ để dễ dàng phát triển song song, bảo trì và tự động mở rộng (scale) độc lập các dịch vụ chịu tải nặng như dịch vụ xử lý AI hay tóm tắt tin tức.
+    \item \textbf{Cổng kết nối API Gateway:} Toàn bộ request từ phía Client phải đi qua API Gateway điều phối. Gateway chịu trách nhiệm định tuyến (Routing), kiểm soát CORS, log thông tin và áp dụng Middleware kiểm tra tính hợp lệ của mã JWT trước khi chuyển tiếp.
+    \item \textbf{Độc lập dữ liệu và Cơ sở dữ liệu riêng:} Mỗi microservice sở hữu một cơ sở dữ liệu vật lý riêng biệt. Hệ thống không sử dụng các liên kết khóa ngoại vật lý (Foreign Keys) chéo giữa cơ sở dữ liệu của các dịch vụ để tránh sự phụ thuộc chặt chẽ (tight coupling).
+    \item \textbf{Khả năng tích hợp và Tài liệu hóa:} Các dịch vụ phải có đầy đủ tài liệu đặc tả API chuẩn OpenAPI/Swagger để các dịch vụ khác dễ dàng tích hợp. Phải cung cấp API kiểm tra sức khỏe hệ thống (Health Check) để giám sát trạng thái hoạt động của từng dịch vụ.
+    \item \textbf{Kiểm thử và Đóng gói:} Đạt độ bao phủ kiểm thử (test coverage) tốt ở các phần logic nghiệp vụ lõi. Toàn bộ hệ thống backend phải được đóng gói gọn gàng thông qua các container Docker và được quản lý tập trung bằng Docker Compose để dễ dàng triển khai demo ở môi trường local.
+\end{enumerate}
+
+\section{Phân tích và lựa chọn công nghệ sử dụng}
+Hệ thống Pody lựa chọn các công nghệ hiện đại, có độ ổn định và hiệu năng cao để giải quyết các bài toán kỹ thuật đặt ra:
+
+\subsection{Ứng dụng di động (Frontend Mobile)}
+\begin{itemize}
+    \item \textbf{Công nghệ lựa chọn:} \textbf{Flutter (ngôn ngữ Dart)}.
+    \item \textbf{Lý do lựa chọn:} Flutter cho phép phát triển ứng dụng di động đa nền tảng (iOS và Android) từ một cơ sở mã nguồn duy nhất, giúp tiết kiệm thời gian phát triển của nhóm. Công nghệ biên dịch trực tiếp ra mã máy của Flutter mang lại giao diện mượt mà (60-120fps), đáp ứng tốt các thành phần UI phức tạp như đĩa nhạc MC ảo xoay tròn và văn bản chạy chữ đồng bộ mili-giây với tiến trình âm thanh.
+\end{itemize}
+
+\subsection{Cửa ngõ API Gateway và Dịch vụ cốt lõi}
+\begin{itemize}
+    \item \textbf{Công nghệ lựa chọn:} \textbf{Ngôn ngữ Go (Golang) và thư viện định tuyến \texttt{chi}}.
+    \item \textbf{Lý do lựa chọn:} Go có hiệu năng thực thi cực kỳ nhanh, tiêu thụ rất ít bộ nhớ RAM và hỗ trợ xử lý đồng thời (Concurrency) tuyệt vời nhờ cơ chế Goroutines siêu nhẹ. Việc xây dựng \texttt{api-gateway}, \texttt{identity-service}, \texttt{content-service} bằng Go giúp hệ thống có khả năng chịu tải tốt và phản hồi các request thông tin lõi với độ trễ thấp dưới 200ms.
+\end{itemize}
+
+\subsection{Dịch vụ xử lý AI và Tin tức}
+\begin{itemize}
+    \item \textbf{Công nghệ lựa chọn:} \textbf{Ngôn ngữ Python, web framework FastAPI và ORM SQLAlchemy}.
+    \item \textbf{Lý do lựa chọn:} Python sở hữu hệ sinh thái thư viện xử lý ngôn ngữ tự nhiên và Trí tuệ nhân tạo phong phú nhất hiện nay. FastAPI được chọn để phát triển các dịch vụ \texttt{ai-service}, \texttt{article-service}, và \texttt{embedding-service} nhờ hiệu năng xử lý bất đồng bộ (\texttt{async/await}) vượt trội, tốc độ phản hồi nhanh, và tự động tạo tài liệu kiểm thử đặc tả Swagger UI tự động.
+\end{itemize}
+
+\subsection{Cơ sở dữ liệu và Lưu trữ}
+\begin{itemize}
+    \item \textbf{Công nghệ lựa chọn:} \textbf{PostgreSQL, extension pgvector và MinIO Object Storage}.
+    \item \textbf{Lý do lựa chọn:} PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ vô cùng mạnh mẽ, đáng tin cậy và hỗ trợ các giao dịch ACID toàn diện. Đặc biệt, việc tích hợp extension \texttt{pgvector} cho phép lưu trữ trực tiếp các vector biểu diễn bài viết (768 chiều từ mô hình embedding) và thực hiện các câu lệnh tìm kiếm tương đồng ngữ nghĩa (Semantic Search) cực kỳ hiệu quả. MinIO được sử dụng làm kho lưu trữ đối tượng tương thích chuẩn S3 của Amazon để lưu trữ tệp âm thanh wav và tệp JSON transcript có dung lượng lớn.
+\end{itemize}
+
+\subsection{Hàng đợi sự kiện và CDC (Change Data Capture)}
+\begin{itemize}
+    \item \textbf{Công nghệ lựa chọn:} \textbf{Apache Kafka và Debezium Connector}.
+    \item \textbf{Lý do lựa chọn:} Kafka được sử dụng để xây dựng kiến trúc hướng sự kiện (Event-Driven Architecture) nhằm giảm sự phụ thuộc trực tiếp giữa các microservices (loose coupling). Debezium Connector được tích hợp để tự động chụp lại các thay đổi dữ liệu (Change Data Capture) từ PostgreSQL của dịch vụ tin tức, đẩy thẳng sự kiện sang Kafka để dịch vụ embedding tiêu thụ, giúp đồng bộ hóa dữ liệu thời gian thực mà không cần viết code thủ công.
+\end{itemize}
+
+\subsection{Bộ nhớ đệm và Trình cung cấp AI}
+\begin{itemize}
+    \item \textbf{Công nghệ lựa chọn:} \textbf{Redis và Google Gemini / Text-to-Speech API}.
+    \item \textbf{Lý do lựa chọn:} Redis đóng vai trò lưu trữ cache các bài viết và rate-limiting của Gateway. Trí tuệ nhân tạo được cung cấp bởi Google Gemini API (\texttt{gemini-3.5-}\allowbreak\texttt{flash}) để tóm tắt văn bản và sinh kịch bản đối thoại chất lượng cao. API Google Cloud Text-to-Speech được sử dụng để chuyển đổi kịch bản chữ sang âm thanh nói tiếng Việt tự nhiên đa giọng đọc.
+\end{itemize}
+
+% ==================== CHƯƠNG 2 ====================
+\chapter{Phân tích và Thiết kế hệ thống}
+
+\section{Kiến trúc tổng quan hệ thống}
+Hệ thống Pody được thiết kế theo kiến trúc Microservices phân rã theo miền nghiệp vụ:
+\begin{itemize}
+    \item \textbf{Tầng Gateway (api-gateway):} Nhận request từ Client, giải mã token JWT, phân phối request đến microservice tương ứng.
+    \item \textbf{Tầng Dịch vụ (Go/Python microservices):}
+    \begin{itemize}
+        \item \texttt{identity-service}: Quản lý người dùng, ví tiền, gói hội viên.
+        \item \texttt{content-service}: Quản lý thư viện Show, Episode, MC ảo và Companion Blocks.
+        \item \texttt{notification-service}: Xử lý gửi email xác thực, OTP khôi phục mật khẩu.
+        \item \texttt{article-service}: Crawl bài viết, quản lý danh mục và lập lịch Job xử lý AI Podcast.
+        \item \texttt{embedding-service}: Xử lý chunking văn bản bài báo, gọi Gemini sinh embedding và đưa vào pgvector.
+        \item \texttt{ai-service}: Lên kế hoạch tập, viết kịch bản hội thoại đa AI Host.
+    \end{itemize}
+\end{itemize}
+
+\section{Biểu đồ Use Case}
+
+\subsection{Biểu đồ Use Case tổng quan hệ thống (Mức nhóm)}
+Hệ thống phân chia Use Case rõ ràng cho các tác nhân như mô tả trong Hình \ref{fig:usecase_overview}.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.55\textwidth]{usecase_overview.png}
+\caption{Biểu đồ Use Case tổng quan hệ thống}
+\label{fig:usecase_overview}
+\end{figure}
+
+\subsection{Biểu đồ Use Case chi tiết - Luồng xử lý AI Podcast (Mức cá nhân - Phan Thanh Tùng)}
+Phân tích chi tiết use case "Tạo AI News Podcast" do sinh viên Phan Thanh Tùng thiết kế và hiện thực ở phần Backend. Luồng này mô tả sự tương tác giữa Listener/Creator và hệ thống AI thông qua các bước bất đồng bộ.
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.55\textwidth]{usecase_detail.png}
+\caption{Biểu đồ Use Case chi tiết luồng xử lý AI Podcast}
+\label{fig:usecase_detail}
+\end{figure}
+
+\section{Thiết kế sơ đồ thực thể quan hệ (ERD) chi tiết}
+Cơ sở dữ liệu của Pody được thiết kế tách biệt theo từng service nhằm tối ưu hóa tính độc lập của kiến trúc Microservices. Dưới đây là sơ đồ thực thể quan hệ (ERD) tổng quan và chi tiết mã nguồn SQL DDL khởi tạo của các dịch vụ cốt lõi.
+
+Sơ đồ thực thể quan hệ (ERD) tổng quan của hệ thống Pody được thể hiện ở Hình \ref{fig:erd_diagram}:
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.7\textwidth]{erd_diagram.png}
+\caption{Sơ đồ thực thể quan hệ (ERD) hệ thống Pody}
+\label{fig:erd_diagram}
+\end{figure}
+
+\subsection{Cấu trúc bảng của Dịch vụ định danh (identity-service)}
+Dịch vụ định danh quản lý thông tin tài khoản người dùng, thiết bị kết nối để gửi thông báo đẩy (push notification) qua Firebase (FCM) và quản lý bảng Outbox để thực hiện Event-Driven.
+
+\begin{lstlisting}[language=SQL]
+-- 1. Bang users
+CREATE TABLE IF NOT EXISTS users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email citext NOT NULL UNIQUE,
+  password_hash text,
+  display_name varchar(120) NOT NULL,
+  username citext UNIQUE,
+  avatar_url text,
+  bio text NOT NULL DEFAULT '',
+  account_type text NOT NULL DEFAULT 'listener'
+    CHECK (account_type IN ('listener', 'creator', 'hybrid')),
+  status text NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active', 'pending_verification', 'suspended', 'deleted')),
+  locale varchar(10) NOT NULL DEFAULT 'vi',
+  timezone varchar(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
+  email_verified_at timestamptz,
+  last_seen_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2. Bang user_identities (Danh cho Google/Apple auth)
+CREATE TABLE IF NOT EXISTS user_identities (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider text NOT NULL CHECK (provider IN ('email', 'google', 'apple')),
+  provider_user_id text NOT NULL,
+  provider_email citext,
+  is_primary boolean NOT NULL DEFAULT false,
+  linked_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ux_user_identities_provider UNIQUE (provider, provider_user_id)
+);
+
+-- 3. Bang user_devices (Dang ky FCM tokens gui thong bao)
+CREATE TABLE IF NOT EXISTS user_devices (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  platform text NOT NULL CHECK (platform IN ('ios', 'android', 'web', 'macos')),
+  push_provider text CHECK (push_provider IN ('fcm', 'apns')),
+  device_token text NOT NULL UNIQUE,
+  app_version text,
+  last_seen_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 4. Bang outbox_events (Giao dich va su kien bat dong bo)
+CREATE TABLE IF NOT EXISTS outbox_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  aggregate_type varchar(80) NOT NULL,
+  aggregate_id uuid NOT NULL,
+  event_type varchar(120) NOT NULL,
+  payload_version integer NOT NULL DEFAULT 1,
+  payload jsonb NOT NULL,
+  attempts integer NOT NULL DEFAULT 0,
+  last_error text,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'published', 'failed')),
+  available_at timestamptz NOT NULL DEFAULT now(),
+  published_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+\end{lstlisting}
+
+\subsection{Cấu trúc bảng của Dịch vụ nội dung (content-service)}
+Dịch vụ nội dung quản lý Shows, Episodes, Show Hosts (MC AI/Con người), các phân đoạn âm thanh (Segments) phục vụ đồng bộ transcript và Companion Blocks.
+
+\begin{lstlisting}[language=SQL]
+-- 1. Bang categories (The loai show)
+CREATE TABLE IF NOT EXISTS categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug citext NOT NULL UNIQUE,
+  name varchar(120) NOT NULL,
+  icon_name varchar(80),
+  color_hex varchar(7),
+  applies_to text NOT NULL DEFAULT 'show'
+    CHECK (applies_to IN ('show', 'news', 'mixed')),
+  sort_order integer NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 2. Bang shows (Cac kenh podcast)
+CREATE TABLE IF NOT EXISTS shows (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_user_id uuid NOT NULL,
+  owner_display_name_snapshot varchar(120),
+  owner_avatar_url_snapshot text,
+  title varchar(200) NOT NULL,
+  slug citext NOT NULL UNIQUE,
+  description text NOT NULL DEFAULT '',
+  content_type text NOT NULL DEFAULT 'podcast'
+    CHECK (content_type IN ('podcast', 'storytelling', 'news_digest')),
+  language_code varchar(10) NOT NULL DEFAULT 'vi',
+  cover_image_url text,
+  publish_status text NOT NULL DEFAULT 'draft'
+    CHECK (publish_status IN ('draft', 'published', 'archived')),
+  visibility text NOT NULL DEFAULT 'public'
+    CHECK (visibility IN ('public', 'unlisted', 'followers_only')),
+  monetization_type text NOT NULL DEFAULT 'free'
+    CHECK (monetization_type IN ('free', 'subscription', 'credit_unlock')),
+  credit_cost integer NOT NULL DEFAULT 0 CHECK (credit_cost >= 0),
+  subscriber_count bigint NOT NULL DEFAULT 0 CHECK (subscriber_count >= 0),
+  episode_count integer NOT NULL DEFAULT 0 CHECK (episode_count >= 0),
+  total_listen_count bigint NOT NULL DEFAULT 0 CHECK (total_listen_count >= 0),
+  published_at timestamptz,
+  deleted_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- 3. Bang show_hosts (Nguoi dan chuong trinh)
+CREATE TABLE IF NOT EXISTS show_hosts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  show_id uuid NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+  linked_user_id uuid,
+  linked_voice_profile_id uuid,
+  display_name varchar(120) NOT NULL,
+  avatar_url text,
+  role text NOT NULL DEFAULT 'host'
+    CHECK (role IN ('host', 'co_host', 'guest', 'narrator')),
+  persona_type text NOT NULL DEFAULT 'human'
+    CHECK (persona_type IN ('human', 'ai')),
+  sort_order smallint NOT NULL CHECK (sort_order >= 0),
+  bio text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ux_show_hosts_order UNIQUE (show_id, sort_order)
+);
+
+-- 4. Bang episodes (Cac tap podcast)
+CREATE TABLE IF NOT EXISTS episodes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  show_id uuid NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+  source_plan_id uuid,
+  title varchar(240) NOT NULL,
+  slug citext NOT NULL,
+  description text NOT NULL DEFAULT '',
+  season_number integer NOT NULL DEFAULT 1 CHECK (season_number >= 1),
+  episode_number integer CHECK (episode_number >= 1),
+  audio_url text,
+  audio_storage_key text,
+  cover_image_url text,
+  duration_seconds integer NOT NULL DEFAULT 0 CHECK (duration_seconds >= 0),
+  publish_status text NOT NULL DEFAULT 'draft'
+    CHECK (publish_status IN ('draft', 'scheduled', 'published', 'archived', 'failed')),
+  visibility text NOT NULL DEFAULT 'public'
+    CHECK (visibility IN ('public', 'followers_only', 'premium')),
+  credit_cost integer NOT NULL DEFAULT 0 CHECK (credit_cost >= 0),
+  is_ai_generated boolean NOT NULL DEFAULT false,
+  listen_count bigint NOT NULL DEFAULT 0 CHECK (listen_count >= 0),
+  like_count bigint NOT NULL DEFAULT 0 CHECK (like_count >= 0),
+  comment_count bigint NOT NULL DEFAULT 0 CHECK (comment_count >= 0),
+  published_at timestamptz,
+  deleted_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ux_episodes_show_slug UNIQUE (show_id, slug),
+  CONSTRAINT ux_episodes_show_number UNIQUE (show_id, season_number, episode_number)
+);
+
+-- 5. Bang episode_segments (Phan doan am thanh chay chu)
+CREATE TABLE IF NOT EXISTS episode_segments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  episode_id uuid NOT NULL REFERENCES episodes(id) ON DELETE CASCADE,
+  show_host_id uuid REFERENCES show_hosts(id) ON DELETE SET NULL,
+  segment_index integer NOT NULL CHECK (segment_index >= 0),
+  speaker_label varchar(120),
+  start_ms integer NOT NULL CHECK (start_ms >= 0),
+  end_ms integer NOT NULL CHECK (end_ms >= start_ms),
+  text_content text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ux_episode_segments_order UNIQUE (episode_id, segment_index)
+);
+\end{lstlisting}
+
+\subsection{Cấu trúc bảng của Dịch vụ Tin tức (article-service)}
+Dịch vụ tin tức chịu trách nhiệm cào tin (cơ chế Crawler), lưu trữ bài viết, thống kê và lưu trữ thông tin về các Job sản xuất AI Podcast.
+
+\begin{lstlisting}[language=SQL]
+-- 1. Bang news_sources
+CREATE TABLE IF NOT EXISTS news_sources (
+    id BIGSERIAL PRIMARY KEY,
+    domain VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    rss_url TEXT NOT NULL UNIQUE,
+    reliability_score FLOAT DEFAULT 0.5,
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 2. Bang articles
+CREATE TABLE IF NOT EXISTS articles (
+    id BIGSERIAL PRIMARY KEY,
+    source_id BIGINT NOT NULL REFERENCES news_sources(id),
+    title TEXT NOT NULL,
+    author VARCHAR(255),
+    summary TEXT,
+    content TEXT,
+    original_url TEXT NOT NULL UNIQUE,
+    thumbnail_url VARCHAR(1000),
+    published_at TIMESTAMPTZ,
+    status VARCHAR(50) NOT NULL DEFAULT 'PUBLISHED',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. Bang article_podcast_jobs (Luu cac job tao podcast)
+CREATE TABLE IF NOT EXISTS article_podcast_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_user_id VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'queued',
+    voice VARCHAR(120),
+    target_minutes INTEGER DEFAULT 6,
+    language_code VARCHAR(10) DEFAULT 'vi',
+    error_message TEXT,
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+\end{lstlisting}
+
+\section{Chi tiết Bảng mô tả cơ sở dữ liệu vật lý}
+
+Nhằm thể hiện chi tiết, sơ đồ bảng dưới đây liệt kê các trường dữ liệu và ràng buộc của các bảng chính trong hệ thống:
+
+\subsection{Bảng \texttt{users} (identity\_service)}
+\begin{table}[h!]
+\centering
+\begin{tabular}{llp{2.5cm}p{6.5cm}}
+\toprule
+\textbf{Tên cột} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\
+\midrule
+\texttt{id} & \texttt{uuid} & PRIMARY KEY & Mã định danh duy nhất của người dùng. \\
+\texttt{email} & \texttt{citext} & UNIQUE, NOT NULL & Địa chỉ thư điện tử người dùng. \\
+\texttt{password\_hash} & \texttt{text} & & Chuỗi mật khẩu băm bảo mật. \\
+\texttt{display\_name} & \texttt{varchar(120)} & NOT NULL & Tên hiển thị trên ứng dụng di động. \\
+\texttt{account\_type} & \texttt{text} & listener/creator & Phân quyền loại tài khoản. \\
+\texttt{status} & \texttt{text} & NOT NULL & Trạng thái tài khoản hoạt động. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Bảng \texttt{shows} (content\_service)}
+\begin{table}[h!]
+\centering
+\begin{tabular}{llp{2.5cm}p{6.5cm}}
+\toprule
+\textbf{Tên cột} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\
+\midrule
+\texttt{id} & \texttt{uuid} & PRIMARY KEY & Mã định danh của kênh podcast. \\
+\texttt{owner\_user\_id} & \texttt{uuid} & Logical Ref (users) & Chủ sở hữu của Show. \\
+\texttt{title} & \texttt{varchar(200)} & NOT NULL & Tiêu đề chương trình. \\
+\texttt{content\_type} & \texttt{text} & NOT NULL & Thể loại podcast, storytelling, v.v. \\
+\texttt{publish\_status} & \texttt{text} & draft/published & Trạng thái xuất bản kênh. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Bảng \texttt{episodes} (content\_service)}
+\begin{table}[h!]
+\centering
+\begin{tabular}{llp{2.5cm}p{6.5cm}}
+\toprule
+\textbf{Tên cột} & \textbf{Kiểu dữ liệu} & \textbf{Ràng buộc} & \textbf{Mô tả} \\
+\midrule
+\texttt{id} & \texttt{uuid} & PRIMARY KEY & Định danh tập phát sóng. \\
+\texttt{show\_id} & \texttt{uuid} & REFERENCES shows & Kênh podcast trực thuộc. \\
+\texttt{audio\_url} & \texttt{text} & & Đường dẫn phát âm thanh (lưu tại MinIO). \\
+\texttt{duration\_seconds} & \texttt{integer} & NOT NULL & Độ dài phát nhạc tính bằng giây. \\
+\texttt{is\_ai\_generated} & \texttt{boolean} & NOT NULL & Đánh dấu tập tự động tạo bằng AI. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Cơ chế xác thực phân tán bằng JWT Middleware}
+Để đảm bảo toàn bộ request gửi qua API Gateway được xác thực an toàn trước khi chuyển tiếp tới microservice tương ứng, nhóm đã xây dựng Middleware lọc và giải mã JWT Token tại Gateway. Đoạn mã nguồn bằng Go dưới đây thể hiện quy trình này:
+
+\begin{lstlisting}[language=Go]
+func withJWTAuth(secret string, skipPaths []string) func(http.Handler) http.Handler {
+	trimmedSecret := strings.TrimSpace(secret)
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodOptions || shouldSkipAuth(r.URL.Path, skipPaths) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if trimmedSecret == "" {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "jwt secret is not configured",
+				})
+				return
+			}
+
+			tokenString := bearerToken(r.Header.Get("Authorization"))
+			if tokenString == "" {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "missing bearer token",
+				})
+				return
+			}
+
+			claims := jwt.MapClaims{}
+			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, jwt.ErrTokenSignatureInvalid
+				}
+				return []byte(trimmedSecret), nil
+			})
+			if err != nil || !token.Valid {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "invalid or expired token",
+				})
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), authClaimsKey, claims)
+			enrichRequestWithClaims(r, claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+\end{lstlisting}
+
+\section{Mô hình xử lý và phát sinh kịch bản Stub Fallback}
+Trong môi trường phát triển local, nhằm phục vụ việc kiểm thử tích hợp (integration tests) mà không phải tiêu tốn chi phí gọi API hoặc khi mạng bị gián đoạn, dịch vụ tóm tắt bài viết của Python FastAPI tự động chuyển sang chế độ MC ảo giả lập (Stub Provider). Đoạn code Python dưới đây thể hiện cơ chế viết kịch bản giả lập:
+
+\begin{lstlisting}[language=Python]
+class StubTextGenerationProvider(TextGenerationProvider):
+    def synthesize(self, *, payload: dict[str, Any]) -> SynthesisDraft:
+        sources = payload.get("primary_sources") or []
+        titles = [str(item.get("title") or "").strip() for item in sources if str(item.get("title") or "").strip()]
+        topic = titles[0] if titles else "Tin tuc duoc chon"
+        research_summary = (
+            "Tong hop nhanh cac bai bao duoc chon va boi canh lien quan de tao mot podcast ngan, mach lac."
+        )
+        return SynthesisDraft(
+            topic=topic,
+            key_insights=titles[:6] or ["Tong hop cac y chinh tu nhieu bai bao"],
+            overlap_points=["Cac bai bao cung xoay quanh mot mach chu de lon"],
+            external_context=[str(item.get("title") or "").strip() for item in payload.get("external_context_sources") or []][:3],
+            research_summary=research_summary,
+        )
+
+    def write_script(self, *, payload: dict[str, Any]) -> ScriptDraft:
+        synthesis = payload.get("synthesis") or {}
+        topic = str(synthesis.get("topic") or "Tin tuc hom nay").strip() or "Tin tuc hom nay"
+        key_insights = synthesis.get("key_insights") or ["Nhung dien bien dang chu y"]
+        target_minutes = max(2, int(payload.get("target_minutes") or 2))
+        minimum_words = max(1, int(payload.get("minimum_words") or 1))
+        source_count = len(((payload.get("research_pack") or {}).get("primary_sources") or []))
+        
+        body_parts = [
+            f"Xin chao, day la ban tin audio ve chu de {topic}.",
+            f"Ban podcast nay tong hop {source_count} bai bao va huong toi thoi luong khoang {target_minutes} phut.",
+            "Trong nhom bai bao ma ban vua chon, co mot so y chinh noi bat can luu y.",
+        ]
+        for section_index in range(max(target_minutes * 3, 1)):
+            insight = str(key_insights[section_index % len(key_insights)]).strip()
+            if insight:
+                body_parts.append(
+                    f"Diem noi bat {section_index + 1}: {insight}. Chi tiet nay dong vai tro quan trong trong buc tranh tong the."
+                )
+        return ScriptDraft(
+            podcast_title=f"Podcast bao chi: {topic}",
+            podcast_description=f"Ban tom tat audio ve {topic}.",
+            outline=["Mo dau", "Noi dung chinh", "Ket luan"],
+            script_text=" ".join(part for part in body_parts if part),
+        )
+\end{lstlisting}
+
+\section{Phân tích cơ chế Outbox Pattern và CDC Debezium}
+Nhằm giải quyết bài toán giao dịch phân tán giữa các microservices (ví dụ: khi một người dùng tạo tài khoản mới tại \texttt{identity-service}, hệ thống cần tự động cập nhật danh sách người dùng và gửi thông tin xác thực tại \texttt{notification-service}), Pody áp dụng mô hình \textbf{Outbox Pattern} kết hợp với công cụ lắng nghe thay đổi CSDL \textbf{Debezium Connect}.
+
+\subsection{Cơ chế hoạt động của Outbox Pattern}
+Thay vì gọi trực tiếp HTTP/gRPC sang các dịch vụ khác trong cùng một luồng HTTP request, \texttt{identity-service} thực hiện lưu bản ghi người dùng mới kèm theo một dòng ghi nhận sự kiện vào bảng \texttt{outbox\_events} trong cùng một database transaction. Điều này đảm bảo tính nguyên tử (Atomicity): hoặc cả hai cùng được ghi nhận thành công, hoặc không có gì được ghi nhận.
+
+Phía sau, một tiến trình chạy nền (Outbox Publisher) liên tục quét bảng \texttt{outbox\_events} với chu kỳ quét 1 giây để đọc các sự kiện có trạng thái \texttt{pending}, đẩy vào hàng đợi Kafka Topic tương ứng, rồi cập nhật lại trạng thái thành \texttt{published}. Đoạn mã nguồn Go mô tả cơ chế quét outbox:
+
+\begin{lstlisting}[language=Go]
+func (p *Publisher) flush(ctx context.Context) error {
+	events, err := p.repo.ListPublishableOutboxEvents(ctx, p.batchSize)
+	if err != nil {
+		return err
+	}
+
+	for _, event := range events {
+		topic := notification.TopicFromEventType(event.EventType)
+		if err := p.producer.PublishPayload(ctx, topic, event.Key, event.Payload); err != nil {
+			nextRetryAt := time.Now().UTC().Add(backoffDuration(event.Attempts + 1))
+			if markErr := p.repo.MarkOutboxEventFailed(ctx, event.ID, nextRetryAt, err.Error()); markErr != nil {
+				return markErr
+			}
+			continue
+		}
+
+		if err := p.repo.MarkOutboxEventPublished(ctx, event.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+\end{lstlisting}
+
+\subsection{Cơ chế Change Data Capture (CDC) với Debezium}
+Đối với dịch vụ tin tức, để đồng bộ danh mục tin từ \texttt{article-service} sang \texttt{embedding-service} nhằm phục vụ tính toán vector, hệ thống sử dụng cấu hình \textbf{Debezium Connector} chạy trên nền Kafka Connect. Mỗi khi có dòng dữ liệu chèn mới vào bảng \texttt{categories} trong PostgreSQL, Debezium Connect sẽ đọc trực tiếp nhật ký giao dịch logical log (WAL - Write Ahead Log) của Postgres, gói dữ liệu thay đổi dưới dạng JSON và bắn thẳng vào Kafka topic \texttt{article.category.matches.generated}. Cách thức này giúp giải phóng hoàn toàn logic ứng dụng của Python khỏi việc viết code bắn sự kiện đồng bộ thủ công.
+
+\section{Biểu đồ lớp (Class Diagram)}
+Dưới đây là cấu trúc biểu đồ lớp chi tiết biểu diễn mối quan hệ giữa các thực thể cốt lõi trong hệ thống Pody (Mức cá nhân - Phan Thanh Tùng thực hiện thiết kế cấu trúc dữ liệu). Biểu đồ mô tả sự quan hệ của người dùng, các chương trình (Show), các tập phát sóng (Episode), các phân đoạn âm thanh chạy chữ (EpisodeSegment) cùng các công việc chạy ngầm (PodcastJob):
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{class_diagram.png}
+\caption{Biểu đồ lớp các thực thể cốt lõi hệ thống Pody}
+\label{fig:class_diagram}
+\end{figure}
+
+\section{Biểu đồ tuần tự (Sequence Diagram)}
+Sơ đồ tuần tự thể hiện sự tương tác giữa các service khi thực hiện luồng nghiệp vụ tạo AI Podcast từ tin tức:
+
+\begin{figure}[h!]
+\centering
+\includegraphics[width=0.6\textwidth]{sequence_diagram.png}
+\caption{Sơ đồ tuần tự luồng tạo AI Podcast từ bài báo}
+\label{fig:seq_podcast}
+\end{figure}
+
+\section{Thiết kế giao diện đáp ứng chức năng}
+Ứng dụng di động Flutter được phát triển tập trung vào tính tương tác và trải nghiệm người dùng cao. Dưới đây là thiết kế chi tiết hai màn hình chính do nhóm và cá nhân sinh viên thực hiện tích hợp:
+
+\subsection{Màn hình trang chủ (Home Screen)}
+Hiển thị danh sách các Show và danh mục tin tức nổi bật được cập nhật theo thời gian thực.
+Màn hình gồm 3 phần chính:
+\begin{enumerate}
+    \item Header: Thanh tìm kiếm và ảnh đại diện tài khoản cá nhân.
+    \item Body: Danh sách cuộn ngang các thể loại (AI News, Công nghệ, Kinh doanh, Đời sống).
+    \item Footer: Thanh điều hướng nhanh (Home, AI Generator, Thư viện cá nhân).
+\end{enumerate}
+
+Sơ đồ phác thảo giao diện Home Screen:
+\begin{figure}[h!]
+\centering
+\begin{lstlisting}
++---------------------------------------------+
+|  [Search Podcast...]                     (O)|  <- Profile avatar
++---------------------------------------------+
+|  THE LOAI                                   |
+|  +--------+  +--------+  +--------+         |
+|  | AI News|  | Tech   |  | Business| ...    |
+|  +--------+  +--------+  +--------+         |
++---------------------------------------------+
+|  DE XUAT CHO BAN                            |
+|  +---------------------------------------+  |
+|  | [Icon] Tin nong cong nghe buoi sang   |  |
+|  | MC Giong doc AI Viettel - 5 phut      |  |
+|  +---------------------------------------+  |
+|  +---------------------------------------+  |
+|  | [Icon] Diem tin AI quoc te trong ngay  |  |
+|  | MC Giong doc AI FPT - 8 phut          |  |
+|  +---------------------------------------+  |
++---------------------------------------------+
+|    [Home]        [AI Gen]       [Library]   | <- Bottom Navigation
++---------------------------------------------+
+\end{lstlisting}
+\caption{Phác thảo giao diện Màn hình chính (Home Screen)}
+\label{fig:ui_home}
+\end{figure}
+
+\subsection{Màn hình trình phát âm thanh đồng bộ (Player Screen)}
+Trình phát nhạc được thiết kế tinh tế với đĩa nhạc hiển thị MC ảo và phần kịch bản chạy chữ tự động cuộn đồng bộ với mili-giây âm thanh.
+\begin{enumerate}
+    \item Phần đĩa nhạc / MC Avatar: Xoay tròn khi đang phát nhạc, dừng lại khi tạm dừng.
+    \item Khung Transcript cuộn tự động: Sử dụng widget cuộn tùy biến, đọc tệp JSON subtitle chứa mốc thời gian \texttt{start\_ms} và \texttt{end\_ms}. Dòng chữ đang được phát âm sẽ tự động tô đậm và đổi màu (Highlighting).
+    \item Thanh tiến trình phát (Seek Bar) và các nút điều khiển (Play/Pause, Skip Back 15s, Skip Forward 15s).
+\end{enumerate}
+
+Sơ đồ phác thảo giao diện Player Screen:
+\begin{figure}[h!]
+\centering
+\begin{lstlisting}
++---------------------------------------------+
+|  [Back]         Bao Cao AI News       [Share]|
++---------------------------------------------+
+|                                             |
+|                   /-------\                 |
+|                  /  MC AI  \                |
+|                  |  Avatar |                |
+|                  \  Xoay   /                |
+|                   \-------/                 |
+|                                             |
++---------------------------------------------+
+|  Transcript (Auto Scroll):                  |
+|  - [00:01] Xin chao quy thinh gia den voi   |
+|  - [00:03] ban tin Pody Podcast hom nay.    |
+|  - *[00:05] Hom nay chung ta co tin nong...*| <- Dong dang phat (Highlighted)
+|  - [00:08] ve su kien trien khai Kubernetes. |
++---------------------------------------------+
+|  ======O---------------------------- 08:30  | <- Seek bar
+|         [Rewind]   [Play]   [Forward]       |
++---------------------------------------------+
+\end{lstlisting}
+\caption{Phác thảo giao diện Trình phát nhạc đồng bộ chữ (Player Screen)}
+\label{fig:ui_player}
+\end{figure}
+
+% ==================== CHƯƠNG 3 ====================
+\chapter{Kết quả triển khai và Thử nghiệm}
+
+\section{Mô hình triển khai hệ thống}
+Hệ thống được đóng gói hoàn toàn trong môi trường Docker. Tệp tin \texttt{docker-compose.yml} tại thư mục gốc định nghĩa cấu hình mạng (network \texttt{pody-net}) và ánh xạ các volume lưu trữ dữ liệu lâu dài của PostgreSQL và MinIO.
+
+\subsection{Cấu hình tệp tin Docker Compose (docker-compose.yml)}
+Dưới đây là chi tiết đầy đủ của tệp cấu hình triển khai hệ thống container hóa của Pody, thể hiện rõ cấu hình phân chia mạng và volumes dữ liệu:
+
+\begin{lstlisting}[language=bash]
+version: "3.8"
+
+services:
+  article-postgres:
+    image: postgres:16-alpine
+    container_name: pody-article-postgres
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=4
+      - -c
+      - max_replication_slots=4
+    environment:
+      POSTGRES_DB: pody_article
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+
+  embedding-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pody-embedding-postgres
+    environment:
+      POSTGRES_DB: pody_embedding
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+
+  kafka:
+    image: apache/kafka:4.0.0
+    container_name: pody-kafka
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+    ports:
+      - "9092:9092"
+
+  debezium-connect:
+    image: debezium/connect:2.7.3.Final
+    container_name: pody-debezium-connect
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: "1"
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - article-postgres
+
+  redis:
+    image: redis:7-alpine
+    container_name: pody-redis
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    container_name: pody-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  identity-service:
+    build:
+      context: ./server/identity-service
+      dockerfile: Dockerfile
+    container_name: pody-identity-service
+    environment:
+      PORT: "8081"
+      DATABASE_URL: postgres://postgres:postgres@identity-postgres:5432/pody_identity
+      KAFKA_BROKERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kafka
+      - minio
+
+  content-service:
+    build:
+      context: ./server/content-service
+      dockerfile: Dockerfile
+    container_name: pody-content-service
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@content-postgres:5432/pody_content
+      PORT: "8082"
+    ports:
+      - "8082:8082"
+
+  ai-service:
+    build:
+      context: ./server/ai-service
+      dockerfile: Dockerfile
+    container_name: pody-ai-service
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@ai-postgres:5432/pody_ai
+      PORT: "8085"
+    ports:
+      - "8085:8085"
+
+  api-gateway:
+    build:
+      context: ./server/api-gateway
+      dockerfile: Dockerfile
+    container_name: pody-api-gateway
+    environment:
+      PORT: "8080"
+      JWT_SECRET: change-me
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      CONTENT_SERVICE_URL: http://content-service:8082
+      AI_SERVICE_URL: http://ai-service:8085
+    ports:
+      - "8080:8080"
+    depends_on:
+      - identity-service
+      - content-service
+      - ai-service
+\end{lstlisting}
+
+\section{Các bước cài đặt và triển khai}
+\begin{enumerate}
+    \item Sao chép cấu hình môi trường: \texttt{cp .env.example .env}.
+    \item Khởi tạo các container hạ tầng:
+    \begin{lstlisting}[language=bash]
+docker-compose up -d article-postgres embedding-postgres redis minio kafka debezium-connect
+    \end{lstlisting}
+    \item Chạy migration cấu trúc DB và seed data:
+    \begin{lstlisting}[language=bash]
+docker-compose up migrations article-db-init embedding-db-init
+    \end{lstlisting}
+    \item Dựng toàn bộ backend services:
+    \begin{lstlisting}[language=bash]
+docker-compose up -d identity-service notification-service content-service ai-service article-service embedding-service api-gateway
+    \end{lstlisting}
+    \item Khởi động ứng dụng di động Flutter:
+    \begin{lstlisting}[language=bash]
+cd flutter-app && flutter run
+    \end{lstlisting}
+\end{enumerate}
+
+\section{Kết quả các tính năng chính trên giao diện}
+Qua kiểm thử thực tế, ứng dụng chạy trơn tru:
+\begin{itemize}
+    \item Đăng ký tài khoản và nhận email kích hoạt thật qua SMTP.
+    \item Chọn 3 bài viết tin tức bất kỳ, hệ thống tạo ra một tập tin âm thanh wav chất lượng cao tóm tắt nội dung cùng tệp phụ đề chạy chữ chỉ sau 40 giây.
+    \item Trình phát nhạc đọc file wav từ MinIO, tô sáng chữ đúng mili-giây phát âm của MC ảo.
+\end{itemize}
+
+\section{Kết quả thử nghiệm và kiểm thử tự động}
+Nhóm đã viết các testcase tự động cho cả Go và Python:
+\begin{itemize}
+    \item Chạy test cho \texttt{article\_service} (Python FastAPI):
+    \begin{lstlisting}[language=bash]
+pytest server/article_service/tests/
+    \end{lstlisting}
+    Các bài test tự động bao gồm kiểm tra route tạo job, validate kịch bản (Validator) và rút gọn nội dung bài viết đều vượt qua (PASSED).
+    \item Chạy test cho microservices Go:
+    \begin{lstlisting}[language=bash]
+go test ./...
+    \end{lstlisting}
+    Đảm bảo 100\% các logic nghiệp vụ lõi như xác thực JWT, trừ ví credit đều được bảo vệ và chạy chính xác.
+\end{itemize}
+
+\subsection{Số liệu thống kê vận hành hệ thống trong giai đoạn kiểm thử}
+Dưới đây là bảng số liệu thống kê thu thập từ cơ sở dữ liệu và hệ thống giám sát trong quá trình chạy thử nghiệm cục bộ trên môi trường Docker Compose (Mức cá nhân - Phan Thanh Tùng tổng hợp):
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lp{8cm}l}
+\toprule
+\textbf{STT} & \textbf{Chỉ số đo lường kiểm thử} & \textbf{Số lượng / Kết quả} \\
+\midrule
+1 & Số lượng nguồn tin tức RSS đã cấu hình (\texttt{news\_sources}) & 15 nguồn \\
+2 & Số lượng bài báo đã cào và phân tích (\texttt{articles}) & 350+ bài viết \\
+3 & Số lượng tài khoản người dùng đăng ký thử nghiệm (\texttt{users}) & 12 tài khoản \\
+4 & Số lượng Job sinh Podcast AI đã thực hiện (\texttt{article\_podcast\_jobs}) & 48 lượt \\
+5 & Tỷ lệ sinh kịch bản và tóm tắt thành công của LLM & 100\% (48/48) \\
+6 & Tốc độ sinh file âm thanh trung bình (TTS) & 0.8x th.gian thực \\
+7 & Số lượng tệp tin âm thanh wav lưu trữ trên MinIO & 48 tệp \\
+8 & Số lượng phân đoạn phụ đề được đánh mốc thời gian (\texttt{episode\_segments}) & 1,440 đoạn \\
+\bottomrule
+\end{tabular}
+\caption{Bảng thống kê số liệu vận hành và dữ liệu kiểm thử}
+\label{tab:test_metrics}
+\end{table}
+
+\section{Kết luận, hạn chế và định hướng nâng cấp}
+\subsection{Kết luận}
+Bản báo cáo Bài Tập Lớn Phát triển Ứng dụng Di động đã hoàn thành đầy đủ yêu cầu, đề tài Pody (Podcast AI Platform) hoạt động thực tế hiệu quả cao, chứng minh năng lực kết hợp công nghệ di động và Trí tuệ nhân tạo.
+
+\subsection{Hạn chế}
+Cơ chế chuyển giọng nói (TTS) đối với các kịch bản dài vẫn cần cải thiện tốc độ xử lý để mang lại trải nghiệm thời gian thực tốt hơn.
+
+\subsection{Định hướng nâng cấp}
+Áp dụng công nghệ Streaming Audio TTS để người dùng nghe được ngay phần đầu của podcast trong lúc hệ thống đang tiếp tục sinh âm thanh phần sau.
+
+% ==================== TÀI LIỆU THAM KHẢO ====================
+\newpage
+\begin{thebibliography}{9}
+\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
+
+\bibitem{flutter}
+Official Flutter Documentation: \url{https://flutter.dev}
+
+\bibitem{go}
+Go Programming Language Documentation: \url{https://golang.org}
+
+\bibitem{fastapi}
+FastAPI Web Framework References: \url{https://fastapi.tiangolo.com}
+
+\bibitem{gemini}
+Google Gemini AI API References: \url{https://ai.google.dev}
+
+\bibitem{debezium}
+Debezium CDC Platform Documentation: \url{https://debezium.io}
+
+\bibitem{kafka}
+Apache Kafka Core Specifications: \url{https://kafka.apache.org}
+
+\end{thebibliography}
+
+\end{document}
