@@ -25,6 +25,8 @@ from app.service.gemini_provider import EmbeddingRateLimitError
 
 
 class KafkaArticleConsumerController:
+    """Kafka consumer nhan event article tu Debezium de tao embedding."""
+
     def __init__(
         self,
         settings: KafkaSettings,
@@ -50,6 +52,7 @@ class KafkaArticleConsumerController:
         }
 
     def start(self) -> None:
+        """Dam bao topic ton tai va khoi dong thread consume nen."""
         self.ensure_topic_exists()
         self._thread = threading.Thread(
             target=self._consume_forever,
@@ -59,11 +62,13 @@ class KafkaArticleConsumerController:
         self._thread.start()
 
     def stop(self) -> None:
+        """Bao thread consumer dung lai va doi no ket thuc."""
         self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=10)
 
     def status(self) -> dict[str, Any]:
+        """Tra ve trang thai consumer cho health endpoint."""
         with self._lock:
             return {
                 "topic": self._settings.topic,
@@ -72,6 +77,7 @@ class KafkaArticleConsumerController:
             }
 
     def ensure_topic_exists(self) -> None:
+        """Tao topic article embedding request neu Kafka chua co topic nay."""
         deadline = time.monotonic() + self._settings.startup_timeout_seconds
         attempt = 0
 
@@ -124,6 +130,7 @@ class KafkaArticleConsumerController:
                     admin_client.close()
 
     def _consume_forever(self) -> None:
+        """Duy tri consumer va tu reconnect khi Kafka bi gian doan."""
         while not self._stop_event.is_set():
             consumer: KafkaConsumer | None = None
             try:
@@ -173,6 +180,7 @@ class KafkaArticleConsumerController:
                     consumer.close()
 
     def _handle_message(self, consumer: KafkaConsumer, kafka_message: Any) -> bool:
+        """Xu ly mot message, commit khi thanh cong va retry khi loi tam thoi."""
         payload = normalize_payload(kafka_message.value)
         context = KafkaMessageContext(
             topic=kafka_message.topic,
@@ -197,6 +205,7 @@ class KafkaArticleConsumerController:
             )
             return True
         except PermanentArticleProcessingError as exc:
+            # Payload sai contract hoac khong co text se khong thanh cong khi retry.
             consumer.commit()
             self._set_state(
                 message_count=self._state["message_count"] + 1,
@@ -214,6 +223,7 @@ class KafkaArticleConsumerController:
             )
             return True
         except EmbeddingRateLimitError as exc:
+            # Khi het quota Gemini, seek lai offset de xu ly lai sau thoi gian backoff.
             self._set_state(
                 failed_articles=self._state["failed_articles"] + 1,
                 last_message_at=now,
@@ -232,6 +242,7 @@ class KafkaArticleConsumerController:
             self._stop_event.wait(exc.retry_delay_seconds)
             return True
         except Exception as exc:
+            # Loi tam thoi khac se seek lai offset de message khong bi mat.
             self._set_state(
                 failed_articles=self._state["failed_articles"] + 1,
                 last_error=str(exc),
@@ -247,6 +258,7 @@ class KafkaArticleConsumerController:
             return False
 
     def _record_success(self, result: ArticleProcessingResult, *, now: str) -> None:
+        """Cap nhat counters sau khi message duoc xu ly thanh cong."""
         self._set_state(
             message_count=self._state["message_count"] + 1,
             processed_articles=self._state["processed_articles"] + (1 if result.status == "processed" else 0),
@@ -257,5 +269,6 @@ class KafkaArticleConsumerController:
         )
 
     def _set_state(self, **updates: Any) -> None:
+        """Cap nhat state consumer an toan giua cac thread."""
         with self._lock:
             self._state.update(updates)

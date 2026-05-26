@@ -7,6 +7,8 @@ from typing import Any, Mapping
 
 @dataclass(frozen=True)
 class CategoryEmbeddingDocument:
+    """Entity anh xa bang category_embedding_documents."""
+
     id: int
     category_id: str
     slug: str
@@ -26,6 +28,7 @@ class CategoryEmbeddingDocument:
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> "CategoryEmbeddingDocument":
+        """Tao entity category embedding tu row PostgreSQL."""
         return cls(
             id=int(row["id"]),
             category_id=str(row.get("category_id") or ""),
@@ -47,12 +50,14 @@ class CategoryEmbeddingDocument:
 
 
 def _optional_str(value: object) -> str | None:
+    """Chuan hoa chuoi rong thanh None."""
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
 
 
 def _optional_int(value: object) -> int | None:
+    """Chuan hoa gia tri int tuy chon tu DB."""
     if value is None:
         return None
     return int(value)

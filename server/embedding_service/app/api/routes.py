@@ -10,28 +10,33 @@ from app.view import ArticleSearchView, SystemView
 
 
 def build_router() -> APIRouter:
+    """Dang ky cac endpoint public cua embedding_service."""
     router = APIRouter()
 
     @router.get("/")
     def root(request: Request):
+        """Tra ve thong tin tong quan cua service."""
         controller: SystemController = request.app.state.system_controller
         view: SystemView = request.app.state.system_view
         return view.render_service_overview(controller.get_service_overview())
 
     @router.get("/healthz")
     def healthz(request: Request):
+        """Health check noi bo cho container va orchestration."""
         controller: SystemController = request.app.state.system_controller
         view: SystemView = request.app.state.system_view
         return view.render_health(controller.get_health())
 
     @router.get("/api/v1/public/embedding/healthz")
     def public_healthz(request: Request):
+        """Health check public di qua API Gateway."""
         controller: SystemController = request.app.state.system_controller
         view: SystemView = request.app.state.system_view
         return view.render_health(controller.get_health())
 
     @router.post("/api/v1/public/embedding/articles/search")
     async def search_articles(request: Request):
+        """Nhan query semantic search va tra ve cac chunk bai bao gan nghia nhat."""
         controller: ArticleSearchController = request.app.state.article_search_controller
         view: ArticleSearchView = request.app.state.article_search_view
 

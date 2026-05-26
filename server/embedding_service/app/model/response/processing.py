@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ArticleProcessingResult:
+    """Ket qua xu ly mot event bai bao tu Kafka."""
+
     status: str
     article_id: int
     chunk_count: int

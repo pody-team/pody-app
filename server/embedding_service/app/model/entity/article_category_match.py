@@ -7,6 +7,8 @@ from typing import Any, Mapping
 
 @dataclass(frozen=True)
 class ArticleCategoryMatch:
+    """Entity anh xa ket qua match semantic giua article va category."""
+
     id: int
     article_id: int
     category_id: str
@@ -20,6 +22,7 @@ class ArticleCategoryMatch:
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> "ArticleCategoryMatch":
+        """Tao match entity tu row PostgreSQL."""
         return cls(
             id=int(row["id"]),
             article_id=int(row["article_id"]),

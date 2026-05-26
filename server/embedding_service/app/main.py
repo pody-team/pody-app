@@ -15,11 +15,13 @@ def create_app(
     runtime: EmbeddingRuntime | None = None,
     settings: AppSettings | None = None,
 ) -> FastAPI:
+    """Tao FastAPI app va gan runtime/controller/view vao app state."""
     resolved_settings = settings or (runtime.settings if runtime is not None else load_settings())
     logger = configure_logging(resolved_settings.log_level)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        """Quan ly vong doi runtime khi FastAPI startup va shutdown."""
         active_runtime = runtime or EmbeddingRuntime(resolved_settings, logger)
         app.state.runtime = active_runtime
         app.state.article_search_controller = active_runtime.article_search_controller

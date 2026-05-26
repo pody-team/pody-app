@@ -5,16 +5,21 @@ from typing import Any
 
 
 class InvalidArticleSearchRequestError(ValueError):
+    """Loi request search khong dung contract."""
+
     pass
 
 
 @dataclass(frozen=True)
 class ArticleSearchRequest:
+    """Request semantic search bai bao."""
+
     query: str
     limit: int
 
 
 def parse_article_search_request(payload: Any) -> ArticleSearchRequest:
+    """Validate request JSON va gioi han limit trong khoang an toan."""
     if not isinstance(payload, dict):
         raise InvalidArticleSearchRequestError("Search payload must be a JSON object")
 
