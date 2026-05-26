@@ -11,7 +11,11 @@ from schemas import CommentResponse, clean_text
 
 
 class ArticleQueryService:
-    """Application service for article read use cases."""
+    """Service xu ly cac use case doc du lieu bai bao.
+
+    Tang nay gom du lieu tu repository, ngu canh nguoi dung, counter va
+    dinh dang response de API handler gon hon.
+    """
 
     favorite_category_limit = 5
 
@@ -30,12 +34,14 @@ class ArticleQueryService:
         self.comment_repository = comment_repository
 
     async def ensure_article_exists(self, article_id: int):
+        """Lay bai bao hoac tra 404 de cac caller dung chung rule validate."""
         article = await self.write_repository.get_by_id(article_id)
         if not article:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
         return article
 
     async def list_articles(self, limit: int, offset: int, category=None, query=None, current_user_id=None) -> dict:
+        """Tao response feed bai bao co loc category va tim kiem."""
         results = await self.query_repository.list_articles_with_extra(
             limit=limit,
             offset=offset,
@@ -66,6 +72,7 @@ class ArticleQueryService:
         }
 
     async def list_favorite_categories(self, user_id: str) -> dict:
+        """Tra ve cac category nguoi dung dang chon lam yeu thich."""
         categories = await self.query_repository.list_favorite_categories(user_id)
         return {
             "count": len(categories),
@@ -81,6 +88,7 @@ class ArticleQueryService:
         }
 
     async def replace_favorite_categories(self, user_id: str, category_ids: list[str]) -> dict:
+        """Validate va thay the danh sach category yeu thich cua nguoi dung."""
         normalized_category_ids = [category_id.strip() for category_id in category_ids if category_id.strip()]
         if not normalized_category_ids:
             raise HTTPException(
@@ -106,6 +114,7 @@ class ArticleQueryService:
             categories,
             key=lambda category: unique_category_ids.index(category.id),
         )
+        # Giu thu tu nguoi dung gui len nhung chi luu category dang hoat dong.
         saved_categories = await self.query_repository.replace_favorite_categories(
             user_id,
             [category.id for category in ordered_categories],
@@ -126,6 +135,7 @@ class ArticleQueryService:
         }
 
     async def list_categories(self) -> dict:
+        """Tra ve tat ca category dang hoat dong kem tong so bai cho bo loc UI."""
         categories = await self.query_repository.list_categories_with_counts()
         return {
             "count": len(categories),
@@ -142,6 +152,7 @@ class ArticleQueryService:
         }
 
     async def get_article_detail(self, article_id: int, current_user_id=None) -> dict:
+        """Tra ve chi tiet bai, cap nhat luot xem va kem thong tin tuong tac."""
         detail = await self.query_repository.get_article_detail(article_id)
         if not detail:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
@@ -171,11 +182,13 @@ class ArticleQueryService:
         }
 
     async def get_reactions(self, article_id: int, current_user_id=None) -> dict:
+        """Tra ve rieng tong reaction cho client can lam moi trang thai tuong tac."""
         await self.ensure_article_exists(article_id)
         reactions = await self.reaction_repository.get_reaction_summary(article_id, user_id=current_user_id)
         return {"article_id": article_id, "reactions": reactions}
 
     async def list_comments(self, article_id: int, limit: int, offset: int) -> dict:
+        """Tra ve comment co phan trang sau khi xac nhan bai bao ton tai."""
         await self.ensure_article_exists(article_id)
         comments = await self.comment_repository.list_comments(article_id, limit=limit, offset=offset)
         total = await self.comment_repository.count_comments(article_id)

@@ -11,10 +11,14 @@ EVENT_TYPE = "article.category.matches.generated.v1"
 
 
 class InvalidArticleCategoryMatchesEventError(ValueError):
+    """Loi khi payload Kafka dong bo category vi pham event contract."""
+
     pass
 
 
 class ArticleCategoryMatchPayload(BaseModel):
+    """Mot category match do embedding_service tao cho bai bao."""
+
     category_id: UUID
     rank: int = Field(..., ge=1)
     score: float
@@ -22,6 +26,8 @@ class ArticleCategoryMatchPayload(BaseModel):
 
 
 class ArticleCategoryMatchesGeneratedEvent(BaseModel):
+    """Event contract Kafka cho ket qua match category semantic cua bai bao."""
+
     event_id: UUID
     idempotency_key: str = Field(..., min_length=1)
     event_type: Literal[EVENT_TYPE]
@@ -36,6 +42,7 @@ class ArticleCategoryMatchesGeneratedEvent(BaseModel):
 
 
 def parse_article_category_matches_event(payload: object) -> ArticleCategoryMatchesGeneratedEvent:
+    """Validate JSON Kafka tho thanh model event dong bo category co kieu."""
     if not isinstance(payload, dict):
         raise InvalidArticleCategoryMatchesEventError("Kafka payload must be a JSON object")
     try:

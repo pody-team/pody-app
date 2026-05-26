@@ -6,11 +6,14 @@ from category_sync_event import ArticleCategoryMatchesGeneratedEvent
 
 
 class ArticleCategoryProjectionService:
+    """Apply ket qua match category semantic do embedding_service tao ra."""
+
     def __init__(self, repository, logger: logging.Logger):
         self._repository = repository
         self._logger = logger
 
     async def apply_event(self, event: ArticleCategoryMatchesGeneratedEvent) -> str:
+        """Project mot event match category vao bang article_service theo cach idempotent."""
         if await self._repository.has_processed_event(event_id=event.event_id):
             self._logger.info(
                 "Article-category sync event skipped as duplicate | event_id=%s article_id=%s",
@@ -38,6 +41,7 @@ class ArticleCategoryProjectionService:
         seen_category_ids: set[str] = set()
         projected_matches = []
         for match in event.matches:
+            # Bo category khong active/khong ton tai va match bi lap truoc khi thay link.
             category_id = str(match.category_id)
             if category_id not in valid_category_ids or category_id in seen_category_ids:
                 continue

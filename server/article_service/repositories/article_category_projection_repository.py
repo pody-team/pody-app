@@ -10,10 +10,13 @@ from models import Article, Category, CategoryArticle
 
 
 class ArticleCategoryProjectionRepository:
+    """Repository de consumer Kafka ghi ket qua category semantic vao article_service."""
+
     def __init__(self, session: AsyncSession):
         self.session = session
 
     async def has_processed_event(self, *, event_id: UUID) -> bool:
+        """Kiem tra bang inbox de lan giao Kafka bi lap van idempotent."""
         existing = await self.session.execute(
             text(
                 """
@@ -34,6 +37,7 @@ class ArticleCategoryProjectionRepository:
         source_service: str,
         event_type: str,
     ) -> None:
+        """Ghi nhan event da consume sau khi apply hoac chu dong skip."""
         await self.session.execute(
             text(
                 """
@@ -50,12 +54,14 @@ class ArticleCategoryProjectionRepository:
         )
 
     async def article_exists(self, *, article_id: int) -> bool:
+        """Xac nhan bai bao nguon con ton tai truoc khi ghi lien ket category."""
         result = await self.session.execute(
             select(Article.id).where(Article.id == article_id).limit(1)
         )
         return result.scalar_one_or_none() is not None
 
     async def list_active_category_ids(self, *, category_ids: list[str]) -> set[str]:
+        """Loc match tu embedding_service chi giu category dang hoat dong."""
         if not category_ids:
             return set()
         result = await self.session.execute(
@@ -75,7 +81,9 @@ class ArticleCategoryProjectionRepository:
         embedding_version: str,
         assigned_at: datetime,
     ) -> None:
+        """Thay the gan category semantic cua bai bao bang ket qua match moi nhat."""
         normalized_assigned_at = _normalize_datetime(assigned_at)
+        # Gan semantic duoc tai tao nhu mot projection day du cho moi event bai bao.
         await self.session.execute(
             delete(CategoryArticle).where(
                 CategoryArticle.article_id == article_id,
@@ -102,6 +110,7 @@ class ArticleCategoryProjectionRepository:
 
 
 def _normalize_datetime(value: datetime) -> datetime:
+    """Luu timestamp co timezone thanh UTC-naive de khop cot PostgreSQL."""
     if value.tzinfo is None:
         return value
     return value.astimezone(timezone.utc).replace(tzinfo=None)

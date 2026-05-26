@@ -17,6 +17,8 @@ from .metadata import MetadataParser
 from .storage import StorageService
 
 class CrawlerEngine:
+    """Dieu phoi discover RSS, extract bai bao, dedupe va luu tru."""
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.db_manager = DatabaseManager()
@@ -32,9 +34,9 @@ class CrawlerEngine:
         self.timeout = float(os.getenv('REQUEST_TIMEOUT_SECONDS', '30'))
         self.max_concurrent = int(os.getenv('MAX_CONCURRENT_REQUESTS', '10'))
         
-        # Dual-semaphore strategy:
-        # 1. Dedupe semaphore: Allow more concurrent checks (aligned with Redis pool)
-        # 2. Crawl semaphore: Limit heavy content extraction (aligned with target server limits)
+        # Chien luoc hai semaphore:
+        # 1. Dedupe semaphore: cho phep nhieu check nhe chay song song.
+        # 2. Crawl semaphore: gioi han extract noi dung nang de tranh qua tai server nguon.
         self.dedupe_semaphore = asyncio.Semaphore(40) 
         self.crawl_semaphore = asyncio.Semaphore(self.max_concurrent)
 
@@ -49,6 +51,7 @@ class CrawlerEngine:
         }
 
     async def crawl_all_sources(self) -> Dict:
+        """Crawl tat ca nguon tin dang active va tra ve thong ke tong hop."""
         stats = {'sources': 0, 'feeds': 0, 'articles_saved': 0, 'articles_skipped': 0, 'errors': 0}
         
         async with self.db_manager.session_factory() as session:
@@ -77,6 +80,7 @@ class CrawlerEngine:
         return stats
 
     async def _crawl_source(self, client: httpx.AsyncClient, source: NewsSource, stats: Dict) -> None:
+        """Tim RSS feed cua mot nguon va crawl tung feed tim duoc."""
         self.logger.info(f"[{source.name}] Starting — rss_url={source.rss_url}")
         try:
             # Use dedupe semaphore for feed discovery (light network task)
@@ -95,6 +99,7 @@ class CrawlerEngine:
             stats['errors'] += 1
 
     async def _crawl_feed(self, client: httpx.AsyncClient, feed_url: str, source: NewsSource, stats: Dict) -> None:
+        """Tai va parse mot RSS feed, sau do tao task crawl cac bai trong feed."""
         self.logger.info(f"[{source.name}] Parsing feed: {feed_url}")
         # Use dedupe semaphore for feed fetching
         async with self.dedupe_semaphore:
@@ -115,9 +120,16 @@ class CrawlerEngine:
         article_tasks = [self._crawl_article(client, entry, source, stats) for entry in feed.entries if entry.get('link')]
         await asyncio.gather(*article_tasks, return_exceptions=True)
 
-    async def _crawl_article(self, client: httpx.AsyncClient, entry: feedparser.FeedParserDict, source: NewsSource, stats: Dict) -> None:
-        # --- PHASE 1: DEDUPLICATION (FAST & LIGHT) ---
-        # We use a larger semaphore to allow many checks to run in parallel
+    async def _crawl_article(
+        self,
+        client: httpx.AsyncClient,
+        entry: feedparser.FeedParserDict,
+        source: NewsSource,
+        stats: Dict,
+    ) -> None:
+        """Dedupe, extract metadata/noi dung va luu mot entry tu feed."""
+        # --- PHASE 1: DEDUPLICATION (NHANH VA NHE) ---
+        # Dung semaphore lon hon de nhieu tac vu kiem tra trung lap chay song song.
         async with self.dedupe_semaphore:
             article_url = (entry.get('link') or '').strip()
             if not article_url:
@@ -130,17 +142,17 @@ class CrawlerEngine:
                 stats['articles_skipped'] += 1
                 return
 
-        # --- PHASE 2: CONTENT CRAWL (SLOW & HEAVY) ---
-        # We use the strict semaphore to limit heavy IO and avoid getting blocked
+        # --- PHASE 2: CRAWL NOI DUNG (CHAM VA NANG) ---
+        # Dung semaphore chat hon de gioi han IO nang va tranh bi chan.
         async with self.crawl_semaphore:
-            # Extract metadata from feed entry
+            # Lay metadata tu feed entry.
             title = self.metadata_parser.normalize_text(entry.get('title')) or 'Untitled'
             author = self.metadata_parser.extract_author(entry)
             published_at = self.metadata_parser.parse_date(entry)
             summary = self.metadata_parser.extract_summary(entry)
             thumbnail_url = self.metadata_parser.extract_thumbnail(entry)
 
-            # --- LOGIC: CHỈ CRAWL BÀI TRONG HÔM NAY ---
+            # --- LOGIC: CHI CRAWL BAI TRONG HOM NAY ---
             if published_at:
                 today = datetime.now().date()
                 article_date = published_at.date()
@@ -152,10 +164,10 @@ class CrawlerEngine:
                     stats['articles_skipped'] += 1
                     return
 
-            # Heavy network call
+            # Goi network nang de tai va extract noi dung bai.
             content_html = await self.extractor.fetch_and_extract_content(client, article_url)
 
-            # Persistence
+            # Luu bai bao va thong tin dedupe.
             saved = await self.storage.save_article(
                 source_id=source.id,
                 title=title,

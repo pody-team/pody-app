@@ -1,5 +1,5 @@
 """
-Article model.
+Model bai bao.
 """
 from datetime import datetime
 
@@ -10,6 +10,8 @@ from .base import Base
 
 
 class Article(Base):
+    """Entity SQLAlchemy cho bang articles luu bai bao da crawl."""
+
     __tablename__ = "articles"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)

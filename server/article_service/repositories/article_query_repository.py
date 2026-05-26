@@ -8,13 +8,14 @@ from utils.category_slug import build_category_slug
 
 
 class ArticleQueryRepository:
-    """Read-side repository for article listing and detail views."""
+    """Repository doc du lieu cho danh sach, chi tiet bai bao va category."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
 
     @staticmethod
     def _category_source_priority():
+        """Uu tien category semantic hon manual khi chon nhan hien thi chinh."""
         return case(
             (CategoryArticle.assignment_source == "semantic", 0),
             else_=1,
@@ -28,6 +29,7 @@ class ArticleQueryRepository:
         query: Optional[str] = None,
         current_user_id: Optional[str] = None,
     ) -> List[Tuple[Article, Optional[str], int]]:
+        """Truy van feed voi bo loc tuy chon va uu tien category yeu thich."""
         primary_category_subquery = (
             select(
                 CategoryArticle.article_id.label("article_id"),
@@ -96,6 +98,7 @@ class ArticleQueryRepository:
             current_user_id and current_user_id.strip() and not category and not query
         )
         if should_prioritize_favorites:
+            # Feed ca nhan hoa: bai thuoc category yeu thich duoc sap xep len truoc.
             primary_favorite_match_exists = (
                 select(CategoryUser.id)
                 .join(Category, Category.id == CategoryUser.category_id)
@@ -141,6 +144,7 @@ class ArticleQueryRepository:
         return [(row[0], row[1], row[2]) for row in result.all()]
 
     async def get_article_detail(self, article_id: int) -> Optional[Tuple[Article, List[str], int]]:
+        """Lay mot bai bao kem category dang hoat dong va so luot xem hien tai."""
         stmt = (
             select(
                 Article,
@@ -172,6 +176,7 @@ class ArticleQueryRepository:
         return row[0], row.categories or [], row.view_count
 
     async def list_categories_with_counts(self) -> List[Tuple[Category, int]]:
+        """Tra ve category dang hoat dong, sap xep theo so bai bao lien ket."""
         article_count = func.count(func.distinct(CategoryArticle.article_id))
         stmt = (
             select(
@@ -189,6 +194,7 @@ class ArticleQueryRepository:
         return [(row[0], row.article_count) for row in result.all()]
 
     async def list_favorite_categories(self, user_id: str) -> List[Category]:
+        """Lay cac category yeu thich dang hoat dong cua nguoi dung."""
         stmt = (
             select(Category)
             .join(CategoryUser, CategoryUser.category_id == Category.id)
@@ -202,6 +208,7 @@ class ArticleQueryRepository:
         return list(result.scalars().all())
 
     async def list_active_categories_by_ids(self, category_ids: list[str]) -> List[Category]:
+        """Kiem tra cac category id gui len co nam trong category dang hoat dong."""
         if not category_ids:
             return []
 
@@ -217,6 +224,7 @@ class ArticleQueryRepository:
         return list(result.scalars().all())
 
     async def replace_favorite_categories(self, user_id: str, category_ids: list[str]) -> List[Category]:
+        """Thay the toan bo category yeu thich da luu cua mot nguoi dung."""
         await self.session.execute(delete(CategoryUser).where(CategoryUser.user_id == user_id))
         if category_ids:
             await self.session.execute(

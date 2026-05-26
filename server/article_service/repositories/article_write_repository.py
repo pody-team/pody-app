@@ -11,17 +11,19 @@ from utils.category_slug import build_category_slug
 
 
 class ArticleWriteRepository:
-    """Write-side repository for article ingestion and existence checks."""
+    """Repository ghi du lieu cho ingest bai bao, dedupe va lien ket category."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
 
     async def get_by_id(self, article_id: int) -> Optional[Article]:
+        """Lay bai bao theo id de service kiem tra ton tai."""
         stmt = select(Article).where(Article.id == article_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def exists_by_url(self, original_url: str) -> bool:
+        """Kiem tra trung lap crawler bang original URL chuan."""
         stmt = select(Article.id).where(Article.original_url == original_url)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none() is not None
@@ -38,6 +40,7 @@ class ArticleWriteRepository:
         published_at: Optional[datetime] = None,
         status: str = "PUBLISHED",
     ) -> Article:
+        """Them bai bao da crawl va khoi tao dong thong ke cho bai do."""
         new_article = Article(
             title=title,
             original_url=original_url,
@@ -66,6 +69,7 @@ class ArticleWriteRepository:
         description: Optional[str] = None,
         is_primary: Optional[bool] = None,
     ) -> None:
+        """Tao hoac tai su dung category manual va lien ket voi bai bao."""
         normalized_name = category_name.strip()
         if not normalized_name:
             raise ValueError("category_name is required")
@@ -81,6 +85,7 @@ class ArticleWriteRepository:
         category = category_result.scalar_one_or_none()
 
         if category is None:
+            # Category tu crawler/manual duoc tao khi gap nhan moi.
             category = Category(
                 id=str(uuid4()),
                 slug=slug,
@@ -115,6 +120,7 @@ class ArticleWriteRepository:
 
         should_be_primary = is_primary if is_primary is not None else not article_has_category
         if should_be_primary:
+            # Moi bai bao chi giu mot primary manual category.
             await self.session.execute(
                 update(CategoryArticle)
                 .where(

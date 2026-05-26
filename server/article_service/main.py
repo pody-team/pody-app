@@ -1,5 +1,5 @@
 """
-Main entry point for the article crawler and HTTP API lifecycle.
+Diem khoi chay chinh cho crawler bai bao va vong doi HTTP API.
 """
 import asyncio
 import os
@@ -24,8 +24,10 @@ from utils.logger import get_logger
 
 class NewscrawlerApplication:
     """
-    Main application class for the article service.
-    Handles scheduler, startup checks, and web server lifecycle.
+    Dieu phoi runtime cua article service.
+
+    Lop nay quan ly HTTP API, job crawler theo lich, kiem tra Redis/database,
+    consumer dong bo category qua Kafka va quy trinh shutdown an toan.
     """
 
     def __init__(self):
@@ -50,12 +52,14 @@ class NewscrawlerApplication:
                 signal.signal(sig, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
+        """Dung scheduler truoc khi process thoat khi nhan Unix signal."""
         self.logger.info(f"Received signal {signum}, initiating graceful shutdown...")
         self.is_running = False
         self.scheduler.shutdown(wait=False)
         sys.exit(0)
 
     async def crawl_job(self):
+        """Chay mot chu ky crawl va khong de loi lam hong scheduler."""
         try:
             self.logger.info(f"[{datetime.now()}] Starting scheduled crawl job")
             start_time = datetime.now()
@@ -67,6 +71,7 @@ class NewscrawlerApplication:
             self.logger.error(f"Error in crawl job: {str(exc)}", exc_info=True)
 
     async def run_initial_crawl(self):
+        """Chay crawl lan dau sau mot khoang tre de dependency kip san sang."""
         if not self.initial_crawl_enabled:
             self.logger.info("Initial crawl disabled by configuration.")
             return
@@ -77,6 +82,7 @@ class NewscrawlerApplication:
         await self.crawl_job()
 
     async def run(self):
+        """Kiem tra dependency, khoi dong worker nen, sau do phuc vu API."""
         self.logger.info("=" * 80)
         self.logger.info("News Crawler Microservice Starting")
         self.logger.info("=" * 80)
@@ -120,6 +126,7 @@ class NewscrawlerApplication:
 
             @self.api.on_event("startup")
             async def on_startup():
+                """Khoi tao dependency AI podcast va kich hoat crawl lan dau."""
                 await initialize_ai_podcast_runtime()
                 asyncio.create_task(self.run_initial_crawl())
 
@@ -141,6 +148,7 @@ class NewscrawlerApplication:
             await self.shutdown()
 
     async def shutdown(self):
+        """Giai phong worker nen va ket noi ngoai khi service shutdown."""
         self.logger.info("Shutting down application...")
         try:
             await shutdown_ai_podcast_runtime()
@@ -161,6 +169,7 @@ class NewscrawlerApplication:
 
 
 async def main():
+    """Entrypoint async dung khi chay local hoac trong container."""
     await NewscrawlerApplication().run()
 
 
