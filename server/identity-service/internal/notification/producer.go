@@ -17,6 +17,7 @@ const (
 	DefaultUserProfileTopic   = "identity.user.profile.updated"
 )
 
+// VerificationMessage chứa thông điệp thô của yêu cầu xác thực email.
 type VerificationMessage struct {
 	EventID         string    `json:"event_id,omitempty"`
 	IdempotencyKey  string    `json:"idempotency_key,omitempty"`
@@ -27,6 +28,7 @@ type VerificationMessage struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 }
 
+// VerificationRequestedEvent là cấu trúc sự kiện xác thực email gửi lên Kafka.
 type VerificationRequestedEvent struct {
 	EventID         string    `json:"event_id"`
 	IdempotencyKey  string    `json:"idempotency_key"`
@@ -39,6 +41,7 @@ type VerificationRequestedEvent struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 }
 
+// PasswordResetMessage chứa thông điệp thô của yêu cầu đặt lại mật khẩu.
 type PasswordResetMessage struct {
 	EventID        string    `json:"event_id,omitempty"`
 	IdempotencyKey string    `json:"idempotency_key,omitempty"`
@@ -49,6 +52,7 @@ type PasswordResetMessage struct {
 	ExpiresAt      time.Time `json:"expires_at"`
 }
 
+// PasswordResetRequestedEvent là cấu trúc sự kiện yêu cầu reset mật khẩu gửi lên Kafka.
 type PasswordResetRequestedEvent struct {
 	EventID        string    `json:"event_id"`
 	IdempotencyKey string    `json:"idempotency_key"`
@@ -61,6 +65,7 @@ type PasswordResetRequestedEvent struct {
 	ExpiresAt      time.Time `json:"expires_at"`
 }
 
+// UserProfileUpdatedMessage chứa thông điệp thô của sự kiện cập nhật profile.
 type UserProfileUpdatedMessage struct {
 	EventID        string    `json:"event_id,omitempty"`
 	IdempotencyKey string    `json:"idempotency_key,omitempty"`
@@ -72,6 +77,7 @@ type UserProfileUpdatedMessage struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// UserProfileUpdatedEvent là cấu trúc sự kiện cập nhật profile gửi lên Kafka.
 type UserProfileUpdatedEvent struct {
 	EventID        string    `json:"event_id"`
 	IdempotencyKey string    `json:"idempotency_key"`
@@ -85,16 +91,19 @@ type UserProfileUpdatedEvent struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// messageWriter định nghĩa interface cho việc ghi tin nhắn lên Kafka (để hỗ trợ unit test).
 type messageWriter interface {
 	WriteMessages(ctx context.Context, messages ...kafka.Message) error
 	Close() error
 }
 
+// Producer đảm nhận việc kết nối và đẩy các event của Identity Service lên Kafka.
 type Producer struct {
 	defaultTopic string
 	writer       messageWriter
 }
 
+// NewProducer khởi tạo Kafka Producer mới với cấu hình các brokers, topic và client ID.
 func NewProducer(brokers []string, topic, clientID string, writeTimeout time.Duration) (*Producer, error) {
 	if len(brokers) == 0 {
 		return nil, fmt.Errorf("KAFKA_BROKERS is required")
@@ -122,8 +131,8 @@ func NewProducer(brokers []string, topic, clientID string, writeTimeout time.Dur
 		writer: &kafka.Writer{
 			Addr:                   kafka.TCP(cleanedBrokers...),
 			Balancer:               &kafka.LeastBytes{},
-			RequiredAcks:           kafka.RequireAll,
-			AllowAutoTopicCreation: true,
+			RequiredAcks:           kafka.RequireAll, // Đảm bảo ghi thành công xuống tất cả replicas
+			AllowAutoTopicCreation: true,            // Tự động tạo topic nếu chưa tồn tại
 			BatchTimeout:           10 * time.Millisecond,
 			WriteTimeout:           writeTimeout,
 			Async:                  false,
@@ -134,6 +143,7 @@ func NewProducer(brokers []string, topic, clientID string, writeTimeout time.Dur
 	}, nil
 }
 
+// newProducerWithWriter khởi tạo đối tượng Producer trực tiếp từ Writer truyền vào (phục vụ mocking test).
 func newProducerWithWriter(topic string, writer messageWriter) *Producer {
 	return &Producer{
 		defaultTopic: strings.TrimSpace(topic),
@@ -141,6 +151,7 @@ func newProducerWithWriter(topic string, writer messageWriter) *Producer {
 	}
 }
 
+// SendVerification xuất bản sự kiện xác minh email lên Kafka.
 func (p *Producer) SendVerification(ctx context.Context, message VerificationMessage) error {
 	event := NewVerificationEvent(p.defaultTopic, message)
 
@@ -156,6 +167,7 @@ func (p *Producer) SendVerification(ctx context.Context, message VerificationMes
 	return nil
 }
 
+// SendPasswordReset xuất bản sự kiện yêu cầu reset mật khẩu lên Kafka.
 func (p *Producer) SendPasswordReset(ctx context.Context, message PasswordResetMessage) error {
 	event := NewPasswordResetEvent(DefaultPasswordResetTopic, message)
 
@@ -171,6 +183,7 @@ func (p *Producer) SendPasswordReset(ctx context.Context, message PasswordResetM
 	return nil
 }
 
+// PublishPayload đóng vai trò gửi trực tiếp chuỗi payload nhị phân lên Kafka topic.
 func (p *Producer) PublishPayload(ctx context.Context, topic, key string, payload []byte) error {
 	topic = strings.TrimSpace(topic)
 	if topic == "" {
@@ -185,6 +198,7 @@ func (p *Producer) PublishPayload(ctx context.Context, topic, key string, payloa
 	})
 }
 
+// NewVerificationEvent chuyển đổi cấu trúc VerificationMessage thành struct VerificationRequestedEvent hoàn chỉnh.
 func NewVerificationEvent(topic string, message VerificationMessage) VerificationRequestedEvent {
 	eventID := strings.TrimSpace(message.EventID)
 	if eventID == "" {
@@ -209,6 +223,7 @@ func NewVerificationEvent(topic string, message VerificationMessage) Verificatio
 	}
 }
 
+// NewPasswordResetEvent chuyển đổi cấu trúc PasswordResetMessage thành struct PasswordResetRequestedEvent hoàn chỉnh.
 func NewPasswordResetEvent(topic string, message PasswordResetMessage) PasswordResetRequestedEvent {
 	eventID := strings.TrimSpace(message.EventID)
 	if eventID == "" {
@@ -237,6 +252,7 @@ func NewPasswordResetEvent(topic string, message PasswordResetMessage) PasswordR
 	}
 }
 
+// NewUserProfileUpdatedEvent chuyển đổi cấu trúc UserProfileUpdatedMessage thành struct UserProfileUpdatedEvent hoàn chỉnh.
 func NewUserProfileUpdatedEvent(topic string, message UserProfileUpdatedMessage) UserProfileUpdatedEvent {
 	eventID := strings.TrimSpace(message.EventID)
 	if eventID == "" {
@@ -266,6 +282,7 @@ func NewUserProfileUpdatedEvent(topic string, message UserProfileUpdatedMessage)
 	}
 }
 
+// TopicFromEventType trích xuất tên topic từ trường EventType (bằng cách cắt đuôi ".v1").
 func TopicFromEventType(eventType string) string {
 	eventType = strings.TrimSpace(eventType)
 	if strings.HasSuffix(eventType, ".v1") {
@@ -274,6 +291,7 @@ func TopicFromEventType(eventType string) string {
 	return eventType
 }
 
+// Close thực hiện đóng kết nối Kafka Writer an toàn khi dừng chương trình.
 func (p *Producer) Close() error {
 	if p == nil || p.writer == nil {
 		return nil
@@ -281,3 +299,4 @@ func (p *Producer) Close() error {
 
 	return p.writer.Close()
 }
+

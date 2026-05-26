@@ -17,11 +17,13 @@ import (
 var ErrNotFound = errors.New("not found")
 var ErrConflict = errors.New("conflict")
 
+// UserRecord kết hợp thực thể domain.User và PasswordHash trong DB.
 type UserRecord struct {
 	User         domain.User
 	PasswordHash sql.NullString
 }
 
+// CreateOutboxEventInput định nghĩa các tham số cần thiết để chèn một event mới vào hàng đợi outbox.
 type CreateOutboxEventInput struct {
 	AggregateType  string
 	AggregateID    string
@@ -30,6 +32,7 @@ type CreateOutboxEventInput struct {
 	Payload        []byte
 }
 
+// OutboxEvent ánh xạ trực tiếp tới bảng outbox_events trong DB PostgreSQL.
 type OutboxEvent struct {
 	ID        string
 	Key       string
@@ -38,6 +41,7 @@ type OutboxEvent struct {
 	Attempts  int
 }
 
+// Repository cung cấp các phương thức thao tác lưu trữ PostgreSQL cho Identity Service.
 type Repository interface {
 	CreateUserWithEmail(ctx context.Context, email, passwordHash, displayName string) (domain.User, error)
 	FindUserByEmail(ctx context.Context, email string) (UserRecord, error)
@@ -60,14 +64,17 @@ type Repository interface {
 	DeletePublishedOutboxEventsBefore(ctx context.Context, before time.Time, limit int) (int64, error)
 }
 
+// PostgresRepository implement giao diện Repository bằng cơ sở dữ liệu PostgreSQL.
 type PostgresRepository struct {
 	db *sql.DB
 }
 
+// NewPostgresRepository khởi tạo mới một PostgresRepository.
 func NewPostgresRepository(db *sql.DB) Repository {
 	return &PostgresRepository{db: db}
 }
 
+// CreateUserWithEmail chèn thông tin tài khoản người dùng mới và identity liên kết với email vào database sử dụng Transaction.
 func (r *PostgresRepository) CreateUserWithEmail(ctx context.Context, email, passwordHash, displayName string) (domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -120,6 +127,7 @@ func (r *PostgresRepository) CreateUserWithEmail(ctx context.Context, email, pas
 	return user, nil
 }
 
+// FindUserByEmail tìm kiếm thông tin người dùng theo email và trạng thái chưa bị xóa.
 func (r *PostgresRepository) FindUserByEmail(ctx context.Context, email string) (UserRecord, error) {
 	var record UserRecord
 	var emailVerifiedAt sql.NullTime
@@ -155,6 +163,7 @@ func (r *PostgresRepository) FindUserByEmail(ctx context.Context, email string) 
 	return record, err
 }
 
+// FindUserByID tìm kiếm thông tin cơ bản domain.User dựa trên ID.
 func (r *PostgresRepository) FindUserByID(ctx context.Context, userID string) (domain.User, error) {
 	var user domain.User
 	var emailVerifiedAt sql.NullTime
@@ -189,6 +198,7 @@ func (r *PostgresRepository) FindUserByID(ctx context.Context, userID string) (d
 	return user, err
 }
 
+// FindUserRecordByID tìm kiếm bản ghi UserRecord đầy đủ kèm password hash dựa trên ID.
 func (r *PostgresRepository) FindUserRecordByID(ctx context.Context, userID string) (UserRecord, error) {
 	var record UserRecord
 	var emailVerifiedAt sql.NullTime
@@ -224,6 +234,8 @@ func (r *PostgresRepository) FindUserRecordByID(ctx context.Context, userID stri
 	return record, err
 }
 
+// FindOrCreateGoogleUser tìm kiếm thông tin người dùng Google trong bảng identities.
+// Nếu chưa tồn tại, nó sẽ tự động chèn mới tài khoản và cập nhật identity.
 func (r *PostgresRepository) FindOrCreateGoogleUser(ctx context.Context, providerUserID, email, displayName, avatarURL string) (domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -302,6 +314,8 @@ func (r *PostgresRepository) FindOrCreateGoogleUser(ctx context.Context, provide
 	return r.FindUserByID(ctx, userID)
 }
 
+// CreateEmailVerificationWithOutbox tạo mới token xác minh email, đánh dấu vô hiệu hóa các token cũ
+// và ghi nhận sự kiện ra bảng outbox trong cùng một transaction.
 func (r *PostgresRepository) CreateEmailVerificationWithOutbox(ctx context.Context, userID, token string, expiresAt time.Time, event CreateOutboxEventInput) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -348,6 +362,7 @@ func (r *PostgresRepository) CreateEmailVerificationWithOutbox(ctx context.Conte
 	return tx.Commit()
 }
 
+// CreatePasswordResetWithOutbox lưu trữ mã token đặt lại mật khẩu và ghi nhận sự kiện gửi OTP vào bảng outbox sử dụng transactional outbox.
 func (r *PostgresRepository) CreatePasswordResetWithOutbox(ctx context.Context, userID, token string, expiresAt time.Time, event CreateOutboxEventInput) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -394,6 +409,7 @@ func (r *PostgresRepository) CreatePasswordResetWithOutbox(ctx context.Context, 
 	return tx.Commit()
 }
 
+// ConsumeEmailVerification kích hoạt tài khoản khi token email_verification trùng khớp, chưa sử dụng, chưa hết hạn.
 func (r *PostgresRepository) ConsumeEmailVerification(ctx context.Context, token string) (domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -442,6 +458,7 @@ func (r *PostgresRepository) ConsumeEmailVerification(ctx context.Context, token
 	return r.FindUserByID(ctx, userID)
 }
 
+// VerifyPasswordReset kiểm tra token reset mật khẩu của user xem có tồn tại và còn hạn sử dụng hay không.
 func (r *PostgresRepository) VerifyPasswordReset(ctx context.Context, email, token string) error {
 	var exists bool
 	err := r.db.QueryRowContext(ctx, `
@@ -464,6 +481,7 @@ func (r *PostgresRepository) VerifyPasswordReset(ctx context.Context, email, tok
 	return nil
 }
 
+// ConsumePasswordReset đổi mật khẩu mới cho người dùng bằng OTP reset token, đồng thời thu hồi tất cả session đăng nhập cũ.
 func (r *PostgresRepository) ConsumePasswordReset(ctx context.Context, email, token, passwordHash string) (domain.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -523,6 +541,7 @@ func (r *PostgresRepository) ConsumePasswordReset(ctx context.Context, email, to
 	return r.FindUserByID(ctx, userID)
 }
 
+// UpdateUserProfileWithOutbox cập nhật thông tin cá nhân của người dùng và chèn sự kiện outbox để đồng bộ profile sang các service khác.
 func (r *PostgresRepository) UpdateUserProfileWithOutbox(
 	ctx context.Context,
 	userID,
@@ -605,6 +624,7 @@ func (r *PostgresRepository) UpdateUserProfileWithOutbox(
 	return user, nil
 }
 
+// UpdatePasswordAndRevokeSessions cập nhật mật khẩu mới và thu hồi các session hiện tại của người dùng.
 func (r *PostgresRepository) UpdatePasswordAndRevokeSessions(ctx context.Context, userID, passwordHash string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -641,6 +661,7 @@ func (r *PostgresRepository) UpdatePasswordAndRevokeSessions(ctx context.Context
 	return tx.Commit()
 }
 
+// CreateSession tạo mới một session lưu trữ Refresh Token mã hóa hash vào DB.
 func (r *PostgresRepository) CreateSession(ctx context.Context, userID, refreshToken string, expiresAt time.Time) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO auth_sessions (user_id, refresh_token_hash, expires_at)
@@ -649,6 +670,7 @@ func (r *PostgresRepository) CreateSession(ctx context.Context, userID, refreshT
 	return err
 }
 
+// FindSessionByRefreshToken tìm kiếm session theo mã hash của Refresh Token.
 func (r *PostgresRepository) FindSessionByRefreshToken(ctx context.Context, refreshToken string) (string, time.Time, bool, error) {
 	var userID string
 	var expiresAt time.Time
@@ -669,6 +691,7 @@ func (r *PostgresRepository) FindSessionByRefreshToken(ctx context.Context, refr
 	return userID, expiresAt, revokedAt.Valid, nil
 }
 
+// RevokeSessionByRefreshToken vô hiệu hóa một session dựa trên Refresh Token.
 func (r *PostgresRepository) RevokeSessionByRefreshToken(ctx context.Context, refreshToken string) error {
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE auth_sessions
@@ -690,6 +713,7 @@ func (r *PostgresRepository) RevokeSessionByRefreshToken(ctx context.Context, re
 	return nil
 }
 
+// ListPublishableOutboxEvents liệt kê các event outbox đang ở trạng thái 'pending' hoặc 'failed' cần được gửi lại.
 func (r *PostgresRepository) ListPublishableOutboxEvents(ctx context.Context, limit int) ([]OutboxEvent, error) {
 	if limit <= 0 {
 		limit = 20
@@ -726,6 +750,7 @@ func (r *PostgresRepository) ListPublishableOutboxEvents(ctx context.Context, li
 	return events, nil
 }
 
+// MarkOutboxEventPublished đánh dấu event outbox là đã được xuất bản thành công (status = 'published').
 func (r *PostgresRepository) MarkOutboxEventPublished(ctx context.Context, eventID string) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE outbox_events
@@ -737,6 +762,7 @@ func (r *PostgresRepository) MarkOutboxEventPublished(ctx context.Context, event
 	return err
 }
 
+// MarkOutboxEventFailed đánh dấu event outbox bị lỗi, tăng số lần attempts và tính thời gian khả dụng để thử lại tiếp theo.
 func (r *PostgresRepository) MarkOutboxEventFailed(ctx context.Context, eventID string, availableAt time.Time, lastError string) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE outbox_events
@@ -749,6 +775,7 @@ func (r *PostgresRepository) MarkOutboxEventFailed(ctx context.Context, eventID 
 	return err
 }
 
+// DeletePublishedOutboxEventsBefore dọn dẹp các event outbox cũ đã xuất bản thành công trước một mốc thời gian.
 func (r *PostgresRepository) DeletePublishedOutboxEventsBefore(ctx context.Context, before time.Time, limit int) (int64, error) {
 	if limit <= 0 {
 		limit = 200
@@ -803,3 +830,4 @@ func isUniqueViolation(err error) bool {
 	}
 	return false
 }
+
