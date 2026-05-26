@@ -9,6 +9,7 @@ def build_weighted_document_embedding(
     chunks: list[PreparedArticleChunk],
     embeddings: list[list[float]],
 ) -> list[float]:
+    """Tao vector document bang trung binh co trong so cua cac chunk embedding."""
     if not chunks or not embeddings:
         raise ValueError("chunks and embeddings are required")
     if len(chunks) != len(embeddings):
@@ -37,6 +38,7 @@ def build_weighted_document_embedding(
 
 
 def _chunk_weight(chunk: PreparedArticleChunk) -> float:
+    """Tinh trong so chunk, uu tien title va summary hon body."""
     content_weight = max(float(chunk.token_count_estimate), float(chunk.char_count) / 4.0, 1.0)
     if chunk.chunk_type == "title":
         return content_weight * 1.35

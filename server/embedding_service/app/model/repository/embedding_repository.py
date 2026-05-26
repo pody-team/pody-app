@@ -22,15 +22,19 @@ from app.util.article_category_sync_event import (
 
 
 class EmbeddingRepository:
+    """Repository lam viec voi DB embedding, pgvector, job va outbox."""
+
     def __init__(self, pool: ConnectionPool) -> None:
         self._pool = pool
 
     @contextmanager
     def _connection(self):
+        """Lay connection tu pool va tu dong tra ve pool sau khi dung."""
         with self._pool.connection() as conn:
             yield conn
 
     def ping(self) -> bool:
+        """Kiem tra nhanh database embedding co san sang khong."""
         try:
             with self._connection() as conn:
                 conn.execute("SELECT 1").fetchone()
@@ -39,6 +43,7 @@ class EmbeddingRepository:
             return False
 
     def get_document(self, *, article_id: int) -> ArticleEmbeddingDocument | None:
+        """Lay document embedding metadata cua mot bai bao."""
         with self._connection() as conn:
             row = conn.execute(
                 """
@@ -53,6 +58,7 @@ class EmbeddingRepository:
         return ArticleEmbeddingDocument.from_row(row)
 
     def get_category_document(self, *, category_id: str) -> CategoryEmbeddingDocument | None:
+        """Lay document embedding metadata cua mot category."""
         with self._connection() as conn:
             row = conn.execute(
                 """
@@ -67,6 +73,7 @@ class EmbeddingRepository:
         return CategoryEmbeddingDocument.from_row(row)
 
     def count_ready_category_documents(self) -> int:
+        """Dem category embedding dang ready va active."""
         with self._connection() as conn:
             row = conn.execute(
                 """
@@ -79,6 +86,7 @@ class EmbeddingRepository:
         return int(row["ready_count"] or 0)
 
     def list_publishable_outbox_events(self, *, limit: int) -> list[OutboxEvent]:
+        """Lay cac outbox event san sang publish sang article_service."""
         with self._connection() as conn:
             rows = conn.execute(
                 """
@@ -94,6 +102,7 @@ class EmbeddingRepository:
         return [OutboxEvent.from_row(row) for row in rows]
 
     def mark_outbox_event_published(self, *, event_id: str) -> None:
+        """Danh dau outbox event da publish thanh cong."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -107,6 +116,7 @@ class EmbeddingRepository:
             )
 
     def mark_outbox_event_failed(self, *, event_id: str, next_retry_at, error_message: str) -> None:
+        """Danh dau outbox event publish loi va hen thoi diem retry."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -121,6 +131,7 @@ class EmbeddingRepository:
             )
 
     def list_ready_public_article_ids(self) -> list[int]:
+        """Lay id cac bai da embed san sang va dang PUBLISHED."""
         with self._connection() as conn:
             rows = conn.execute(
                 """
@@ -141,6 +152,7 @@ class EmbeddingRepository:
         chunking_signature: str,
         default_language_code: str,
     ) -> None:
+        """Cap nhat metadata bai bao khi embedding hien co van tai su dung duoc."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -186,6 +198,7 @@ class EmbeddingRepository:
         default_language_code: str,
         sync_status: str,
     ) -> None:
+        """Upsert document metadata cho bai bao khong can/khong duoc tao embedding."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -252,6 +265,7 @@ class EmbeddingRepository:
         message: KafkaMessageContext,
         default_language_code: str,
     ) -> EmbeddingJob:
+        """Tao hoac reset job embedding cho mot event bai bao."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -364,6 +378,7 @@ class EmbeddingRepository:
             return EmbeddingJob.from_row(row)
 
     def mark_job_processing(self, *, job_id: int, article_id: int) -> None:
+        """Danh dau job va document bai bao dang duoc xu ly."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -403,6 +418,7 @@ class EmbeddingRepository:
         default_language_code: str,
         job_id: int,
     ) -> None:
+        """Thay the toan bo chunk/vector cua bai bao trong mot transaction."""
         if len(chunks) != len(embeddings):
             raise ValueError("chunks and embeddings must have the same length")
 
@@ -447,6 +463,7 @@ class EmbeddingRepository:
                 )
             document_id = int(document_row["id"])
 
+            # Xoa vector cu truoc khi chen lai de document luon phan anh embedding moi nhat.
             conn.execute(
                 "DELETE FROM article_chunk_embeddings WHERE document_id = %s",
                 (document_id,),
@@ -603,6 +620,7 @@ class EmbeddingRepository:
             )
 
     def delete_article_category_matches(self, *, article_id: int) -> None:
+        """Xoa cac match category semantic cua mot bai bao."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -619,6 +637,7 @@ class EmbeddingRepository:
         model_name: str,
         embedding_version: str,
     ) -> None:
+        """Xoa match category va enqueue event sync de article_service cap nhat projection."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -641,6 +660,7 @@ class EmbeddingRepository:
         content_hash: str,
         semantic_text: str,
     ) -> None:
+        """Cap nhat metadata category khi embedding category hien co van dung duoc."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -673,6 +693,7 @@ class EmbeddingRepository:
         semantic_text: str,
         sync_status: str,
     ) -> None:
+        """Upsert category document khi category khong can/khong duoc tao embedding."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -721,6 +742,7 @@ class EmbeddingRepository:
         embedding_version: str,
         output_dimensions: int,
     ) -> None:
+        """Thay the embedding vector cua mot category."""
         with self._connection() as conn, conn.transaction():
             document_row = conn.execute(
                 """
@@ -816,6 +838,7 @@ class EmbeddingRepository:
         max_matches: int,
         min_score: float,
     ) -> None:
+        """Tinh lai category semantic cho mot bai bao va enqueue event sync."""
         with self._connection() as conn, conn.transaction():
             self._refresh_article_category_matches_for_article(
                 conn=conn,
@@ -842,6 +865,7 @@ class EmbeddingRepository:
         max_matches: int,
         min_score: float,
     ) -> None:
+        """Tinh lai category semantic cho tat ca bai da co document embedding."""
         with self._connection() as conn, conn.transaction():
             conn.execute(
                 """
@@ -919,6 +943,7 @@ class EmbeddingRepository:
         model_name: str,
         embedding_version: str,
     ) -> None:
+        """Tao outbox event sync category cho mot bai bao."""
         with self._connection() as conn, conn.transaction():
             self._enqueue_article_category_sync_event(
                 conn=conn,
@@ -934,6 +959,7 @@ class EmbeddingRepository:
         model_name: str,
         embedding_version: str,
     ) -> list[ArticleCategoryMatch]:
+        """Lay danh sach category match cua mot bai bao theo model/version."""
         with self._connection() as conn:
             rows = conn.execute(
                 """
@@ -957,6 +983,7 @@ class EmbeddingRepository:
         output_dimensions: int,
         limit: int,
     ) -> list[dict[str, object]]:
+        """Tim cac chunk bai bao gan vector query nhat bang pgvector."""
         vector_literal = _to_pgvector_literal(query_embedding)
         with self._connection() as conn:
             rows = conn.execute(
@@ -1001,6 +1028,7 @@ class EmbeddingRepository:
         model_name: str,
         embedding_version: str,
     ) -> None:
+        """Tao payload event va ghi vao outbox trong transaction hien tai."""
         document_row = conn.execute(
             """
             SELECT article_status, content_hash
@@ -1063,6 +1091,7 @@ class EmbeddingRepository:
         max_matches: int,
         min_score: float,
     ) -> None:
+        """Tinh category match cho mot bai bao bang cosine distance cua pgvector."""
         conn.execute(
             """
             DELETE FROM article_category_matches
@@ -1137,6 +1166,7 @@ class EmbeddingRepository:
 
 
 def _to_pgvector_literal(values: list[float]) -> str:
+    """Chuyen list float thanh literal '[...]' de bind vao cot pgvector."""
     if not values:
         raise ValueError("Embedding vector cannot be empty")
     return "[" + ",".join(format(float(value), ".12g") for value in values) + "]"

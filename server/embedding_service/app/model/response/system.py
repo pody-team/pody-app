@@ -6,6 +6,8 @@ from typing import Any
 
 @dataclass(frozen=True)
 class ServiceOverviewResponse:
+    """Response tong quan cau hinh va trang thai service."""
+
     name: str
     status: str
     article_topic: str
@@ -15,11 +17,14 @@ class ServiceOverviewResponse:
     category_bootstrap_enabled: bool
 
     def to_dict(self) -> dict[str, Any]:
+        """Chuyen dataclass thanh dict JSON."""
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class HealthResponse:
+    """Response health chi tiet cua database, provider, Kafka va bootstrap."""
+
     status: str
     database_ready: bool
     provider_ready: bool
@@ -44,4 +49,5 @@ class HealthResponse:
     last_error: str | None
 
     def to_dict(self) -> dict[str, Any]:
+        """Chuyen dataclass thanh dict JSON."""
         return asdict(self)

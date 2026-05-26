@@ -26,10 +26,14 @@ if TYPE_CHECKING:
 
 
 class PermanentArticleProcessingError(Exception):
+    """Loi vinh vien: retry Kafka cung khong xu ly duoc payload bai bao."""
+
     pass
 
 
 class ArticleEmbeddingService:
+    """Service tao embedding cho bai bao va tim kiem semantic."""
+
     def __init__(
         self,
         repository: EmbeddingRepository,
@@ -43,6 +47,7 @@ class ArticleEmbeddingService:
         self._logger = logger
 
     def process_message(self, payload: object, message: KafkaMessageContext) -> ArticleProcessingResult:
+        """Xu ly event bai bao tu Kafka va dong bo embedding vao PostgreSQL/pgvector."""
         try:
             event = parse_article_event(payload)
         except InvalidArticleEventError as exc:
@@ -64,6 +69,7 @@ class ArticleEmbeddingService:
         )
 
         if not self._is_public_article(event.status):
+            # Bai khong public khong duoc embed, dong thoi xoa match category semantic cu.
             if current_embedding_is_reusable:
                 self._repository.sync_article_metadata(
                     event=event,
@@ -98,6 +104,7 @@ class ArticleEmbeddingService:
             )
 
         if current_embedding_is_reusable:
+            # Noi dung va cau hinh embedding khong doi, chi can cap nhat metadata moi nhat.
             self._repository.sync_article_metadata(
                 event=event,
                 content_hash=content_hash,
@@ -128,6 +135,7 @@ class ArticleEmbeddingService:
         self._repository.mark_job_processing(job_id=job_id, article_id=event.article_id)
 
         try:
+            # Tach bai bao thanh chunk, embed tung chunk roi tao vector tong hop cho document.
             chunks = build_article_chunks(
                 title=event.title,
                 summary=event.summary,
@@ -179,6 +187,7 @@ class ArticleEmbeddingService:
         )
 
     def search_articles(self, request: ArticleSearchRequest) -> ArticleSearchResponse:
+        """Embed query tim kiem va truy van cac chunk bai bao gan nghia nhat."""
         query_embedding = self._provider.embed_texts(
             [request.query],
             task_type="RETRIEVAL_QUERY",
@@ -212,6 +221,7 @@ class ArticleEmbeddingService:
 
     @staticmethod
     def _build_document_text(title: str, summary: str | None, content: str | None) -> str:
+        """Ghep title, summary va content thanh text dung de hash va validate."""
         parts = [title.strip()]
         if summary and summary.strip():
             parts.append(summary.strip())
@@ -226,6 +236,7 @@ class ArticleEmbeddingService:
         content_hash: str,
         chunking_signature: str,
     ) -> bool:
+        """Kiem tra embedding hien co co dung noi dung/model/chunking hien tai khong."""
         if current_document is None:
             return False
         return bool(
@@ -238,6 +249,7 @@ class ArticleEmbeddingService:
         )
 
     def _validate_embeddings(self, embeddings: list[list[float]]) -> None:
+        """Dam bao provider tra ve vector dung so chieu cau hinh."""
         expected_dimensions = self._settings.gemini.output_dimensions
         for index, embedding in enumerate(embeddings):
             if len(embedding) != expected_dimensions:
@@ -247,4 +259,5 @@ class ArticleEmbeddingService:
 
     @staticmethod
     def _is_public_article(status: str) -> bool:
+        """Chi bai PUBLISHED moi duoc dua vao semantic search."""
         return status.strip().upper() == "PUBLISHED"

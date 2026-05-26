@@ -7,6 +7,8 @@ from typing import Any, Mapping
 
 @dataclass(frozen=True)
 class OutboxEvent:
+    """Entity anh xa bang outbox_events dung de publish Kafka an toan."""
+
     id: str
     aggregate_type: str
     aggregate_id: str
@@ -23,6 +25,7 @@ class OutboxEvent:
 
     @classmethod
     def from_row(cls, row: Mapping[str, Any]) -> "OutboxEvent":
+        """Tao outbox event entity tu row PostgreSQL."""
         return cls(
             id=str(row.get("id") or ""),
             aggregate_type=str(row.get("aggregate_type") or ""),
@@ -41,6 +44,7 @@ class OutboxEvent:
 
 
 def _optional_str(value: object) -> str | None:
+    """Chuan hoa chuoi rong thanh None."""
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None

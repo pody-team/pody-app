@@ -12,6 +12,8 @@ from app.config.settings import GeminiSettings
 
 
 class EmbeddingRateLimitError(RuntimeError):
+    """Loi quota/rate limit can backoff va retry message Kafka sau."""
+
     def __init__(self, message: str, *, retry_delay_seconds: float) -> None:
         super().__init__(message)
         self.retry_delay_seconds = retry_delay_seconds
@@ -19,11 +21,15 @@ class EmbeddingRateLimitError(RuntimeError):
 
 @dataclass(frozen=True)
 class _ProviderClient:
+    """Mot Gemini API key va SDK client tuong ung."""
+
     api_key: str
     sdk_client: genai.Client | None = None
 
 
 class GeminiEmbeddingProvider:
+    """Provider boc viec goi Gemini Embedding API va xoay vong API key."""
+
     def __init__(self, settings: GeminiSettings, logger: logging.Logger) -> None:
         self._settings = settings
         self._logger = logger
@@ -50,6 +56,7 @@ class GeminiEmbeddingProvider:
         return self._last_error
 
     def probe(self) -> bool:
+        """Kiem tra Gemini co san sang truoc khi service consume Kafka."""
         if not self._clients:
             self._probe_ready = False
             self._last_error = "No Gemini API key configured for embedding-service"
@@ -88,6 +95,7 @@ class GeminiEmbeddingProvider:
         return False
 
     def embed_texts(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        """Embed danh sach text theo batch voi task type cua Gemini."""
         if not texts:
             return []
         if not self._clients:
@@ -101,11 +109,13 @@ class GeminiEmbeddingProvider:
         return embeddings
 
     def _build_client(self, api_key: str) -> _ProviderClient:
+        """Tao client SDK hoac client proxy tuy theo cau hinh base_url."""
         if self._settings.base_url:
             return _ProviderClient(api_key=api_key)
         return _ProviderClient(api_key=api_key, sdk_client=genai.Client(api_key=api_key))
 
     def _build_config(self, *, task_type: str) -> types.EmbedContentConfig:
+        """Tao config embedding, bao gom output dimensionality neu co."""
         payload: dict[str, object] = {
             "task_type": task_type,
         }
@@ -114,14 +124,17 @@ class GeminiEmbeddingProvider:
         return types.EmbedContentConfig(**payload)
 
     def _current_client(self) -> tuple[int, _ProviderClient]:
+        """Lay API key hien tai mot cach thread-safe."""
         with self._lock:
             return self._client_index, self._clients[self._client_index]
 
     def _rotate_client(self) -> None:
+        """Chuyen sang API key tiep theo khi key hien tai het quota."""
         with self._lock:
             self._client_index = (self._client_index + 1) % len(self._clients)
 
     def _embed_batch(self, texts: list[str], *, task_type: str) -> list[list[float]]:
+        """Embed mot batch va rotate key khi gap quota/rate limit."""
         last_error: Exception | None = None
         for _ in range(len(self._clients)):
             client_index, client = self._current_client()
@@ -170,6 +183,7 @@ class GeminiEmbeddingProvider:
         ) from last_error
 
     def _probe_via_http(self, api_key: str) -> None:
+        """Probe Gemini thong qua proxy HTTP neu base_url duoc cau hinh."""
         with self._http_client() as client:
             response = client.get(
                 f"/v1beta/models/{self._settings.embedding_model}",
@@ -184,6 +198,7 @@ class GeminiEmbeddingProvider:
         *,
         task_type: str,
     ) -> list[list[float]]:
+        """Goi batchEmbedContents qua HTTP proxy tuong thich Gemini."""
         requests = []
         for text in texts:
             request_payload: dict[str, object] = {
@@ -212,6 +227,7 @@ class GeminiEmbeddingProvider:
         return [_extract_embedding_values(item) for item in embeddings]
 
     def _http_client(self) -> httpx.Client:
+        """Tao HTTP client den Gemini proxy."""
         if not self._settings.base_url:
             raise RuntimeError("Gemini proxy base URL is not configured")
         return httpx.Client(
@@ -221,6 +237,7 @@ class GeminiEmbeddingProvider:
 
     @staticmethod
     def _build_proxy_headers(api_key: str) -> dict[str, str]:
+        """Tao header can thiet khi goi Gemini qua HTTP proxy."""
         return {
             "x-goog-api-key": api_key,
             "Content-Type": "application/json",
@@ -228,6 +245,7 @@ class GeminiEmbeddingProvider:
 
     @staticmethod
     def _should_rotate(exc: Exception) -> bool:
+        """Nhan dien loi quota/rate limit de doi sang API key khac."""
         message = str(exc).lower()
         if not message:
             return False
@@ -242,6 +260,7 @@ class GeminiEmbeddingProvider:
 
 
 def _extract_embedding_values(item: object) -> list[float]:
+    """Trich list so thuc tu response SDK hoac response JSON cua Gemini."""
     values = None
     if isinstance(item, dict):
         values = item.get("values")
@@ -260,4 +279,5 @@ def _extract_embedding_values(item: object) -> list[float]:
 
 
 def _chunked(items: list[str], size: int) -> list[list[str]]:
+    """Chia danh sach text thanh cac batch nho."""
     return [items[index : index + size] for index in range(0, len(items), size)]

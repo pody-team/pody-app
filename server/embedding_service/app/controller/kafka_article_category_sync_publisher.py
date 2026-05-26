@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 
 class KafkaArticleCategorySyncPublisher:
+    """Publisher day event outbox category-match ve article_service qua Kafka."""
+
     def __init__(
         self,
         settings: KafkaSettings,
@@ -42,6 +44,7 @@ class KafkaArticleCategorySyncPublisher:
         }
 
     def start(self) -> None:
+        """Dam bao topic sync category ton tai va khoi dong publisher nen."""
         self.ensure_topic_exists()
         self._thread = threading.Thread(
             target=self._publish_forever,
@@ -51,11 +54,13 @@ class KafkaArticleCategorySyncPublisher:
         self._thread.start()
 
     def stop(self) -> None:
+        """Dung publisher nen va doi thread ket thuc."""
         self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=10)
 
     def status(self) -> dict[str, Any]:
+        """Tra ve trang thai publisher cho health endpoint."""
         with self._lock:
             return {
                 "topic": self._settings.article_category_sync_topic,
@@ -63,6 +68,7 @@ class KafkaArticleCategorySyncPublisher:
             }
 
     def ensure_topic_exists(self) -> None:
+        """Tao topic article-category sync neu Kafka chua co topic nay."""
         deadline = time.monotonic() + self._settings.startup_timeout_seconds
         attempt = 0
 
@@ -122,6 +128,7 @@ class KafkaArticleCategorySyncPublisher:
                     admin_client.close()
 
     def flush_once(self) -> int:
+        """Flush mot batch outbox, huu ich cho test hoac job thu cong."""
         producer = self._create_producer()
         try:
             return self._flush_pending_events(producer)
@@ -130,6 +137,7 @@ class KafkaArticleCategorySyncPublisher:
             producer.close()
 
     def _publish_forever(self) -> None:
+        """Lien tuc doc outbox va publish event den Kafka."""
         while not self._stop_event.is_set():
             producer: KafkaProducer | None = None
             try:
@@ -153,6 +161,7 @@ class KafkaArticleCategorySyncPublisher:
                     producer.close()
 
     def _create_producer(self) -> KafkaProducer:
+        """Tao Kafka producer voi serializer JSON cho payload event."""
         return self._producer_factory(
             bootstrap_servers=self._settings.brokers,
             client_id=f"{self._settings.client_id}-category-sync-publisher",
@@ -163,6 +172,7 @@ class KafkaArticleCategorySyncPublisher:
         )
 
     def _flush_pending_events(self, producer: KafkaProducer) -> int:
+        """Publish cac event dang cho va cap nhat trang thai outbox."""
         published_count = 0
         self._set_state(publisher_connected=True, last_error=None)
         events = self._repository.list_publishable_outbox_events(
@@ -185,6 +195,7 @@ class KafkaArticleCategorySyncPublisher:
                     last_error=None,
                 )
             except Exception as exc:
+                # Publish loi se duoc danh dau failed va hen retry theo exponential backoff.
                 self._repository.mark_outbox_event_failed(
                     event_id=event.id,
                     next_retry_at=_next_retry_at(event.attempts + 1),
@@ -203,11 +214,13 @@ class KafkaArticleCategorySyncPublisher:
         return published_count
 
     def _set_state(self, **updates: Any) -> None:
+        """Cap nhat state publisher an toan giua cac thread."""
         with self._lock:
             self._state.update(updates)
 
 
 def _next_retry_at(attempt: int):
+    """Tinh thoi diem retry tiep theo theo exponential backoff gioi han."""
     bounded_attempt = max(1, min(attempt, 6))
     delay_seconds = 2 ** (bounded_attempt - 1)
     return datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)

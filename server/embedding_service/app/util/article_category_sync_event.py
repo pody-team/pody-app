@@ -19,6 +19,7 @@ def build_article_category_sync_payload(
     embedding_version: str,
     matches: list[ArticleCategoryMatch],
 ) -> dict[str, object]:
+    """Tao payload Kafka gui ket qua category semantic ve article_service."""
     occurred_at = datetime.now(timezone.utc).isoformat()
     return {
         "event_id": str(uuid4()),
@@ -55,4 +56,5 @@ def build_idempotency_key(
     model_name: str,
     embedding_version: str,
 ) -> str:
+    """Tao khoa idempotency dua tren article, content hash va version embedding."""
     return f"article-category-sync:{article_id}:{content_hash}:{model_name}:{embedding_version}"

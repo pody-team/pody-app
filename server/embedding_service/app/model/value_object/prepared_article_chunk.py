@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PreparedArticleChunk:
+    """Value object bieu dien mot chunk bai bao da san sang de embed."""
+
     chunk_index: int
     chunk_type: str
     content: str

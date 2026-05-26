@@ -20,6 +20,8 @@ from app.service.gemini_provider import GeminiEmbeddingProvider
 
 
 class EmbeddingRuntime:
+    """Dieu phoi toan bo vong doi cua embedding_service."""
+
     def __init__(self, settings: AppSettings, logger: logging.Logger) -> None:
         self.settings = settings
         self._logger = logger
@@ -76,6 +78,7 @@ class EmbeddingRuntime:
         }
 
     def start(self) -> None:
+        """Kiem tra dependency, bootstrap category va khoi dong Kafka worker."""
         self._wait_for_database()
         if not self._provider.has_credentials:
             self._runtime_state.update(
@@ -102,6 +105,7 @@ class EmbeddingRuntime:
         self.kafka_consumer_controller.start()
 
     def stop(self) -> None:
+        """Dung worker nen va dong cac connection pool."""
         self.kafka_consumer_controller.stop()
         self.category_sync_publisher.stop()
         if self._category_source_pool is not None:
@@ -109,6 +113,7 @@ class EmbeddingRuntime:
         self._pool.close()
 
     def service_overview(self) -> ServiceOverviewResponse:
+        """Tra ve thong tin cau hinh chinh cua service."""
         return ServiceOverviewResponse(
             name="embedding-service",
             status="ok" if self._provider.is_ready else "degraded",
@@ -120,6 +125,7 @@ class EmbeddingRuntime:
         )
 
     def health(self) -> HealthResponse:
+        """Tong hop health tu database, Gemini, Kafka consumer/publisher va bootstrap."""
         database_ready = self._repository.ping()
         self._runtime_state["database_ready"] = database_ready
         article_consumer_state = self.kafka_consumer_controller.status()
@@ -175,6 +181,7 @@ class EmbeddingRuntime:
         )
 
     def _wait_for_database(self) -> None:
+        """Cho database embedding san sang truoc khi service xu ly message."""
         deadline = time.monotonic() + self.settings.database.startup_timeout_seconds
         attempt = 0
         self._pool.open(wait=False)
@@ -195,6 +202,7 @@ class EmbeddingRuntime:
             time.sleep(self.settings.database.retry_delay_seconds)
 
     def _bootstrap_categories(self) -> None:
+        """Dong bo category tu article_service va tao embedding cho category."""
         if not self.settings.category_bootstrap.enabled or self._category_catalog_repository is None:
             self._runtime_state.update(
                 category_source_ready=False,
@@ -217,6 +225,7 @@ class EmbeddingRuntime:
         )
 
     def _wait_for_provider(self) -> bool:
+        """Probe Gemini provider truoc khi bat dau consume Kafka."""
         deadline = time.monotonic() + self.settings.gemini.startup_timeout_seconds
         attempt = 0
         while True:
@@ -241,6 +250,7 @@ class EmbeddingRuntime:
             time.sleep(self.settings.gemini.retry_delay_seconds)
 
     def _wait_for_category_source_database(self) -> None:
+        """Cho database nguon category san sang khi bootstrap category duoc bat."""
         if self.settings.category_bootstrap.source_database is None or self._category_catalog_repository is None:
             return
         deadline = time.monotonic() + self.settings.category_bootstrap.source_database.startup_timeout_seconds
@@ -264,6 +274,7 @@ class EmbeddingRuntime:
 
 
 def _optional_int(value: object) -> int | None:
+    """Chuyen gia tri health ve int neu co."""
     if value is None:
         return None
     return int(value)

@@ -13,6 +13,7 @@ def build_article_chunks(
     overlap_chars: int,
     min_chunk_chars: int,
 ) -> list[PreparedArticleChunk]:
+    """Tach title/summary/content thanh cac chunk co metadata de embed."""
     chunks: list[PreparedArticleChunk] = []
     chunk_index = 0
 
@@ -49,6 +50,7 @@ def _split_body(
     overlap_chars: int,
     min_chunk_chars: int,
 ) -> list[str]:
+    """Cat noi dung body thanh cac doan gan target_chars va co overlap."""
     if not text:
         return []
     if len(text) <= target_chars:
@@ -72,6 +74,7 @@ def _split_body(
 
 
 def _find_split_position(text: str, start: int, preferred_end: int, min_chunk_chars: int) -> int:
+    """Tim vi tri cat tu nhien theo cau/doan, fallback ve khoang trang."""
     if preferred_end >= len(text):
         return len(text)
 
@@ -88,6 +91,7 @@ def _find_split_position(text: str, start: int, preferred_end: int, min_chunk_ch
 
 
 def _build_chunk(chunk_index: int, chunk_type: str, content: str) -> PreparedArticleChunk:
+    """Tao value object chunk kem hash va uoc luong token."""
     normalized = content.strip()
     return PreparedArticleChunk(
         chunk_index=chunk_index,
@@ -100,6 +104,7 @@ def _build_chunk(chunk_index: int, chunk_type: str, content: str) -> PreparedArt
 
 
 def _normalize_text(value: str) -> str:
+    """Chuan hoa newline va bo dong rong truoc khi chunking."""
     lines = [line.strip() for line in value.replace("\r\n", "\n").split("\n")]
     filtered_lines = [line for line in lines if line]
     return "\n".join(filtered_lines).strip()

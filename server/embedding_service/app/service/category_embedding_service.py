@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class CategoryEmbeddingService:
+    """Service dong bo category va tao embedding lam catalog matching."""
+
     def __init__(
         self,
         repository: EmbeddingRepository,
@@ -27,6 +29,7 @@ class CategoryEmbeddingService:
         self._logger = logger
 
     def sync_categories(self, categories: Sequence[CategoryCatalogItem]) -> CategorySyncResult:
+        """Dong bo category tu article_service va refresh match article-category neu can."""
         pending_embeddings: list[tuple[CategoryCatalogItem, str, str]] = []
         processed_count = 0
         skipped_count = 0
@@ -35,6 +38,7 @@ class CategoryEmbeddingService:
         for category in categories:
             semantic_text = self._build_semantic_text(category.name, category.description)
             if not semantic_text:
+                # Category khong co text y nghia thi khong tao embedding duoc.
                 skipped_count += 1
                 self._logger.warning(
                     "Skipping category %s because it does not contain embeddable text",
@@ -50,6 +54,7 @@ class CategoryEmbeddingService:
             )
 
             if not category.is_active:
+                # Category bi tat van duoc sync metadata de match cu co the bi refresh/xoa.
                 active_state_changed = current_document is not None and current_document.is_active
                 if current_embedding_is_reusable:
                     self._repository.sync_category_metadata(
@@ -80,6 +85,7 @@ class CategoryEmbeddingService:
             pending_embeddings.append((category, semantic_text, content_hash))
 
         if pending_embeddings:
+            # Embed theo batch de giam so lan goi Gemini.
             embeddings = self._provider.embed_texts(
                 [semantic_text for _, semantic_text, _ in pending_embeddings],
                 task_type="RETRIEVAL_DOCUMENT",
@@ -109,6 +115,7 @@ class CategoryEmbeddingService:
             should_refresh_matches = True
 
         if should_refresh_matches:
+            # Khi category embedding thay doi, can tinh lai match cho cac bai da san sang.
             self._repository.refresh_article_category_matches_for_all_articles(
                 model_name=self._settings.gemini.embedding_model,
                 embedding_version=self._settings.gemini.embedding_version,
@@ -141,6 +148,7 @@ class CategoryEmbeddingService:
         current_document: CategoryEmbeddingDocument | None,
         content_hash: str,
     ) -> bool:
+        """Kiem tra category embedding hien co co dung noi dung/model hien tai khong."""
         if current_document is None:
             return False
         return bool(
@@ -153,6 +161,7 @@ class CategoryEmbeddingService:
         )
 
     def _validate_embedding(self, embedding: list[float]) -> None:
+        """Dam bao vector category dung so chieu cau hinh."""
         expected_dimensions = self._settings.gemini.output_dimensions
         if len(embedding) != expected_dimensions:
             raise RuntimeError(
@@ -161,6 +170,7 @@ class CategoryEmbeddingService:
 
     @staticmethod
     def _build_semantic_text(name: str, description: str | None) -> str:
+        """Ghep ten va mo ta category thanh text dung de embed."""
         parts = [name.strip()]
         if description and description.strip():
             parts.append(description.strip())
