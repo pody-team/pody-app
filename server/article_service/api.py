@@ -21,12 +21,14 @@ from services import ArticleEngagementService, ArticleQueryService
 
 
 def create_api(logger) -> FastAPI:
+    """Tao ung dung FastAPI va dang ky cac route cua article service."""
     api = FastAPI(title="Pody Article Service", version="1.1.0")
     api.add_middleware(GZipMiddleware, minimum_size=1024)
     api.include_router(ai_podcast_router)
 
     @api.get("/healthz")
     async def healthz():
+        """API kiem tra service con song cho Docker Compose va API Gateway."""
         from datetime import datetime
 
         return {"status": "ok", "timestamp": datetime.now().isoformat()}
@@ -40,6 +42,7 @@ def create_api(logger) -> FastAPI:
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Tra ve danh sach bai bao co phan trang, loc category va tu khoa."""
         try:
             return await article_query_service.list_articles(
                 limit=limit,
@@ -54,14 +57,15 @@ def create_api(logger) -> FastAPI:
             logger.error(f"API Error fetching articles: {str(exc)}")
             raise HTTPException(status_code=500, detail="Internal server error") from exc
 
-    # Keep static category routes registered before the dynamic article-id route.
-    # Starlette/FastAPI path matching is order-sensitive, so `/categories`
-    # must be handled here instead of falling through to `/{article_id}`.
+    # Dang ky route category tinh truoc route dong theo article_id.
+    # Starlette/FastAPI match path theo thu tu, nen `/categories`
+    # phai duoc xu ly o day de khong roi vao `/{article_id}`.
     @api.get("/api/v1/article/categories")
     @api.get("/api/v1/article/categories/")
     async def list_categories(
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
     ):
+        """Lay danh sach category dang hoat dong kem so bai bao de hien thi bo loc."""
         try:
             return await article_query_service.list_categories()
         except HTTPException:
@@ -75,6 +79,7 @@ def create_api(logger) -> FastAPI:
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Lay danh sach category yeu thich cua nguoi dung da xac thuc."""
         try:
             user_id = resolve_user_id(auth_user)
             return await article_query_service.list_favorite_categories(user_id)
@@ -90,6 +95,7 @@ def create_api(logger) -> FastAPI:
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Thay the toan bo category yeu thich cua nguoi dung trong mot request."""
         try:
             user_id = resolve_user_id(auth_user)
             return await article_query_service.replace_favorite_categories(user_id, req.category_ids)
@@ -105,6 +111,7 @@ def create_api(logger) -> FastAPI:
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Tra ve chi tiet bai bao va tang bo dem luot xem."""
         try:
             return await article_query_service.get_article_detail(
                 article_id=article_id,
@@ -122,6 +129,7 @@ def create_api(logger) -> FastAPI:
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Tra ve tong LIKE/LOVE/DISLIKE va reaction hien tai cua nguoi dung."""
         try:
             return await article_query_service.get_reactions(
                 article_id=article_id,
@@ -141,6 +149,7 @@ def create_api(logger) -> FastAPI:
         article_engagement_service: ArticleEngagementService = Depends(get_article_engagement_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Them, cap nhat hoac bo reaction cua nguoi dung cho mot bai bao."""
         try:
             user_id = resolve_user_id(auth_user)
             return await article_engagement_service.add_reaction(article_id, user_id, req.type)
@@ -157,6 +166,7 @@ def create_api(logger) -> FastAPI:
         article_engagement_service: ArticleEngagementService = Depends(get_article_engagement_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Ghi nhan thoi gian doc bai de phuc vu thong ke tuong tac."""
         try:
             user_id = resolve_user_id(auth_user)
             return await article_engagement_service.track_metric(article_id, user_id, req.reading_time_seconds)
@@ -173,6 +183,7 @@ def create_api(logger) -> FastAPI:
         offset: int = Query(0, ge=0),
         article_query_service: ArticleQueryService = Depends(get_article_query_service),
     ):
+        """Tra ve danh sach binh luan co phan trang, moi nhat truoc."""
         try:
             return await article_query_service.list_comments(article_id=article_id, limit=limit, offset=offset)
         except HTTPException:
@@ -188,6 +199,7 @@ def create_api(logger) -> FastAPI:
         article_engagement_service: ArticleEngagementService = Depends(get_article_engagement_service),
         auth_user: Optional[AuthenticatedUser] = Depends(get_optional_auth_user),
     ):
+        """Tao binh luan sau khi lay danh tinh nguoi dung tu header gateway."""
         try:
             user_id = resolve_user_id(auth_user)
             return await article_engagement_service.create_comment(

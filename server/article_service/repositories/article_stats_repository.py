@@ -7,12 +7,13 @@ from models import ArticleStat
 
 
 class ArticleStatsRepository:
-    """Repository for article stat counters."""
+    """Repository quan ly cac counter thong ke cua bai bao."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
 
     async def increment_view_count(self, article_id: int) -> None:
+        """Tao moi hoac tang view counter cua bai bao theo cach atomic."""
         stmt = insert(ArticleStat).values(
             article_id=article_id,
             view_count=1,

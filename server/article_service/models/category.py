@@ -1,5 +1,5 @@
 """
-Category model.
+Model category.
 """
 from datetime import datetime
 
@@ -11,6 +11,8 @@ from .base import Base
 
 
 class Category(Base):
+    """Entity SQLAlchemy cho category bai bao dung de loc va matching."""
+
     __tablename__ = "categories"
 
     id = Column(UUID(as_uuid=False), primary_key=True)

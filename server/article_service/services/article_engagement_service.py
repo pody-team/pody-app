@@ -11,7 +11,11 @@ from schemas import CommentResponse
 
 
 class ArticleEngagementService:
-    """Application service for article engagement use cases."""
+    """Service xu ly cac use case tuong tac voi bai bao.
+
+    Service kiem tra bai bao ton tai va validate request truoc khi giao
+    viec luu tru cho repository.
+    """
 
     def __init__(
         self,
@@ -26,6 +30,7 @@ class ArticleEngagementService:
         self.comment_repository = comment_repository
 
     async def ensure_article_exists(self, article_id: int):
+        """Dam bao thao tac tuong tac khong tao du lieu mo coi cho bai bi thieu."""
         article = await self.write_repository.get_by_id(article_id)
         if not article:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
@@ -33,6 +38,7 @@ class ArticleEngagementService:
 
     @staticmethod
     def normalize_reaction_type(value: str) -> str:
+        """Chuan hoa reaction tu client va chan gia tri khong ho tro."""
         reaction_type = value.strip().upper()
         if reaction_type not in REACTION_TYPES:
             raise HTTPException(
@@ -42,6 +48,7 @@ class ArticleEngagementService:
         return reaction_type
 
     async def add_reaction(self, article_id: int, user_id: str, reaction_type: str) -> dict:
+        """Tao, cap nhat hoac xoa reaction cua nguoi dung va tra ve tong moi."""
         await self.ensure_article_exists(article_id)
         normalized_type = self.normalize_reaction_type(reaction_type)
         await self.reaction_repository.add_interaction(article_id, user_id, normalized_type)
@@ -55,11 +62,13 @@ class ArticleEngagementService:
         }
 
     async def track_metric(self, article_id: int, user_id: str, reading_time_seconds: int) -> dict:
+        """Luu thoi gian doc bai de phan tich sau khi validate bai bao."""
         await self.ensure_article_exists(article_id)
         await self.metric_repository.track_metric(article_id, user_id, reading_time_seconds)
         return {"status": "success", "message": "Metric tracked"}
 
     async def create_comment(self, article_id: int, user_id: str, content: str, user_name=None) -> dict:
+        """Tao comment da lam sach va tra ve so comment moi."""
         await self.ensure_article_exists(article_id)
         normalized_content = content.strip()
         if not normalized_content:

@@ -24,6 +24,8 @@ from utils.kafka_payload import decode_optional_bytes, format_payload, normalize
 
 
 class ArticleCategorySyncConsumer:
+    """Kafka consumer nhan ket qua match category semantic cua bai bao."""
+
     def __init__(
         self,
         settings: ArticleCategorySyncConsumerSettings,
@@ -47,6 +49,7 @@ class ArticleCategorySyncConsumer:
         }
 
     def start(self) -> None:
+        """Tao topic neu can va khoi dong thread consumer."""
         if not self._settings.enabled:
             self._logger.info("Article-category sync consumer is disabled by configuration.")
             return
@@ -59,11 +62,13 @@ class ArticleCategorySyncConsumer:
         self._thread.start()
 
     def stop(self) -> None:
+        """Bao vong lap consumer nen dung lai va doi thread thoat."""
         self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=10)
 
     def ensure_topic_exists(self) -> None:
+        """Cho Kafka san sang va dam bao topic dong bo category ton tai."""
         deadline = time.monotonic() + self._settings.startup_timeout_seconds
         attempt = 0
 
@@ -116,6 +121,7 @@ class ArticleCategorySyncConsumer:
                     admin_client.close()
 
     def _consume_forever(self) -> None:
+        """Tu ket noi lai lien tuc trong khi service con chay."""
         while not self._stop_event.is_set():
             consumer: KafkaConsumer | None = None
             try:
@@ -163,6 +169,7 @@ class ArticleCategorySyncConsumer:
                     consumer.close()
 
     def _handle_message(self, consumer: KafkaConsumer, kafka_message: Any) -> bool:
+        """Xu ly mot Kafka message va chi commit khi thanh cong hoac skip vinh vien."""
         payload = normalize_payload(kafka_message.value)
         now = datetime.now(timezone.utc).isoformat()
 
@@ -178,6 +185,7 @@ class ArticleCategorySyncConsumer:
             )
             return True
         except InvalidArticleCategoryMatchesEventError as exc:
+            # Payload sai contract retry cung khong thanh cong, nen commit de consumer tiep tuc.
             consumer.commit()
             self._set_state(
                 message_count=self._state["message_count"] + 1,
@@ -195,6 +203,7 @@ class ArticleCategorySyncConsumer:
             )
             return True
         except Exception as exc:
+            # Loi tam thoi se retry bang cach seek lai dung offset hien tai.
             topic_partition = TopicPartition(kafka_message.topic, kafka_message.partition)
             consumer.seek(topic_partition, kafka_message.offset)
             self._set_state(
@@ -210,6 +219,7 @@ class ArticleCategorySyncConsumer:
             return False
 
     async def _consume_payload(self, payload: object) -> str:
+        """Parse payload, apply projection trong transaction DB va tra ket qua."""
         event = parse_article_category_matches_event(payload)
         session = DatabaseManager().session_factory()
         try:
@@ -226,5 +236,6 @@ class ArticleCategorySyncConsumer:
             await session.close()
 
     def _set_state(self, **updates: Any) -> None:
+        """Cap nhat trang thai health cua consumer tu worker thread mot cach an toan."""
         with self._lock:
             self._state.update(updates)

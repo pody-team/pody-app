@@ -17,6 +17,7 @@ from services import ArticleEngagementService, ArticleQueryService
 
 
 async def get_session_dependency():
+    """Cung cap mot async database session cho moi request FastAPI."""
     async with get_db_session() as session:
         yield session
 
@@ -24,6 +25,7 @@ async def get_session_dependency():
 async def get_article_query_service(
     session: AsyncSession = Depends(get_session_dependency),
 ) -> ArticleQueryService:
+    """Khoi tao cac repository can cho API doc bai bao."""
     return ArticleQueryService(
         write_repository=ArticleWriteRepository(session),
         query_repository=ArticleQueryRepository(session),
@@ -36,6 +38,7 @@ async def get_article_query_service(
 async def get_article_engagement_service(
     session: AsyncSession = Depends(get_session_dependency),
 ) -> ArticleEngagementService:
+    """Khoi tao cac repository can cho API reaction, metric va comment."""
     return ArticleEngagementService(
         write_repository=ArticleWriteRepository(session),
         reaction_repository=ArticleReactionRepository(session),
@@ -49,6 +52,7 @@ def get_optional_auth_user(
     x_auth_email: Optional[str] = Header(default=None, alias="X-Auth-Email"),
     x_auth_name: Optional[str] = Header(default=None, alias="X-Auth-Name"),
 ) -> Optional[AuthenticatedUser]:
+    """Tao ngu canh nguoi dung tuy chon tu header do API Gateway chuyen tiep."""
     raw_user_id = (x_auth_user_id or "").strip()
     if not raw_user_id:
         return None
@@ -64,6 +68,7 @@ def get_optional_auth_user(
 
 
 def resolve_user_id(auth_user: Optional[AuthenticatedUser]) -> str:
+    """Bat buoc xac thuc voi endpoint thay doi du lieu rieng cua nguoi dung."""
     if auth_user is not None:
         return auth_user.user_id
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing auth user id")

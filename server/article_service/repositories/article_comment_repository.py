@@ -8,7 +8,7 @@ from models import ArticleComment
 
 
 class ArticleCommentRepository:
-    """Repository for article comments."""
+    """Repository tao va doc comment cua bai bao."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -20,6 +20,7 @@ class ArticleCommentRepository:
         content: str,
         user_name: Optional[str] = None,
     ) -> ArticleComment:
+        """Luu mot comment va refresh de lay cac truong DB tu sinh."""
         comment = ArticleComment(
             article_id=article_id,
             user_id=user_id,
@@ -34,6 +35,7 @@ class ArticleCommentRepository:
         return comment
 
     async def list_comments(self, article_id: int, limit: int = 20, offset: int = 0) -> List[ArticleComment]:
+        """Tra ve comment moi nhat truoc cho man chi tiet bai bao."""
         stmt = (
             select(ArticleComment)
             .where(ArticleComment.article_id == article_id)
@@ -45,6 +47,7 @@ class ArticleCommentRepository:
         return list(result.scalars().all())
 
     async def count_comments(self, article_id: int) -> int:
+        """Dem comment de hien thi metadata va badge tren response."""
         stmt = select(func.count(ArticleComment.id)).where(ArticleComment.article_id == article_id)
         result = await self.session.execute(stmt)
         return result.scalar_one() or 0
