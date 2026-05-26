@@ -20,14 +20,17 @@ import (
 	"github.com/promex04/pody/server/identity-service/internal/media"
 )
 
+// Server đại diện cho HTTP API server của Identity Service.
 type Server struct {
-	authService     auth.Service
-	logger          *slog.Logger
-	avatarStore     media.AvatarStorage
-	maxAvatarBytes  int64
-	minioBucketName string
+	authService     auth.Service        // Service nghiệp vụ xác thực
+	logger          *slog.Logger        // Trình ghi log tập trung
+	avatarStore     media.AvatarStorage // Storage lưu trữ ảnh đại diện (MinIO/S3)
+	maxAvatarBytes  int64               // Kích thước tối đa được phép của ảnh đại diện
+	minioBucketName string              // Tên bucket của MinIO lưu ảnh
 }
 
+// New cấu hình router, khai báo middleware, định nghĩa các API routes công khai (public) / bảo mật (protected),
+// và khởi tạo đối tượng http.Server.
 func New(cfg config.Config, logger *slog.Logger, authService auth.Service, avatarStore media.AvatarStorage) *http.Server {
 	s := &Server{
 		authService:     authService,
@@ -38,37 +41,40 @@ func New(cfg config.Config, logger *slog.Logger, authService auth.Service, avata
 	}
 
 	router := chi.NewRouter()
-	router.Use(s.withRequestLog)
-	router.Use(s.withRecover)
+	router.Use(s.withRequestLog) // Middleware log chi tiết các request
+	router.Use(s.withRecover)    // Middleware hồi phục từ panic để tránh crash server
 
+	// Endpoint kiểm tra trạng thái hoạt động trực tiếp của service
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Nhóm các API Endpoint Công Khai (Public API)
 	router.Route("/api/v1/public/identity", func(r chi.Router) {
 		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
-		r.Get("/openapi.yaml", s.handleOpenAPI)
-		r.Get("/docs", s.handleSwaggerUI)
-		r.Post("/sign-up", s.handleSignUp)
-		r.Post("/sign-in", s.handleSignIn)
-		r.Post("/google", s.handleGoogleSignIn)
-		r.Post("/refresh", s.handleRefresh)
-		r.Post("/sign-out", s.handleSignOut)
-		r.Get("/verify-email", s.handleVerifyEmail)
-		r.Post("/verify-email", s.handleVerifyEmail)
-		r.Post("/resend-verification", s.handleResendVerification)
-		r.Post("/forgot-password", s.handleForgotPassword)
-		r.Post("/verify-reset-otp", s.handleVerifyResetOTP)
-		r.Post("/reset-password", s.handleResetPassword)
+		r.Get("/openapi.yaml", s.handleOpenAPI)                  // OpenAPI spec file
+		r.Get("/docs", s.handleSwaggerUI)                        // Swagger UI documentation
+		r.Post("/sign-up", s.handleSignUp)                       // Đăng ký tài khoản mới
+		r.Post("/sign-in", s.handleSignIn)                       // Đăng nhập bằng Email/Password
+		r.Post("/google", s.handleGoogleSignIn)                  // Đăng nhập bằng Google OAuth
+		r.Post("/refresh", s.handleRefresh)                      // Làm mới Access Token bằng Refresh Token
+		r.Post("/sign-out", s.handleSignOut)                     // Đăng xuất và xóa session
+		r.Get("/verify-email", s.handleVerifyEmail)              // Xác minh email (GET link)
+		r.Post("/verify-email", s.handleVerifyEmail)             // Xác minh email (POST payload)
+		r.Post("/resend-verification", s.handleResendVerification)// Gửi lại email xác thực
+		r.Post("/forgot-password", s.handleForgotPassword)       // Yêu cầu đổi mật khẩu do quên
+		r.Post("/verify-reset-otp", s.handleVerifyResetOTP)       // Xác minh mã OTP reset mật khẩu
+		r.Post("/reset-password", s.handleResetPassword)         // Đặt lại mật khẩu mới
 	})
 
+	// Nhóm các API Endpoint Bảo Mật (Protected API - yêu cầu JWT gửi từ API Gateway)
 	router.Route("/api/v1/identity", func(r chi.Router) {
-		r.Get("/me", s.handleMe)
-		r.Post("/me/avatar", s.handleUploadAvatar)
-		r.Patch("/me", s.handleUpdateProfile)
-		r.Post("/change-password", s.handleChangePassword)
+		r.Get("/me", s.handleMe)                       // Lấy thông tin cá nhân của user hiện tại
+		r.Post("/me/avatar", s.handleUploadAvatar)     // Tải ảnh đại diện mới lên MinIO
+		r.Patch("/me", s.handleUpdateProfile)          // Cập nhật thông tin profile (display name, bio, v.v.)
+		r.Post("/change-password", s.handleChangePassword)// Đổi mật khẩu tài khoản
 	})
 
 	return &http.Server{
@@ -80,6 +86,7 @@ func New(cfg config.Config, logger *slog.Logger, authService auth.Service, avata
 	}
 }
 
+// Structs đại diện cho các request payloads đầu vào của các API
 type credentialsRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
@@ -122,6 +129,7 @@ type updateProfileRequest struct {
 	AvatarURL   *string `json:"avatar_url"`
 }
 
+// handleSignUp xử lý đăng ký người dùng mới.
 func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
 	var req credentialsRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -142,6 +150,7 @@ func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, response)
 }
 
+// handleSignIn xử lý đăng nhập bằng email & password.
 func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	var req credentialsRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -161,6 +170,7 @@ func (s *Server) handleSignIn(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.normalizeOutgoingAuthResponse(r, response))
 }
 
+// handleGoogleSignIn xử lý đăng nhập bằng tài khoản Google.
 func (s *Server) handleGoogleSignIn(w http.ResponseWriter, r *http.Request) {
 	var req googleRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -177,6 +187,7 @@ func (s *Server) handleGoogleSignIn(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.normalizeOutgoingAuthResponse(r, response))
 }
 
+// handleRefresh cấp lại Access/Refresh Token mới dựa trên Refresh Token cũ.
 func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -193,6 +204,7 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.normalizeOutgoingAuthResponse(r, response))
 }
 
+// handleSignOut đăng xuất người dùng bằng cách thu hồi session liên kết với Refresh Token.
 func (s *Server) handleSignOut(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -208,6 +220,7 @@ func (s *Server) handleSignOut(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// handleVerifyEmail kích hoạt tài khoản người dùng dựa trên token gửi về email.
 func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	token := strings.TrimSpace(r.URL.Query().Get("token"))
 	if token == "" && r.Method == http.MethodPost {
@@ -231,6 +244,7 @@ func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleResendVerification yêu cầu gửi lại email xác nhận tài khoản.
 func (s *Server) handleResendVerification(w http.ResponseWriter, r *http.Request) {
 	var req verificationRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -247,6 +261,7 @@ func (s *Server) handleResendVerification(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusAccepted, response)
 }
 
+// handleForgotPassword xử lý khi người dùng quên mật khẩu và yêu cầu gửi OTP.
 func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	var req verificationRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -263,6 +278,7 @@ func (s *Server) handleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, response)
 }
 
+// handleResetPassword tiến hành cập nhật mật khẩu mới bằng OTP.
 func (s *Server) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 	var req resetPasswordRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -286,6 +302,7 @@ func (s *Server) handleResetPassword(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleVerifyResetOTP kiểm tra mã OTP reset mật khẩu có chính xác không.
 func (s *Server) handleVerifyResetOTP(w http.ResponseWriter, r *http.Request) {
 	var req verifyResetOTPRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -306,6 +323,7 @@ func (s *Server) handleVerifyResetOTP(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleMe trả về thông tin cá nhân của người dùng hiện hành thông qua JWT Access Token.
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r.Header.Get("Authorization"))
 	if token == "" {
@@ -322,6 +340,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"user": s.normalizeOutgoingUser(r, user)})
 }
 
+// handleChangePassword đổi mật khẩu cho người dùng đã đăng nhập.
 func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r.Header.Get("Authorization"))
 	if token == "" {
@@ -348,6 +367,7 @@ func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleUpdateProfile cập nhật các trường profile cơ bản như DisplayName, Username, Bio, AvatarURL.
 func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r.Header.Get("Authorization"))
 	if token == "" {
@@ -375,6 +395,8 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"user": s.normalizeOutgoingUser(r, user)})
 }
 
+// handleUploadAvatar nhận file ảnh đại diện upload multipart form-data, tải lên MinIO Bucket bất đồng bộ,
+// và trả về URL ảnh đại diện đã được chuẩn hóa.
 func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	token := bearerToken(r.Header.Get("Authorization"))
 	if token == "" {
@@ -398,6 +420,7 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 		maxAvatarBytes = 5 << 20
 	}
 
+	// Đọc giới hạn payload dung lượng
 	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarBytes+(1<<20))
 	if err := r.ParseMultipartForm(maxAvatarBytes + (1 << 20)); err != nil {
 		writeError(w, http.StatusBadRequest, errors.New("invalid multipart form"))
@@ -420,6 +443,7 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	uploadCtx, cancel := media.UploadTimeoutContext(r.Context())
 	defer cancel()
 
+	// Thực hiện đẩy file lên MinIO Storage
 	avatarURL, err := s.avatarStore.UploadAvatar(
 		uploadCtx,
 		user.ID,
@@ -444,6 +468,7 @@ func (s *Server) handleUploadAvatar(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// writeAuthError ánh xạ chi tiết các loại lỗi nghiệp vụ Auth sang HTTP Status Code tương ứng.
 func (s *Server) writeAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, auth.ErrUserExists):
@@ -469,22 +494,26 @@ func (s *Server) writeAuthError(w http.ResponseWriter, err error) {
 	}
 }
 
+// decodeJSON parse JSON request body vào cấu trúc dữ liệu đích.
 func decodeJSON(r *http.Request, destination any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	return decoder.Decode(destination)
 }
 
+// writeJSON ghi mã HTTP Status Code và chuyển đổi dữ liệu payload sang dạng JSON trả về cho client.
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
+// writeError ghi mã lỗi trả về cho HTTP client.
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }
 
+// bearerToken trích xuất token chuỗi từ Header Authorization "Bearer <token>".
 func bearerToken(header string) string {
 	const prefix = "Bearer "
 	if !strings.HasPrefix(header, prefix) {
@@ -494,16 +523,21 @@ func bearerToken(header string) string {
 	return strings.TrimSpace(strings.TrimPrefix(header, prefix))
 }
 
+// normalizeOutgoingAuthResponse chuẩn hóa URL ảnh đại diện trong AuthResponse trả về.
 func (s *Server) normalizeOutgoingAuthResponse(r *http.Request, response domain.AuthResponse) domain.AuthResponse {
 	response.User = s.normalizeOutgoingUser(r, response.User)
 	return response
 }
 
+// normalizeOutgoingUser chuẩn hóa URL ảnh đại diện trong cấu trúc User.
 func (s *Server) normalizeOutgoingUser(r *http.Request, user domain.User) domain.User {
 	user.AvatarURL = s.normalizeOutgoingAvatarURL(r, user.AvatarURL)
 	return user
 }
 
+// normalizeOutgoingAvatarURL kiểm tra và định dạng lại link ảnh đại diện trả về.
+// Hỗ trợ dịch ngược các host nội bộ (ví dụ: "localhost", "minio") của MinIO lưu trong DB thành
+// liên kết public URL thông qua X-Forwarded Headers cấu hình bởi API Gateway.
 func (s *Server) normalizeOutgoingAvatarURL(r *http.Request, raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -538,6 +572,7 @@ func (s *Server) normalizeOutgoingAvatarURL(r *http.Request, raw string) string 
 		return raw
 	}
 
+	// Chèn segment /minio làm tiền tố của route static reverse proxy qua Gateway
 	normalizedSegments := []string{"minio"}
 	for _, segment := range pathSegments {
 		if segment == "minio" {
@@ -556,6 +591,7 @@ func (s *Server) normalizeOutgoingAvatarURL(r *http.Request, raw string) string 
 	return publicURL.String()
 }
 
+// forwardedHost lấy X-Forwarded-Host header từ proxy hoặc host gốc của request.
 func forwardedHost(r *http.Request) string {
 	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
 		return forwarded
@@ -563,6 +599,7 @@ func forwardedHost(r *http.Request) string {
 	return strings.TrimSpace(r.Host)
 }
 
+// forwardedScheme lấy X-Forwarded-Proto protocol (http/https) hoặc TLS scheme của request.
 func forwardedScheme(r *http.Request) string {
 	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
 		return forwarded
@@ -573,6 +610,7 @@ func forwardedScheme(r *http.Request) string {
 	return "http"
 }
 
+// isInternalMinioHost kiểm tra xem host MinIO được lưu trữ có phải là host nội bộ (localhost, minio, pody-minio) hay không.
 func isInternalMinioHost(host string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(host))
 	if parsedHost, _, err := net.SplitHostPort(normalized); err == nil {
@@ -585,6 +623,7 @@ func isInternalMinioHost(host string) bool {
 		normalized == "pody-minio"
 }
 
+// nonEmptySegments tách đường dẫn path thành các segment loại bỏ khoảng trống và dấu "/".
 func nonEmptySegments(path string) []string {
 	parts := strings.Split(path, "/")
 	segments := make([]string, 0, len(parts))
@@ -597,6 +636,7 @@ func nonEmptySegments(path string) []string {
 	return segments
 }
 
+// readAvatarPayload giới hạn và đọc toàn bộ dữ liệu byte của ảnh upload.
 func readAvatarPayload(file multipart.File, maxReadBytes int64) ([]byte, error) {
 	if maxReadBytes <= 0 {
 		maxReadBytes = 5 << 20
@@ -614,6 +654,7 @@ func readAvatarPayload(file multipart.File, maxReadBytes int64) ([]byte, error) 
 	return payload, nil
 }
 
+// withRequestLog middleware ghi nhận log log-request cho mỗi API gọi vào server.
 func (s *Server) withRequestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startedAt := time.Now()
@@ -622,6 +663,7 @@ func (s *Server) withRequestLog(next http.Handler) http.Handler {
 	})
 }
 
+// withRecover middleware bảo vệ tránh crash chương trình khi xảy ra panic, trả về lỗi internal server error.
 func (s *Server) withRecover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -633,3 +675,4 @@ func (s *Server) withRecover(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+

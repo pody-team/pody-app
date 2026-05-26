@@ -22,30 +22,34 @@ var (
 	ErrAvatarStorageOffline = errors.New("avatar storage is not configured")
 )
 
+// AvatarStorage định nghĩa interface phục vụ upload và quản lý lưu trữ ảnh đại diện của người dùng.
 type AvatarStorage interface {
-	EnsureBucket(ctx context.Context) error
-	UploadAvatar(ctx context.Context, userID, fileName, contentType string, body io.Reader, size int64) (string, error)
+	EnsureBucket(ctx context.Context) error // Khởi tạo và thiết lập quyền cho bucket lưu trữ nếu chưa tồn tại
+	UploadAvatar(ctx context.Context, userID, fileName, contentType string, body io.Reader, size int64) (string, error) // Upload file ảnh
 }
 
+// Config cấu hình kết nối MinIO/S3.
 type Config struct {
-	Endpoint       string
-	AccessKey      string
-	SecretKey      string
-	UseSSL         bool
-	BucketName     string
-	PublicBaseURL  string
-	Region         string
-	MaxAvatarBytes int64
+	Endpoint       string // Địa chỉ MinIO server (ví dụ: "localhost:9000")
+	AccessKey      string // Access key truy cập
+	SecretKey      string // Secret key truy cập
+	UseSSL         bool   // Sử dụng SSL/TLS
+	BucketName     string // Tên bucket lưu ảnh
+	PublicBaseURL  string // URL công khai để truy cập file từ client
+	Region         string // Region
+	MaxAvatarBytes int64  // Dung lượng giới hạn tối đa cho ảnh đại diện
 }
 
+// MinIOAvatarStorage implements AvatarStorage cho MinIO Object Storage.
 type MinIOAvatarStorage struct {
-	client         *minio.Client
+	client         *minio.Client // Client kết nối thư viện MinIO SDK
 	bucketName     string
 	publicBaseURL  string
 	region         string
 	maxAvatarBytes int64
 }
 
+// NewMinIOAvatarStorage khởi tạo mới một đối tượng lưu trữ ảnh đại diện MinIOAvatarStorage.
 func NewMinIOAvatarStorage(cfg Config) (*MinIOAvatarStorage, error) {
 	if strings.TrimSpace(cfg.Endpoint) == "" {
 		return nil, ErrAvatarStorageOffline
@@ -60,6 +64,7 @@ func NewMinIOAvatarStorage(cfg Config) (*MinIOAvatarStorage, error) {
 		return nil, errors.New("minio public base url is required")
 	}
 
+	// Khởi tạo MinIO client
 	client, err := minio.New(cfg.Endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, ""),
 		Secure: cfg.UseSSL,
@@ -83,6 +88,8 @@ func NewMinIOAvatarStorage(cfg Config) (*MinIOAvatarStorage, error) {
 	}, nil
 }
 
+// EnsureBucket kiểm tra xem bucket của avatar đã tồn tại chưa.
+// Nếu chưa, nó sẽ tạo mới bucket đó và gán policy cho phép đọc công khai (public read policy).
 func (s *MinIOAvatarStorage) EnsureBucket(ctx context.Context) error {
 	exists, err := s.client.BucketExists(ctx, s.bucketName)
 	if err != nil {
@@ -90,6 +97,7 @@ func (s *MinIOAvatarStorage) EnsureBucket(ctx context.Context) error {
 	}
 
 	if !exists {
+		// Tạo bucket mới nếu chưa có
 		if err := s.client.MakeBucket(ctx, s.bucketName, minio.MakeBucketOptions{Region: s.region}); err != nil {
 			exists, existsErr := s.client.BucketExists(ctx, s.bucketName)
 			if existsErr != nil {
@@ -101,9 +109,13 @@ func (s *MinIOAvatarStorage) EnsureBucket(ctx context.Context) error {
 		}
 	}
 
+	// Cài đặt Public Read Policy để client có thể xem ảnh qua HTTP trực tiếp
 	return s.client.SetBucketPolicy(ctx, s.bucketName, publicReadPolicy(s.bucketName))
 }
 
+// UploadAvatar thực hiện đẩy dữ liệu ảnh lên MinIO.
+// Nó thực hiện kiểm tra dung lượng và kiểu định dạng ảnh hợp lệ (jpg, png, webp, gif, heic, heif),
+// sau đó lưu trữ dưới dạng key: "avatars/[userID]/[uuid].[extension]"
 func (s *MinIOAvatarStorage) UploadAvatar(
 	ctx context.Context,
 	userID,
@@ -122,8 +134,10 @@ func (s *MinIOAvatarStorage) UploadAvatar(
 	}
 
 	extension := extensionForContentType(fileName, contentType)
+	// Sinh key lưu trữ object ngẫu nhiên bằng UUID để tránh trùng lặp ảnh cũ
 	objectKey := fmt.Sprintf("avatars/%s/%s%s", strings.TrimSpace(userID), uuid.NewString(), extension)
 
+	// PutObject tải dữ liệu lên bucket MinIO
 	_, err := s.client.PutObject(ctx, s.bucketName, objectKey, body, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
@@ -131,9 +145,11 @@ func (s *MinIOAvatarStorage) UploadAvatar(
 		return "", err
 	}
 
+	// Trả về liên kết URL đầy đủ tới ảnh đại diện vừa upload
 	return fmt.Sprintf("%s/%s/%s", s.publicBaseURL, s.bucketName, objectKey), nil
 }
 
+// normalizedContentType chuẩn hóa kiểu định dạng của file dựa trên cả header content-type và đuôi mở rộng của file.
 func normalizedContentType(fileName, contentType string) string {
 	contentType = strings.ToLower(strings.TrimSpace(contentType))
 	if contentType != "" {
@@ -160,6 +176,7 @@ func normalizedContentType(fileName, contentType string) string {
 	}
 }
 
+// extensionForContentType lấy đuôi mở rộng file phù hợp tương ứng với kiểu content-type.
 func extensionForContentType(fileName, contentType string) string {
 	switch contentType {
 	case "image/jpeg":
@@ -183,6 +200,7 @@ func extensionForContentType(fileName, contentType string) string {
 	return extension
 }
 
+// isSupportedAvatarType lọc các loại ảnh được ứng dụng hỗ trợ.
 func isSupportedAvatarType(contentType string) bool {
 	switch contentType {
 	case "image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif":
@@ -192,6 +210,7 @@ func isSupportedAvatarType(contentType string) bool {
 	}
 }
 
+// publicReadPolicy tạo chuỗi policy JSON cho phép đọc công khai (Anonymous Read) đối với bucket.
 func publicReadPolicy(bucketName string) string {
 	payload, _ := json.Marshal(map[string]any{
 		"Version": "2012-10-17",
@@ -213,6 +232,7 @@ func publicReadPolicy(bucketName string) string {
 	return string(payload)
 }
 
+// UploadTimeoutContext tạo context timeout 30 giây phục vụ tiến trình upload ảnh.
 func UploadTimeoutContext(parent context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, 30*time.Second)
 }

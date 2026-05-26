@@ -8,37 +8,39 @@ import (
 	"time"
 )
 
+// Config lưu trữ tất cả các thông số cấu hình hoạt động của Identity Service.
 type Config struct {
-	Port                   string
-	DatabaseURL            string
-	JWTSecret              string
-	AccessTokenTTL         time.Duration
-	RefreshTokenTTL        time.Duration
-	VerificationTTL        time.Duration
-	PasswordResetTTL       time.Duration
-	KafkaWriteTimeout      time.Duration
-	OutboxPollInterval     time.Duration
-	OutboxRetention        time.Duration
-	OutboxCleanupInterval  time.Duration
-	ShutdownTimeout        time.Duration
-	GoogleClientIDs        []string
-	KafkaBrokers           []string
-	KafkaClientID          string
-	VerificationTopic      string
-	VerificationURLBase    string
-	PasswordResetTopic     string
-	OutboxBatchSize        int
-	OutboxCleanupBatchSize int
-	MinIOEndpoint          string
-	MinIOAccessKey         string
-	MinIOSecretKey         string
-	MinIOBucketName        string
-	MinIORegion            string
-	MinIOPublicBaseURL     string
-	MinIOUseSSL            bool
-	MaxAvatarBytes         int64
+	Port                   string        // Cổng mạng HTTP server của Identity Service (ví dụ: "8081")
+	DatabaseURL            string        // Connection string kết nối tới Postgres (bắt buộc)
+	JWTSecret              string        // Khóa bí mật dùng để ký và giải mã JWT token (bắt buộc)
+	AccessTokenTTL         time.Duration // Thời gian sống của JWT Access Token
+	RefreshTokenTTL        time.Duration // Thời gian sống của JWT Refresh Token
+	VerificationTTL        time.Duration // Hạn dùng của token xác thực email
+	PasswordResetTTL       time.Duration // Hạn dùng của token đặt lại mật khẩu
+	KafkaWriteTimeout      time.Duration // Thời gian chờ tối đa khi ghi thông điệp lên Kafka
+	OutboxPollInterval     time.Duration // Tần suất quét bảng outbox_events của Publisher
+	OutboxRetention        time.Duration // Thời gian lưu giữ tối đa các outbox event đã gửi thành công trước khi dọn dẹp
+	OutboxCleanupInterval  time.Duration // Tần suất chạy worker dọn dẹp bảng outbox_events
+	ShutdownTimeout        time.Duration // Thời gian tối đa để tắt server an toàn (graceful shutdown)
+	GoogleClientIDs        []string      // Danh sách Client ID được phép khi xác thực bằng Google OAuth
+	KafkaBrokers           []string      // Danh sách địa chỉ Kafka brokers (bắt buộc)
+	KafkaClientID          string        // Định danh client gửi lên Kafka (Client ID)
+	VerificationTopic      string        // Topic Kafka chứa sự kiện gửi email xác minh tài khoản
+	VerificationURLBase    string        // URL cơ sở làm liên kết gửi qua email để người dùng click xác minh
+	PasswordResetTopic     string        // Topic Kafka chứa sự kiện yêu cầu đổi mật khẩu
+	OutboxBatchSize        int           // Số lượng outbox event tối đa xử lý trong mỗi lần quét (batch)
+	OutboxCleanupBatchSize int           // Số lượng outbox event tối đa xóa trong mỗi lần dọn dẹp (batch)
+	MinIOEndpoint          string        // Địa chỉ kết nối tới MinIO Object Storage (ví dụ: "localhost:9000")
+	MinIOAccessKey         string        // Access Key (username) đăng nhập MinIO
+	MinIOSecretKey         string        // Secret Key (password) đăng nhập MinIO
+	MinIOBucketName        string        // Tên bucket lưu trữ ảnh đại diện người dùng
+	MinIORegion            string        // Region của MinIO (ví dụ: "us-east-1")
+	MinIOPublicBaseURL     string        // URL công khai dùng để truy cập ảnh đại diện từ client
+	MinIOUseSSL            bool          // Sử dụng kết nối SSL/TLS bảo mật tới MinIO hay không
+	MaxAvatarBytes         int64         // Dung lượng tối đa của file ảnh avatar (mặc định: 5MB)
 }
 
+// Load thực hiện đọc toàn bộ cấu hình từ các biến môi trường và trả về Config cùng lỗi nếu thiếu tham số bắt buộc.
 func Load() (Config, error) {
 	accessTokenTTL, err := durationFromEnv("ACCESS_TOKEN_TTL", 15*time.Minute)
 	if err != nil {
@@ -116,6 +118,7 @@ func Load() (Config, error) {
 		MaxAvatarBytes:         int64FromEnv("IDENTITY_MAX_AVATAR_BYTES", 5<<20),
 	}
 
+	// Đảm bảo các tham số cấu hình bắt buộc được cung cấp đầy đủ
 	if strings.TrimSpace(cfg.DatabaseURL) == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")
 	}
@@ -131,10 +134,12 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// Addr trả về địa chỉ cổng mạng lắng nghe (ví dụ: ":8081").
 func (c Config) Addr() string {
 	return ":" + c.Port
 }
 
+// stringFromEnv lấy cấu hình dạng chuỗi từ biến môi trường, dùng fallback nếu rỗng.
 func stringFromEnv(key, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -144,6 +149,7 @@ func stringFromEnv(key, fallback string) string {
 	return value
 }
 
+// csvFromEnv lấy mảng các chuỗi ngăn cách bởi dấu phẩy "," từ biến môi trường.
 func csvFromEnv(key string, fallback []string) []string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -166,6 +172,7 @@ func csvFromEnv(key string, fallback []string) []string {
 	return result
 }
 
+// durationFromEnv parse giá trị time.Duration từ biến môi trường, dùng fallback nếu lỗi hoặc rỗng.
 func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -180,6 +187,7 @@ func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) 
 	return duration, nil
 }
 
+// intFromEnv parse giá trị kiểu int từ biến môi trường.
 func intFromEnv(key string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -194,6 +202,7 @@ func intFromEnv(key string, fallback int) int {
 	return result
 }
 
+// int64FromEnv parse giá trị kiểu int64 từ biến môi trường.
 func int64FromEnv(key string, fallback int64) int64 {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -208,6 +217,7 @@ func int64FromEnv(key string, fallback int64) int64 {
 	return result
 }
 
+// boolFromEnv parse giá trị kiểu boolean từ biến môi trường (nhận diện "true", "yes", "on", "1", v.v.).
 func boolFromEnv(key string, fallback bool) bool {
 	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
 	if value == "" {
@@ -223,3 +233,4 @@ func boolFromEnv(key string, fallback bool) bool {
 		return fallback
 	}
 }
+

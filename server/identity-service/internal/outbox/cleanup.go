@@ -8,14 +8,16 @@ import (
 	"github.com/promex04/pody/server/identity-service/internal/store"
 )
 
+// CleanupWorker quản lý tiến trình dọn dẹp (cleanup) các event outbox cũ đã được xuất bản thành công.
 type CleanupWorker struct {
-	repo      store.Repository
-	logger    *slog.Logger
-	interval  time.Duration
-	retention time.Duration
-	batchSize int
+	repo      store.Repository // Repository tương tác DB PostgreSQL
+	logger    *slog.Logger     // Trình ghi log
+	interval  time.Duration    // Chu kỳ thời gian chạy tác vụ dọn dẹp định kỳ
+	retention time.Duration    // Thời gian lưu trữ tối đa của một event (những event cũ hơn thời gian này sẽ bị xóa)
+	batchSize int              // Số lượng dòng tối đa cần xóa trong một đợt (batch) để tránh block DB
 }
 
+// NewCleanupWorker khởi tạo CleanupWorker mới với các tham số chu kỳ chạy, thời gian lưu trữ, và batch size.
 func NewCleanupWorker(repo store.Repository, logger *slog.Logger, interval, retention time.Duration, batchSize int) *CleanupWorker {
 	if interval <= 0 {
 		interval = time.Hour
@@ -38,15 +40,16 @@ func NewCleanupWorker(repo store.Repository, logger *slog.Logger, interval, rete
 	}
 }
 
+// Run bắt đầu vòng lặp ticker bất đồng bộ định kỳ gọi hàm dọn dẹp các event outbox cũ.
 func (w *CleanupWorker) Run(ctx context.Context) error {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): // Dừng loop khi context bị canceled
 			return nil
-		case <-ticker.C:
+		case <-ticker.C: // Kích hoạt dọn dẹp định kỳ
 			if err := w.cleanup(ctx); err != nil && ctx.Err() == nil {
 				w.logger.Error("outbox cleanup failed", "error", err)
 			}
@@ -54,6 +57,7 @@ func (w *CleanupWorker) Run(ctx context.Context) error {
 	}
 }
 
+// cleanup tính toán mốc thời gian cũ tương ứng với cấu hình retention và thực thi câu lệnh SQL xóa các bản ghi outbox đã gửi thành công trước mốc thời gian đó.
 func (w *CleanupWorker) cleanup(ctx context.Context) error {
 	before := time.Now().UTC().Add(-w.retention)
 	deleted, err := w.repo.DeletePublishedOutboxEventsBefore(ctx, before, w.batchSize)
@@ -67,3 +71,4 @@ func (w *CleanupWorker) cleanup(ctx context.Context) error {
 
 	return nil
 }
+
