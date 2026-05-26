@@ -14,12 +14,15 @@ import (
 	"github.com/promex04/pody/server/api-gateway/internal/config"
 )
 
+// metaResponse đại diện cho định dạng dữ liệu trả về thông tin metadata của Gateway.
 type metaResponse struct {
 	Name   string                `json:"name"`
 	Status string                `json:"status"`
 	Routes []config.ServiceRoute `json:"routes"`
 }
 
+// resetPasswordBridgeTemplate là giao diện web trung gian hướng dẫn người dùng quay lại ứng dụng di động Pody để đặt lại mật khẩu.
+// Sử dụng Deep Link (pody://reset-password) để mở ứng dụng di động.
 var resetPasswordBridgeTemplate = template.Must(template.New("reset-password-bridge").Parse(`<!doctype html>
 <html lang="en">
   <head>
@@ -71,6 +74,8 @@ var resetPasswordBridgeTemplate = template.Must(template.New("reset-password-bri
   </body>
 </html>`))
 
+// verifyEmailBridgeTemplate là giao diện web trung gian gọi API của Identity Service từ trình duyệt để xác thực email,
+// sau đó cung cấp nút để mở ứng dụng di động đăng nhập.
 var verifyEmailBridgeTemplate = template.Must(template.New("verify-email-bridge").Parse(`<!doctype html>
 <html lang="en">
   <head>
@@ -134,13 +139,18 @@ var verifyEmailBridgeTemplate = template.Must(template.New("verify-email-bridge"
   </body>
 </html>`))
 
+// New khởi dựng router Chi, đăng ký middlewares, định nghĩa các endpoint của Gateway,
+// và cấu hình các reverse proxy tương ứng để phân phối tải đến từng microservice.
 func New(cfg config.Config, logger *slog.Logger) *http.Server {
 	router := chi.NewRouter()
-	router.Use(withCORS(cfg.AllowedOrigins))
-	router.Use(withRequestID)
-	router.Use(withRecover(logger))
-	router.Use(withAccessLog(logger))
 
+	// Đăng ký các Middleware toàn cục cho Gateway
+	router.Use(withCORS(cfg.AllowedOrigins))   // Xử lý CORS
+	router.Use(withRequestID)                  // Đính kèm Request ID cho trace log
+	router.Use(withRecover(logger))            // Phục hồi panic tránh crash server
+	router.Use(withAccessLog(logger))          // Ghi nhận nhật ký truy cập
+
+	// Endpoint kiểm tra nhanh thông tin tổng quan của Gateway
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, metaResponse{
 			Name:   "pody-api-gateway",
@@ -149,6 +159,7 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 		})
 	})
 
+	// Giao diện web tổng hợp tài liệu API Docs của tất cả các microservices
 	router.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
 		html := `<!doctype html>
 <html lang="en">
@@ -198,10 +209,12 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 		_, _ = fmt.Fprint(w, html)
 	})
 
+	// Endpoint kiểm tra sức khỏe của Gateway (Liveness probe)
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Trang cầu nối để đặt lại mật khẩu của người dùng trên Mobile
 	router.Get("/reset-password/open", func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(r.URL.Query().Get("token"))
 		if token == "" {
@@ -225,6 +238,7 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 		})
 	})
 
+	// Trang cầu nối kích hoạt xác minh email
 	router.Get("/verify-email/open", func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(r.URL.Query().Get("token"))
 		if token == "" {
@@ -247,31 +261,38 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 		})
 	})
 
+	// Endpoint kiểm tra trạng thái sẵn sàng nhận request (Readiness probe)
 	router.Get("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 	})
 
+	// Xử lý khi không tìm thấy route tương ứng
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{
 			"error": "route not found",
 		})
 	})
 
+	// Xử lý khi HTTP method không được hỗ trợ cho route
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
 			"error": "method not allowed",
 		})
 	})
 
+	// Khởi tạo các Reverse Proxy tương ứng với các route trong config
 	proxies := buildServiceProxies(cfg.Routes, logger)
 
+	// Định nghĩa nhóm API chính /api/v1
 	router.Route("/api/v1", func(api chi.Router) {
+		// Endpoint xem metadata về định tuyến của Gateway
 		api.Get("/_meta/routes", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"routes": cfg.Routes,
 			})
 		})
 
+		// Nhóm API Public: Không yêu cầu kiểm tra JWT token xác thực
 		api.Group(func(public chi.Router) {
 			for _, route := range cfg.Routes {
 				if !isPublicRoute(route) {
@@ -287,6 +308,7 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 			}
 		})
 
+		// Nhóm API Protected: Yêu cầu bắt buộc kiểm tra JWT Token
 		api.Group(func(protected chi.Router) {
 			protected.Use(withJWTAuth(cfg.JWTSecret, cfg.AuthSkipPaths))
 
@@ -314,10 +336,12 @@ func New(cfg config.Config, logger *slog.Logger) *http.Server {
 	}
 }
 
+// isPublicRoute kiểm tra xem route đó có thuộc nhóm API công khai (Public) không dựa trên tiền tố Prefix.
 func isPublicRoute(route config.ServiceRoute) bool {
 	return strings.HasPrefix(strings.TrimSpace(route.Prefix), "/api/v1/public/")
 }
 
+// buildServiceProxies duyệt qua danh sách các cấu hình route và sinh ra map chứa các đối tượng reverse proxy tương ứng.
 func buildServiceProxies(routes []config.ServiceRoute, logger *slog.Logger) map[string]http.Handler {
 	proxies := make(map[string]http.Handler, len(routes))
 	for _, route := range routes {
@@ -333,12 +357,14 @@ func buildServiceProxies(routes []config.ServiceRoute, logger *slog.Logger) map[
 	return proxies
 }
 
+// mountServiceRoute thực hiện đăng ký đường dẫn Prefix và wildcard (*) vào chi.Router để định tuyến cuộc gọi đến Proxy.
 func mountServiceRoute(router chi.Router, route config.ServiceRoute, handler http.Handler) {
 	suffix := strings.TrimPrefix(route.Prefix, "/api/v1")
 	router.Handle(suffix, handler)
 	router.Handle(suffix+"/*", handler)
 }
 
+// writeJSON ghi dữ liệu phản hồi dạng JSON có thụt lề thụ động và set Content-Type header thích hợp.
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -348,6 +374,8 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = encoder.Encode(payload)
 }
 
+// newDiscardLogger sinh ra một slog.Logger rỗng (không ghi log gì cả, dùng cho testing).
 func newDiscardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
+

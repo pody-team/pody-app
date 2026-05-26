@@ -8,32 +8,37 @@ import (
 	"time"
 )
 
+// ServiceRoute định nghĩa một cấu hình định tuyến (routing) cho một upstream service.
 type ServiceRoute struct {
-	Name      string `json:"name"`
-	Prefix    string `json:"prefix"`
-	TargetURL string `json:"target_url"`
+	Name      string `json:"name"`       // Tên định danh của service (ví dụ: "identity", "content")
+	Prefix    string `json:"prefix"`     // Tiền tố URL mà Gateway sẽ lắng nghe để chuyển tiếp (ví dụ: "/api/v1/identity")
+	TargetURL string `json:"target_url"` // URL đích của microservice chạy phía sau Gateway (ví dụ: "http://localhost:8081")
 }
 
+// Config chứa toàn bộ thông số cấu hình hoạt động của API Gateway.
 type Config struct {
-	Port            string
-	AllowedOrigins  []string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	IdleTimeout     time.Duration
-	ShutdownTimeout time.Duration
-	JWTSecret       string
-	AuthSkipPaths   []string
-	Routes          []ServiceRoute
+	Port            string        // Cổng mạng mà Gateway lắng nghe (mặc định: "8080")
+	AllowedOrigins  []string      // Danh sách các Origin được phép truy cập (CORS)
+	ReadTimeout     time.Duration // Thời gian chờ tối đa khi đọc request
+	WriteTimeout    time.Duration // Thời gian chờ tối đa khi ghi response
+	IdleTimeout     time.Duration // Thời gian chờ tối đa cho một kết nối rảnh (keep-alive)
+	ShutdownTimeout time.Duration // Thời gian tối đa để đóng các kết nối khi tắt server (graceful shutdown)
+	JWTSecret       string        // Khóa bí mật dùng để xác thực và giải mã chữ ký JWT Token
+	AuthSkipPaths   []string      // Danh sách các đường dẫn bỏ qua kiểm tra JWT auth
+	Routes          []ServiceRoute // Danh sách cấu hình định tuyến chuyển tiếp request của các service
 }
 
+// serviceEnv là cấu trúc lưu trữ thông tin cấu hình môi trường của từng service.
 type serviceEnv struct {
-	Name         string
-	Prefix       string
-	EnvKey       string
-	DefaultURL   string
-	UpstreamPath string
+	Name         string // Tên định danh
+	Prefix       string // Tiền tố route ở Gateway
+	EnvKey       string // Tên biến môi trường cấu hình URL của service (ví dụ: "IDENTITY_SERVICE_URL")
+	DefaultURL   string // URL mặc định nếu không cấu hình biến môi trường
+	UpstreamPath string // Đường dẫn cụ thể trên service gốc nếu cần mapping khác đi
 }
 
+// serviceEnvs danh sách định nghĩa tất cả các service hiện có trong hệ thống microservices của Pody.
+// Bao gồm cả các cổng public (không cần qua JWT auth middleware ở Gateway) và protected.
 var serviceEnvs = []serviceEnv{
 	{Name: "identity-public", Prefix: "/api/v1/public/identity", EnvKey: "IDENTITY_SERVICE_URL", DefaultURL: "http://localhost:8081", UpstreamPath: "/api/v1/public/identity"},
 	{Name: "notifications-public", Prefix: "/api/v1/public/notifications", EnvKey: "NOTIFICATION_SERVICE_URL", DefaultURL: "http://localhost:8087", UpstreamPath: "/api/v1/public/notifications"},
@@ -48,6 +53,7 @@ var serviceEnvs = []serviceEnv{
 	{Name: "notifications", Prefix: "/api/v1/notifications", EnvKey: "NOTIFICATION_SERVICE_URL", DefaultURL: "http://localhost:8087", UpstreamPath: "/api/v1/notifications"},
 }
 
+// Load thực hiện đọc toàn bộ cấu hình từ các biến môi trường và khởi tạo struct Config.
 func Load() (Config, error) {
 	readTimeout, err := durationFromEnv("READ_TIMEOUT", 30*time.Second)
 	if err != nil {
@@ -69,6 +75,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	// Tải cấu hình định tuyến cho từng service
 	routes, err := loadRoutes()
 	if err != nil {
 		return Config{}, err
@@ -87,14 +94,17 @@ func Load() (Config, error) {
 	}, nil
 }
 
+// Addr trả về địa chỉ TCP mà Gateway sẽ lắng nghe (ví dụ: ":8080").
 func (c Config) Addr() string {
 	return ":" + c.Port
 }
 
+// loadRoutes duyệt qua danh sách serviceEnvs để xây dựng các đối tượng ServiceRoute hoàn chỉnh.
 func loadRoutes() ([]ServiceRoute, error) {
 	routes := make([]ServiceRoute, 0, len(serviceEnvs))
 
 	for _, svc := range serviceEnvs {
+		// Tạo URL đích bằng cách lấy URL cấu hình và nối với UpstreamPath
 		targetURL, err := buildTargetURL(stringFromEnv(svc.EnvKey, svc.DefaultURL), svc.UpstreamPath)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s: %w", svc.EnvKey, err)
@@ -110,6 +120,7 @@ func loadRoutes() ([]ServiceRoute, error) {
 	return routes, nil
 }
 
+// stringFromEnv lấy giá trị của một biến môi trường dạng chuỗi, nếu rỗng thì trả về giá trị mặc định.
 func stringFromEnv(key, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -119,6 +130,7 @@ func stringFromEnv(key, fallback string) string {
 	return value
 }
 
+// csvFromEnv lấy danh sách các chuỗi từ biến môi trường phân tách bởi dấu phẩy ",".
 func csvFromEnv(key string, fallback []string) []string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -142,6 +154,7 @@ func csvFromEnv(key string, fallback []string) []string {
 	return items
 }
 
+// durationFromEnv lấy giá trị thời gian (time.Duration) từ biến môi trường, hỗ trợ parse các định dạng chuỗi như "30s", "5m".
 func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -156,6 +169,7 @@ func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) 
 	return duration, nil
 }
 
+// buildTargetURL tạo URL hoàn chỉnh và kiểm tra tính hợp lệ của URL đích.
 func buildTargetURL(baseURL, upstreamPath string) (string, error) {
 	parsed, err := url.ParseRequestURI(baseURL)
 	if err != nil {
@@ -169,6 +183,7 @@ func buildTargetURL(baseURL, upstreamPath string) (string, error) {
 	return parsed.String(), nil
 }
 
+// joinURLPaths nối hai đường dẫn URL một cách an toàn, xử lý dấu gạch chéo `/` hợp lý.
 func joinURLPaths(basePath, extraPath string) string {
 	switch {
 	case basePath == "" || basePath == "/":
@@ -179,3 +194,4 @@ func joinURLPaths(basePath, extraPath string) string {
 		return strings.TrimRight(basePath, "/") + "/" + strings.TrimLeft(extraPath, "/")
 	}
 }
+
