@@ -31,6 +31,22 @@ from .transcript_generation import SubprocessTranscriptGenerator
 logger = logging.getLogger(__name__)
 
 
+def _run_worker(
+    build_turn: Callable[[Callable[[dict[str, Any]], None]], ChatTurnResult],
+    queue: Queue[object],
+    sentinel: object,
+) -> None:
+    try:
+        turn = build_turn(queue.put)
+    except Exception as exc:
+        queue.put(_QueuedStreamError(exc))
+    else:
+        queue.put(_QueuedTurnResult(turn))
+    finally:
+        queue.put(sentinel)
+
+
+# AIService là service nghiệp vụ chính điều phối chat AI, production plan và các job tạo show/audio/transcript.
 class AIService:
     def __init__(
         self,
@@ -64,9 +80,11 @@ class AIService:
             stream_heartbeat_interval_seconds,
         )
 
+    # Lấy danh sách giọng đọc AI đang active để creator hoặc planner có thể lựa chọn.
     def list_voice_profiles(self) -> list[VoiceProfile]:
         return self._repository.list_voice_profiles()
 
+    # Tạo thread chat mới và sinh production plan ban đầu từ prompt của creator.
     def create_thread(self, auth: AuthContext, request: CreateThreadRequest) -> ChatThreadView:
         voices = self._repository.list_voice_profiles()
         turn = self._build_turn_result(
@@ -84,6 +102,7 @@ class AIService:
     def list_drafts(self, auth: AuthContext, limit: int = 50) -> list[ProductionPlanSummary]:
         return self._repository.list_drafts(auth.user_id, limit)
 
+    # Tạo thread mới và stream trạng thái xử lý AI về client bằng Server-Sent Events.
     def stream_create_thread(
         self,
         auth: AuthContext,
@@ -108,6 +127,7 @@ class AIService:
     def get_draft(self, auth: AuthContext, plan_id: UUID):
         return self._repository.get_draft(auth.user_id, plan_id)
 
+    # Thêm tin nhắn mới vào thread hiện có và để AI cập nhật hoặc tạo lại draft nếu cần.
     def add_thread_message(self, auth: AuthContext, thread_id: UUID, request: AddThreadMessageRequest) -> ChatThreadView:
         existing_thread = self._repository.get_thread(auth.user_id, thread_id)
         conversation = [f"{message.role}: {message.text_content}" for message in existing_thread.messages]
@@ -149,6 +169,7 @@ class AIService:
             ),
         )
 
+    # Sinh production plan trực tiếp từ prompt và lưu kèm một generation job để theo dõi.
     def generate_episode_plan(self, auth: AuthContext, request: GeneratePlanRequest):
         voices = self._repository.list_voice_profiles()
         output = self._planner.generate(
@@ -163,6 +184,7 @@ class AIService:
     def get_job(self, auth: AuthContext, job_id: UUID) -> GenerationJob:
         return self._repository.get_job(auth.user_id, job_id)
 
+    # Đưa production plan vào hàng đợi để worker tạo show thật, giúp API trả về nhanh với trạng thái 202 Accepted.
     def create_show_from_plan(self, auth: AuthContext, plan_id: UUID) -> GenerationJob:
         job = self._repository.queue_show_creation(
             auth,
@@ -172,6 +194,7 @@ class AIService:
         self._show_creation_queue.put(job.id)
         return job
 
+    # Khởi động worker nền để xử lý show creation và transcript generation còn đang queued.
     def start_background_workers(self) -> None:
         show_creation_alive = self._show_creation_thread is not None and self._show_creation_thread.is_alive()
         transcript_alive = self._transcript_thread is not None and self._transcript_thread.is_alive()
@@ -236,17 +259,11 @@ class AIService:
         sentinel = object()
         turn_result: ChatTurnResult | None = None
 
-        def worker() -> None:
-            try:
-                turn = build_turn(queue.put)
-            except Exception as exc:
-                queue.put(_QueuedStreamError(exc))
-            else:
-                queue.put(_QueuedTurnResult(turn))
-            finally:
-                queue.put(sentinel)
-
-        worker_thread = threading.Thread(target=worker, daemon=True)
+        worker_thread = threading.Thread(
+            target=_run_worker,
+            args=(build_turn, queue, sentinel),
+            daemon=True,
+        )
         worker_thread.start()
 
         try:
@@ -274,7 +291,8 @@ class AIService:
             thread = persist_thread(turn_result)
             yield from self._stream_thread_result(thread)
         finally:
-            worker_thread.join(timeout=0.1)
+            if worker_thread is not threading.current_thread():
+                worker_thread.join(timeout=0.1)
 
     def _build_turn_result(
         self,

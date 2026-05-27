@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+# AuthContext chứa thông tin người dùng đã xác thực do API Gateway truyền xuống qua header.
 class AuthContext(BaseModel):
     user_id: UUID
     email: str | None = None
@@ -17,6 +18,7 @@ class HealthResponse(BaseModel):
     status: str
 
 
+# VoiceProfile mô tả một giọng đọc AI có thể được chọn khi tạo host hoặc sinh audio podcast.
 class VoiceProfile(BaseModel):
     id: UUID
     name: str
@@ -32,6 +34,7 @@ class VoiceProfile(BaseModel):
     updated_at: datetime | None = None
 
 
+# AIHostDraft là bản nháp nhân vật host AI trong production plan.
 class AIHostDraft(BaseModel):
     display_name: str
     avatar_url: str | None = None
@@ -41,6 +44,7 @@ class AIHostDraft(BaseModel):
     persona_summary: str | None = None
 
 
+# EpisodeDraft lưu thông tin bản nháp của từng tập podcast trước khi được tạo thành episode thật.
 class EpisodeDraft(BaseModel):
     id: UUID | None = None
     episode_number: int
@@ -54,6 +58,7 @@ class EpisodeDraft(BaseModel):
     updated_at: datetime | None = None
 
 
+# ShowDraft chứa cấu trúc show/podcast do AI đề xuất trước khi ghi sang Content Service.
 class ShowDraft(BaseModel):
     id: UUID | None = None
     slug: str
@@ -72,6 +77,7 @@ class ShowDraft(BaseModel):
         return self.hosts[0] if self.hosts else None
 
 
+# ProductionPlan là kế hoạch sản xuất tổng thể gồm show draft, danh sách tập, host và metadata.
 class ProductionPlan(BaseModel):
     id: UUID
     thread_id: UUID | None = None
@@ -88,6 +94,7 @@ class ProductionPlan(BaseModel):
     completed_at: datetime | None = None
 
 
+# ChatMessage biểu diễn một tin nhắn user/assistant/system trong luồng tạo nội dung bằng AI.
 class ChatMessage(BaseModel):
     id: UUID
     role: str
@@ -126,6 +133,7 @@ class ProductionPlanSummary(BaseModel):
     updated_at: datetime
 
 
+# GenerationJob theo dõi trạng thái các tác vụ sinh plan, tạo show, sinh audio và transcript.
 class GenerationJob(BaseModel):
     id: UUID
     plan_id: UUID
@@ -156,6 +164,7 @@ class GeneratePlanRequest(BaseModel):
     episode_count: int | None = None
 
 
+# PlannerOutput là JSON chuẩn mà AI Planner phải trả về sau khi xử lý prompt của creator.
 class PlannerOutput(BaseModel):
     thread_title: str
     assistant_reply: str

@@ -51,6 +51,7 @@ class TranscriptJobContext:
     language_code: str
 
 
+# AIRepository gom toàn bộ thao tác đọc/ghi PostgreSQL cho chat thread, production plan và generation job.
 class AIRepository:
     def __init__(self, pool: ConnectionPool) -> None:
         self._pool = pool
@@ -61,6 +62,7 @@ class AIRepository:
             conn.row_factory = dict_row
             yield conn
 
+    # Truy vấn các voice profile đang active để planner chọn giọng đọc phù hợp.
     def list_voice_profiles(self) -> list[VoiceProfile]:
         with self._connection() as conn:
             rows = conn.execute(
@@ -75,6 +77,7 @@ class AIRepository:
             ).fetchall()
         return [VoiceProfile.model_validate(row) for row in rows]
 
+    # Tạo thread mới và lưu đồng thời user message, assistant reply, production plan trong một transaction.
     def create_thread(self, auth: AuthContext, prompt: str, turn: ChatTurnResult) -> ChatThreadView:
         with self._connection() as conn, conn.transaction():
             thread_row = conn.execute(
@@ -119,6 +122,7 @@ class AIRepository:
         with self._connection() as conn:
             return self._get_thread(conn, owner_user_id, thread_id)
 
+    # Lấy danh sách thread gần nhất của creator để hiển thị lịch sử làm việc với AI.
     def list_threads(self, owner_user_id: UUID, limit: int = 30) -> list[ChatThreadSummary]:
         with self._connection() as conn:
             rows = conn.execute(
@@ -151,6 +155,7 @@ class AIRepository:
 
         return [ChatThreadSummary.model_validate(row) for row in rows]
 
+    # Lấy danh sách production plan đã lưu của creator kèm số lượng episode draft.
     def list_drafts(self, owner_user_id: UUID, limit: int = 50) -> list[ProductionPlanSummary]:
         with self._connection() as conn:
             rows = conn.execute(
@@ -189,6 +194,7 @@ class AIRepository:
                 raise NotFoundError("draft not found")
             return self._get_plan(conn, row["id"])
 
+    # Ghi nhận lượt chat tiếp theo và liên kết assistant message với plan mới nếu AI có cập nhật draft.
     def add_thread_message(
         self,
         auth: AuthContext,
@@ -246,6 +252,7 @@ class AIRepository:
 
             return self._get_thread(conn, auth.user_id, thread_id)
 
+    # Lưu production plan được sinh trực tiếp từ prompt và tạo job plan_generation để audit trạng thái.
     def generate_episode_plan(
         self,
         auth: AuthContext,

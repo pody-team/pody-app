@@ -93,6 +93,7 @@ class StoredObjectAsset:
     size_bytes: int
 
 
+# GeminiTTSSynthesizer gọi Gemini TTS để chuyển kịch bản hội thoại podcast thành audio WAV.
 class GeminiTTSSynthesizer:
     def __init__(
         self,
@@ -103,7 +104,7 @@ class GeminiTTSSynthesizer:
     ) -> None:
         self._project = (project or "").strip()
         self._location = location.strip() or "us-central1"
-        self._model = model.strip() or "gemini-2.5-flash-tts"
+        self._model = model.strip() or "gemini-3.1-flash-tts-preview"
         self._client = (
             genai.Client(
                 vertexai=True,
@@ -146,6 +147,7 @@ class GeminiTTSSynthesizer:
         )
         pcm_chunks: list[bytes] = []
         for prompt_chunk in _build_tts_prompt_chunks(turns):
+            # Gọi Gemini TTS với response_modalities=AUDIO để sinh audio từ từng đoạn kịch bản.
             response = self._client.models.generate_content(
                 model=self._model,
                 contents=prompt_chunk,
@@ -170,6 +172,7 @@ class GeminiTTSSynthesizer:
         )
 
 
+# GoogleCloudAudioStore lưu audio và transcript lên Google Cloud Storage để client có URL phát lại.
 class GoogleCloudAudioStore:
     def __init__(
         self,
@@ -191,6 +194,7 @@ class GoogleCloudAudioStore:
     def enabled(self) -> bool:
         return self._client is not None and bool(self._bucket_name)
 
+    # Upload file audio của episode lên bucket và trả về public URL cùng storage key.
     def upload_episode_audio(
         self,
         *,
@@ -215,6 +219,7 @@ class GoogleCloudAudioStore:
             storage_key=storage_key,
         )
 
+    # Upload transcript JSON để đồng bộ lời thoại với audio trên ứng dụng nghe podcast.
     def upload_episode_transcript(
         self,
         *,
@@ -255,6 +260,7 @@ class GoogleCloudAudioStore:
         return response.content
 
 
+# ContentCreationStore ghi show, host, episode và artifact đã sinh sang Content Database.
 class ContentCreationStore:
     def __init__(
         self,

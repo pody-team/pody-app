@@ -23,10 +23,12 @@ from .models import (
 )
 
 
+# PlannerError biểu diễn lỗi khi AI provider hoặc bước validate plan không thể tạo draft hợp lệ.
 class PlannerError(Exception):
     pass
 
 
+# Planner là interface sinh production plan từ prompt, voice profile và ngữ cảnh hội thoại.
 class Planner(Protocol):
     def generate(
         self,
@@ -39,6 +41,7 @@ class Planner(Protocol):
     ) -> PlannerOutput: ...
 
 
+# CreateAgent xử lý luồng chat sáng tạo nội dung, có thể trả lời tư vấn hoặc cập nhật production draft.
 class CreateAgent(Protocol):
     def respond(
         self,
@@ -190,6 +193,7 @@ class CategoryCatalog(Protocol):
     def list_show_categories(self) -> list[tuple[str, str]]: ...
 
 
+# PostgresCategoryCatalog lấy danh mục show hợp lệ từ Content Database để AI không sinh category sai.
 class PostgresCategoryCatalog:
     def __init__(self, pool: ConnectionPool) -> None:
         self._pool = pool
