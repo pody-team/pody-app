@@ -1,4 +1,0 @@
-interface:
-  display_name: "Pody OpenAPI Docs"
-  short_description: "Keep Pody OpenAPI docs aligned."
-  default_prompt: "Use $pody-openapi-docs to add, update, or audit OpenAPI and Swagger docs in the Pody repo."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Pody HTTP API Conventions"
-  short_description: "Keep Pody HTTP APIs consistent."
-  default_prompt: "Use $pody-http-api-conventions to standardize routes, auth, payloads, and HTTP behavior in the Pody repo."

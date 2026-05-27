@@ -1,4 +1,0 @@
-interface:
-  display_name: "Pody Test Conventions"
-  short_description: "Keep Pody tests focused and consistent."
-  default_prompt: "Use $pody-test-conventions to add the right targeted Go and pytest coverage for changes in the Pody repo."
