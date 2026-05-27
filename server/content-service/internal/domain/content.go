@@ -2,6 +2,7 @@ package domain
 
 import "time"
 
+// Host mô tả người dẫn hoặc narrator của một show/podcast trong Content Service.
 type Host struct {
 	ID             string `json:"id"`
 	DisplayName    string `json:"display_name"`
@@ -19,6 +20,7 @@ type CreateHostInput struct {
 	Bio            string `json:"bio,omitempty"`
 }
 
+// CreateShowInput là dữ liệu đầu vào để tạo show mới, thường được AI Service gửi sang sau khi duyệt production plan.
 type CreateShowInput struct {
 	OwnerUserID      string            `json:"owner_user_id,omitempty"`
 	OwnerDisplayName string            `json:"owner_display_name,omitempty"`
@@ -64,11 +66,13 @@ type HomeShowCard struct {
 	PreviewEpisodes []EpisodePreview `json:"preview_episodes"`
 }
 
+// HomeFeed là dữ liệu trang chủ gồm category và danh sách show public kèm episode xem trước.
 type HomeFeed struct {
 	Categories []string       `json:"categories"`
 	Shows      []HomeShowCard `json:"shows"`
 }
 
+// ShowDetail là response chi tiết show dùng cho cả trang public và trang quản lý của creator.
 type ShowDetail struct {
 	ID                string       `json:"id"`
 	Slug              string       `json:"slug"`
@@ -114,6 +118,7 @@ type TranscriptSegment struct {
 	Words        []TranscriptWord `json:"words,omitempty"`
 }
 
+// EpisodeTranscript chứa lời thoại đã căn thời gian để app hiển thị subtitle đồng bộ với audio.
 type EpisodeTranscript struct {
 	Status          string              `json:"status"`
 	Language        string              `json:"language"`
@@ -136,6 +141,7 @@ type BookmarkedEpisode struct {
 	BookmarkedAt time.Time      `json:"bookmarked_at"`
 }
 
+// EpisodeDetail là dữ liệu phát episode, gồm audio URL, metadata, tag và transcript nếu có.
 type EpisodeDetail struct {
 	ID              string             `json:"id"`
 	ShowID          string             `json:"show_id"`

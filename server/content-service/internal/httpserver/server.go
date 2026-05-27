@@ -13,12 +13,14 @@ import (
 	"github.com/promex04/pody/server/content-service/internal/store"
 )
 
+// server gom HTTP handlers của Content Service và điều phối request xuống store layer.
 type server struct {
 	cfg          config.Config
 	logger       *slog.Logger
 	contentStore store.ContentStore
 }
 
+// createShowRequest là payload nội bộ để AI Service hoặc creator tạo show mới trong Content Service.
 type createShowRequest struct {
 	Title           string                  `json:"title"`
 	Description     string                  `json:"description"`
@@ -43,6 +45,7 @@ type authContext struct {
 	Name   string
 }
 
+// New khởi tạo router, middleware và toàn bộ public/protected API của Content Service.
 func New(cfg config.Config, logger *slog.Logger, contentStore store.ContentStore) *http.Server {
 	s := &server{
 		cfg:          cfg,
@@ -91,6 +94,7 @@ func New(cfg config.Config, logger *slog.Logger, contentStore store.ContentStore
 	}
 }
 
+// handleHomeFeed trả dữ liệu trang chủ gồm danh mục và các show public mới nhất.
 func (s *server) handleHomeFeed(w http.ResponseWriter, r *http.Request) {
 	feed, err := s.contentStore.GetHomeFeed(r.Context())
 	if err != nil {
@@ -101,6 +105,7 @@ func (s *server) handleHomeFeed(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, feed)
 }
 
+// handleShowDetail lấy chi tiết một show public theo show ID.
 func (s *server) handleShowDetail(w http.ResponseWriter, r *http.Request) {
 	showID := strings.TrimSpace(chi.URLParam(r, "showID"))
 	if showID == "" {
@@ -141,6 +146,7 @@ func (s *server) handleShowEpisodes(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"episodes": episodes})
 }
 
+// handleEpisodeDetail trả dữ liệu phát episode public, bao gồm audio URL và transcript nếu có.
 func (s *server) handleEpisodeDetail(w http.ResponseWriter, r *http.Request) {
 	episodeID := strings.TrimSpace(chi.URLParam(r, "episodeID"))
 	if episodeID == "" {
@@ -161,6 +167,7 @@ func (s *server) handleEpisodeDetail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"episode": episode})
 }
 
+// handleMyShows trả danh sách show thuộc về creator đang đăng nhập.
 func (s *server) handleMyShows(w http.ResponseWriter, r *http.Request) {
 	auth, ok := authContextFromRequest(r)
 	if !ok {
@@ -238,6 +245,7 @@ func (s *server) handleMyEpisodeDetail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"episode": episode})
 }
 
+// handleEpisodeBookmarks trả danh sách episode người dùng đã lưu vào thư viện cá nhân.
 func (s *server) handleEpisodeBookmarks(w http.ResponseWriter, r *http.Request) {
 	auth, ok := authContextFromRequest(r)
 	if !ok {
@@ -254,6 +262,7 @@ func (s *server) handleEpisodeBookmarks(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"bookmarks": bookmarks})
 }
 
+// handleCreateShow tạo show mới từ request đã xác thực, thường được AI Service gọi sau bước create-show.
 func (s *server) handleCreateShow(w http.ResponseWriter, r *http.Request) {
 	auth, ok := authContextFromRequest(r)
 	if !ok {
@@ -395,6 +404,7 @@ func (s *server) writeBookmarkError(w http.ResponseWriter, err error) {
 	writeError(w, http.StatusInternalServerError, err)
 }
 
+// authContextFromRequest đọc thông tin user do API Gateway truyền xuống qua header xác thực nội bộ.
 func authContextFromRequest(r *http.Request) (authContext, bool) {
 	userID := strings.TrimSpace(r.Header.Get("X-Auth-User-ID"))
 	if userID == "" {

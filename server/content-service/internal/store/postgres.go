@@ -14,6 +14,7 @@ import (
 	"github.com/promex04/pody/server/content-service/internal/domain"
 )
 
+// PostgresStore triển khai ContentStore bằng PostgreSQL cho show, episode, transcript và bookmark.
 type PostgresStore struct {
 	db *sql.DB
 }
@@ -24,6 +25,7 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 	return &PostgresStore{db: db}
 }
 
+// CreateShow ghi show, category chính và host vào Content DB trong một transaction.
 func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowInput) (domain.ShowDetail, error) {
 	title := strings.TrimSpace(input.Title)
 	description := strings.TrimSpace(input.Description)
@@ -179,6 +181,7 @@ func (s *PostgresStore) CreateShow(ctx context.Context, input domain.CreateShowI
 	}, nil
 }
 
+// GetHomeFeed lấy danh mục active và các show public mới nhất cho màn trang chủ.
 func (s *PostgresStore) GetHomeFeed(ctx context.Context) (domain.HomeFeed, error) {
 	categories, err := s.listCategories(ctx)
 	if err != nil {
@@ -244,6 +247,7 @@ func (s *PostgresStore) GetHomeFeed(ctx context.Context) (domain.HomeFeed, error
 	}, nil
 }
 
+// GetShowDetail lấy chi tiết show public và ghép thêm category, tag, host để trả cho client.
 func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domain.ShowDetail, error) {
 	showID = strings.TrimSpace(showID)
 	var (
@@ -333,6 +337,7 @@ func (s *PostgresStore) GetShowDetail(ctx context.Context, showID string) (domai
 	return show, nil
 }
 
+// ListShowEpisodes trả danh sách episode public của một show theo thứ tự mới nhất.
 func (s *PostgresStore) ListShowEpisodes(ctx context.Context, showID string) ([]domain.EpisodeSummary, error) {
 	showID = strings.TrimSpace(showID)
 	rows, err := s.db.QueryContext(ctx, `
@@ -404,6 +409,7 @@ func (s *PostgresStore) ListShowEpisodes(ctx context.Context, showID string) ([]
 	return episodes, nil
 }
 
+// GetEpisodeDetail lấy dữ liệu phát episode public, bao gồm audio, tag và transcript.
 func (s *PostgresStore) GetEpisodeDetail(ctx context.Context, episodeID string) (domain.EpisodeDetail, error) {
 	episodeID = strings.TrimSpace(episodeID)
 	var (
@@ -478,6 +484,7 @@ func (s *PostgresStore) GetEpisodeDetail(ctx context.Context, episodeID string) 
 	return episode, nil
 }
 
+// GetCreatorShowDetail lấy show theo owner để creator quản lý cả nội dung chưa public.
 func (s *PostgresStore) GetCreatorShowDetail(ctx context.Context, ownerUserID string, showID string) (domain.ShowDetail, error) {
 	showID = strings.TrimSpace(showID)
 	ownerUserID = strings.TrimSpace(ownerUserID)
@@ -734,6 +741,7 @@ func (s *PostgresStore) GetEpisodeBookmarkStatus(ctx context.Context, userID str
 	}, nil
 }
 
+// ListEpisodeBookmarks lấy các episode người dùng đã lưu kèm thông tin show để hiển thị thư viện.
 func (s *PostgresStore) ListEpisodeBookmarks(ctx context.Context, userID string) ([]domain.BookmarkedEpisode, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT
@@ -950,6 +958,7 @@ type transcriptAssetPayload struct {
 	Segments []transcriptAssetSegmentPayload `json:"segments"`
 }
 
+// getEpisodeTranscript ưu tiên đọc transcript asset JSON, nếu thiếu thì fallback sang các segment trong DB.
 func (s *PostgresStore) getEpisodeTranscript(ctx context.Context, episodeID string) (*domain.EpisodeTranscript, error) {
 	var (
 		rawMetadata sql.NullString
@@ -1046,6 +1055,7 @@ func (s *PostgresStore) getEpisodeTranscript(ctx context.Context, episodeID stri
 	return transcript, nil
 }
 
+// fetchTranscriptSegmentsFromAsset tải transcript JSON từ URL artifact do AI Service upload.
 func fetchTranscriptSegmentsFromAsset(ctx context.Context, assetURL string) ([]domain.TranscriptSegment, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, assetURL, nil)
 	if err != nil {
@@ -1335,6 +1345,7 @@ func (s *PostgresStore) listShowHosts(ctx context.Context, showID string) ([]dom
 	return hosts, rows.Err()
 }
 
+// normalizeCreateHosts chuẩn hóa host theo loại content và ràng buộc số lượng host hợp lệ.
 func normalizeCreateHosts(contentType string, inputs []domain.CreateHostInput) ([]domain.Host, error) {
 	if len(inputs) == 0 {
 		return nil, errors.New("at least one host is required")
@@ -1366,6 +1377,7 @@ func normalizeCreateHosts(contentType string, inputs []domain.CreateHostInput) (
 	return hosts, nil
 }
 
+// resolveShowCategory kiểm tra category show còn active trước khi gắn vào show mới.
 func resolveShowCategory(ctx context.Context, tx *sql.Tx, value string) (string, string, error) {
 	var (
 		categoryName string
@@ -1391,6 +1403,7 @@ func resolveShowCategory(ctx context.Context, tx *sql.Tx, value string) (string,
 	return categoryName, categoryID, nil
 }
 
+// ensureUniqueShowSlug sinh slug không trùng để show có URL ổn định.
 func ensureUniqueShowSlug(ctx context.Context, tx *sql.Tx, baseSlug string) (string, error) {
 	slug := baseSlug
 	for index := 2; ; index++ {
