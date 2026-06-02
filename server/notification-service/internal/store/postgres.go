@@ -13,12 +13,14 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
+// ProcessedEventStore định nghĩa thao tác persistence cho event đã xử lý.
 type ProcessedEventStore interface {
 	HasProcessedEvent(ctx context.Context, eventID string) (bool, error)
 	MarkProcessedEvent(ctx context.Context, eventID, sourceService, eventType string) error
 	DeleteProcessedEventsBefore(ctx context.Context, before time.Time, limit int) (int64, error)
 }
 
+// CreateDeliveryLogInput là dữ liệu đầu vào khi lưu log gửi email.
 type CreateDeliveryLogInput struct {
 	UserID            string
 	Provider          string
@@ -28,10 +30,12 @@ type CreateDeliveryLogInput struct {
 	DeliveredAt       *time.Time
 }
 
+// DeliveryLogStore định nghĩa thao tác lưu log gửi thông báo.
 type DeliveryLogStore interface {
 	CreateEmailDeliveryLog(ctx context.Context, input CreateDeliveryLogInput) error
 }
 
+// NotificationStore định nghĩa thao tác đọc/ghi notification và settings.
 type NotificationStore interface {
 	ListNotifications(ctx context.Context, userID string, limit int) ([]domain.Notification, error)
 	CountUnreadNotifications(ctx context.Context, userID string) (int, error)
@@ -43,17 +47,21 @@ type NotificationStore interface {
 	SeedDemoNotifications(ctx context.Context, userID string) (int, error)
 }
 
+// PostgresStore là implementation store sử dụng PostgreSQL.
 type PostgresStore struct {
 	db *sql.DB
 }
 
+// NewPostgresStore tạo store dùng PostgreSQL cho notification-service.
 func NewPostgresStore(db *sql.DB) *PostgresStore {
 	return &PostgresStore{db: db}
 }
 
+// HasProcessedEvent kiểm tra event đã được xử lý trước đó hay chưa.
 func (s *PostgresStore) HasProcessedEvent(ctx context.Context, eventID string) (bool, error) {
 	var exists bool
 	err := s.db.QueryRowContext(ctx, `
+		-- External API: truy vấn PostgreSQL để kiểm tra event đã tồn tại.
 		SELECT EXISTS (
 			SELECT 1
 			FROM inbox_processed_events
@@ -63,8 +71,10 @@ func (s *PostgresStore) HasProcessedEvent(ctx context.Context, eventID string) (
 	return exists, err
 }
 
+// MarkProcessedEvent đánh dấu event đã xử lý để đảm bảo idempotency.
 func (s *PostgresStore) MarkProcessedEvent(ctx context.Context, eventID, sourceService, eventType string) error {
 	_, err := s.db.ExecContext(ctx, `
+		-- External API: ghi vào PostgreSQL với cơ chế ON CONFLICT để đảm bảo idempotency.
 		INSERT INTO inbox_processed_events (event_id, source_service, event_type)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (event_id) DO NOTHING
@@ -72,12 +82,14 @@ func (s *PostgresStore) MarkProcessedEvent(ctx context.Context, eventID, sourceS
 	return err
 }
 
+// DeleteProcessedEventsBefore xóa các processed event cũ hơn mốc thời gian chỉ định.
 func (s *PostgresStore) DeleteProcessedEventsBefore(ctx context.Context, before time.Time, limit int) (int64, error) {
 	if limit <= 0 {
 		limit = 500
 	}
 
 	result, err := s.db.ExecContext(ctx, `
+		-- External API: xóa theo batch trên PostgreSQL để tránh lock lớn.
 		DELETE FROM inbox_processed_events
 		WHERE id IN (
 			SELECT id
@@ -99,6 +111,7 @@ func (s *PostgresStore) DeleteProcessedEventsBefore(ctx context.Context, before 
 	return rowsAffected, nil
 }
 
+// CreateEmailDeliveryLog lưu lịch sử gửi email thành công/thất bại.
 func (s *PostgresStore) CreateEmailDeliveryLog(ctx context.Context, input CreateDeliveryLogInput) error {
 	if strings.TrimSpace(input.UserID) == "" {
 		return nil
@@ -110,6 +123,7 @@ func (s *PostgresStore) CreateEmailDeliveryLog(ctx context.Context, input Create
 	}
 
 	_, err := s.db.ExecContext(ctx, `
+		-- External API: lưu delivery log xuống PostgreSQL.
 		INSERT INTO delivery_logs (
 			user_id,
 			channel,
@@ -124,12 +138,14 @@ func (s *PostgresStore) CreateEmailDeliveryLog(ctx context.Context, input Create
 	return err
 }
 
+// ListNotifications lấy danh sách notification theo user, mới nhất trước.
 func (s *PostgresStore) ListNotifications(ctx context.Context, userID string, limit int) ([]domain.Notification, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
+		-- External API: đọc danh sách notification từ PostgreSQL.
 		SELECT id, user_id, actor_user_id, type, target_type, target_id, title, body, preview, is_read, read_at, actor_snapshot, target_snapshot, created_at
 		FROM notifications
 		WHERE user_id = $1
@@ -202,9 +218,11 @@ func (s *PostgresStore) ListNotifications(ctx context.Context, userID string, li
 	return notifications, nil
 }
 
+// CountUnreadNotifications đếm số notification chưa đọc của user.
 func (s *PostgresStore) CountUnreadNotifications(ctx context.Context, userID string) (int, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx, `
+		-- External API: truy vấn PostgreSQL để đếm notification chưa đọc.
 		SELECT COUNT(*)
 		FROM notifications
 		WHERE user_id = $1 AND is_read = false
@@ -212,8 +230,10 @@ func (s *PostgresStore) CountUnreadNotifications(ctx context.Context, userID str
 	return count, err
 }
 
+// MarkNotificationRead đánh dấu một notification là đã đọc nếu thuộc về user.
 func (s *PostgresStore) MarkNotificationRead(ctx context.Context, userID, notificationID string) (bool, error) {
 	result, err := s.db.ExecContext(ctx, `
+		-- External API: cập nhật trạng thái đã đọc trên PostgreSQL.
 		UPDATE notifications
 		SET is_read = true, read_at = COALESCE(read_at, now())
 		WHERE id = $1 AND user_id = $2 AND is_read = false
@@ -230,8 +250,10 @@ func (s *PostgresStore) MarkNotificationRead(ctx context.Context, userID, notifi
 	return rowsAffected > 0, nil
 }
 
+// MarkAllNotificationsRead đánh dấu toàn bộ notification chưa đọc của user thành đã đọc.
 func (s *PostgresStore) MarkAllNotificationsRead(ctx context.Context, userID string) (int64, error) {
 	result, err := s.db.ExecContext(ctx, `
+		-- External API: cập nhật hàng loạt trạng thái đã đọc trên PostgreSQL.
 		UPDATE notifications
 		SET is_read = true, read_at = COALESCE(read_at, now())
 		WHERE user_id = $1 AND is_read = false
@@ -248,9 +270,11 @@ func (s *PostgresStore) MarkAllNotificationsRead(ctx context.Context, userID str
 	return rowsAffected, nil
 }
 
+// GetNotificationSettings lấy (hoặc khởi tạo) cài đặt notification của user.
 func (s *PostgresStore) GetNotificationSettings(ctx context.Context, userID string) (domain.NotificationSettings, error) {
 	var settings domain.NotificationSettings
 	err := s.db.QueryRowContext(ctx, `
+		-- External API: upsert + trả về settings từ PostgreSQL.
 		INSERT INTO user_notification_settings (user_id)
 		VALUES ($1)
 		ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
@@ -271,6 +295,7 @@ func (s *PostgresStore) GetNotificationSettings(ctx context.Context, userID stri
 	return settings, err
 }
 
+// CreateNotification tạo notification mới trong inbox từ dữ liệu đầu vào.
 func (s *PostgresStore) CreateNotification(ctx context.Context, input domain.CreateNotificationInput) (domain.Notification, error) {
 	notification := domain.Notification{
 		UserID:         strings.TrimSpace(input.UserID),
@@ -311,6 +336,7 @@ func (s *PostgresStore) CreateNotification(ctx context.Context, input domain.Cre
 	}
 
 	err := s.db.QueryRowContext(ctx, `
+		-- External API: insert notification vào PostgreSQL và trả id mới.
 		INSERT INTO notifications (
 			user_id,
 			actor_user_id,
@@ -336,9 +362,11 @@ func (s *PostgresStore) CreateNotification(ctx context.Context, input domain.Cre
 	return notification, nil
 }
 
+// UpsertNotificationSettings tạo mới hoặc cập nhật cài đặt notification của user.
 func (s *PostgresStore) UpsertNotificationSettings(ctx context.Context, settings domain.NotificationSettings) (domain.NotificationSettings, error) {
 	var updated domain.NotificationSettings
 	err := s.db.QueryRowContext(ctx, `
+		-- External API: upsert cài đặt notification vào PostgreSQL.
 		INSERT INTO user_notification_settings (
 			user_id,
 			push_enabled,
@@ -379,6 +407,7 @@ func (s *PostgresStore) UpsertNotificationSettings(ctx context.Context, settings
 	return updated, err
 }
 
+// SeedDemoNotifications chèn dữ liệu notification mẫu để phục vụ dev/test thủ công.
 func (s *PostgresStore) SeedDemoNotifications(ctx context.Context, userID string) (int, error) {
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
@@ -476,6 +505,7 @@ func (s *PostgresStore) SeedDemoNotifications(ctx context.Context, userID string
 		}
 
 		_, err = tx.ExecContext(ctx, `
+			-- External API: chèn dữ liệu mẫu vào PostgreSQL trong transaction.
 			INSERT INTO notifications (
 				user_id,
 				type,

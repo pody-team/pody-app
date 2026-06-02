@@ -15,6 +15,7 @@ import (
 	"github.com/promex04/pody/server/notification-service/internal/store"
 )
 
+// server gom các dependency cần cho lớp HTTP API của notification-service.
 type server struct {
 	cfg               config.Config
 	logger            *slog.Logger
@@ -22,6 +23,7 @@ type server struct {
 	notificationStore store.NotificationStore
 }
 
+// notificationSettingsRequest là payload cập nhật cài đặt thông báo.
 type notificationSettingsRequest struct {
 	PushEnabled       bool `json:"push_enabled"`
 	EmailEnabled      bool `json:"email_enabled"`
@@ -31,10 +33,12 @@ type notificationSettingsRequest struct {
 	MarketingEnabled  bool `json:"marketing_enabled"`
 }
 
+// devSeedNotificationsRequest là payload yêu cầu tạo dữ liệu notification mẫu.
 type devSeedNotificationsRequest struct {
 	UserID string `json:"user_id"`
 }
 
+// createInboxNotificationRequest là payload tạo notification inbox từ service nội bộ.
 type createInboxNotificationRequest struct {
 	UserID         string               `json:"user_id"`
 	ActorUserID    string               `json:"actor_user_id"`
@@ -48,6 +52,7 @@ type createInboxNotificationRequest struct {
 	TargetSnapshot domain.TargetSnapshot `json:"target_snapshot"`
 }
 
+// New khởi tạo HTTP server, route và middleware cho notification-service.
 func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificationStore store.NotificationStore) *http.Server {
 	s := &server{
 		cfg:               cfg,
@@ -65,6 +70,7 @@ func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificati
 	})
 
 	router.Route("/api/v1/public/notifications", func(r chi.Router) {
+		// External API: public HTTP endpoints cho tài liệu và healthcheck.
 		r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
@@ -73,6 +79,7 @@ func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificati
 	})
 
 	router.Route("/api/v1/notifications", func(r chi.Router) {
+		// External API: user HTTP endpoints cho inbox và settings.
 		r.Get("/", s.handleListNotifications)
 		r.Get("/unread-count", s.handleUnreadCount)
 		r.Patch("/read-all", s.handleReadAll)
@@ -82,6 +89,8 @@ func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificati
 	})
 
 	router.Route("/internal", func(r chi.Router) {
+		// Endpoint nội bộ chỉ dành cho các service tin cậy.
+		// External API: internal HTTP endpoints để service khác gọi sang notification-service.
 		r.Use(s.withInternalAPIKey)
 		r.Post("/notifications/email/verification", s.handleVerificationEmail)
 		r.Post("/notifications/inbox", s.handleCreateInboxNotification)
@@ -97,6 +106,7 @@ func New(cfg config.Config, logger *slog.Logger, sender email.Sender, notificati
 	}
 }
 
+// handleVerificationEmail nhận request gửi email xác minh từ hệ thống nội bộ.
 func (s *server) handleVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	var request email.VerificationMessage
 	if err := decodeJSON(r, &request); err != nil {
@@ -117,6 +127,7 @@ func (s *server) handleVerificationEmail(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "queued"})
 }
 
+// handleSeedInbox tạo dữ liệu notification mẫu cho mục đích phát triển.
 func (s *server) handleSeedInbox(w http.ResponseWriter, r *http.Request) {
 	var req devSeedNotificationsRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -143,6 +154,7 @@ func (s *server) handleSeedInbox(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleCreateInboxNotification tạo một notification inbox mới cho người dùng.
 func (s *server) handleCreateInboxNotification(w http.ResponseWriter, r *http.Request) {
 	var req createInboxNotificationRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -163,6 +175,7 @@ func (s *server) handleCreateInboxNotification(w http.ResponseWriter, r *http.Re
 		TargetSnapshot: req.TargetSnapshot,
 	})
 	if err != nil {
+		// Lỗi validate từ domain trả về 400, lỗi ngoài dự kiến trả về 500.
 		if strings.Contains(strings.ToLower(err.Error()), "required") {
 			writeError(w, http.StatusBadRequest, err)
 			return
@@ -177,6 +190,7 @@ func (s *server) handleCreateInboxNotification(w http.ResponseWriter, r *http.Re
 	})
 }
 
+// handleListNotifications trả về danh sách notification gần nhất của user hiện tại.
 func (s *server) handleListNotifications(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authUserID(r)
 	if !ok {
@@ -193,6 +207,7 @@ func (s *server) handleListNotifications(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]any{"notifications": notifications})
 }
 
+// handleUnreadCount trả về số lượng notification chưa đọc.
 func (s *server) handleUnreadCount(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authUserID(r)
 	if !ok {
@@ -209,6 +224,7 @@ func (s *server) handleUnreadCount(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"unread_count": count})
 }
 
+// handleReadNotification đánh dấu một notification cụ thể là đã đọc.
 func (s *server) handleReadNotification(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authUserID(r)
 	if !ok {
@@ -231,6 +247,7 @@ func (s *server) handleReadNotification(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"updated": updated})
 }
 
+// handleReadAll đánh dấu toàn bộ notification của user là đã đọc.
 func (s *server) handleReadAll(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authUserID(r)
 	if !ok {
@@ -247,6 +264,7 @@ func (s *server) handleReadAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"updated_count": updatedCount})
 }
 
+// handleGetSettings lấy cấu hình nhận thông báo hiện tại của user.
 func (s *server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authUserID(r)
 	if !ok {
@@ -263,6 +281,7 @@ func (s *server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 }
 
+// handleUpdateSettings cập nhật cấu hình nhận thông báo của user.
 func (s *server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := authUserID(r)
 	if !ok {
@@ -293,6 +312,7 @@ func (s *server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 }
 
+// withInternalAPIKey xác thực API key cho nhóm endpoint nội bộ.
 func (s *server) withInternalAPIKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.TrimSpace(r.Header.Get("X-Internal-Api-Key")) != s.cfg.InternalAPIKey {
@@ -304,19 +324,23 @@ func (s *server) withInternalAPIKey(next http.Handler) http.Handler {
 	})
 }
 
+// authUserID đọc user id từ header xác thực đã được gateway gắn vào request.
 func authUserID(r *http.Request) (string, bool) {
 	userID := strings.TrimSpace(r.Header.Get("X-Auth-User-ID"))
 	return userID, userID != ""
 }
 
+// withRequestLog ghi log thông tin request và thời gian xử lý.
 func (s *server) withRequestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startedAt := time.Now()
 		next.ServeHTTP(w, r)
+		// Access log dạng structured, gọn nhẹ để theo dõi độ trễ request.
 		s.logger.Info("request completed", "method", r.Method, "path", r.URL.Path, "duration", time.Since(startedAt).String())
 	})
 }
 
+// withRecover chặn panic trong handler để tránh làm sập server.
 func (s *server) withRecover(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -329,18 +353,21 @@ func (s *server) withRecover(next http.Handler) http.Handler {
 	})
 }
 
+// decodeJSON parse JSON body và từ chối các field không được khai báo.
 func decodeJSON(r *http.Request, destination any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	return decoder.Decode(destination)
 }
 
+// writeJSON ghi response JSON với status code tương ứng.
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
+// writeError chuẩn hóa response lỗi theo cấu trúc JSON đơn giản.
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }

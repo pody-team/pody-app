@@ -18,11 +18,13 @@ import (
 )
 
 const (
+	// Header chuẩn hoá metadata retry trên Kafka message.
 	headerAttempt        = "x-attempt"
 	headerIdempotencyKey = "x-idempotency-key"
 	headerLastError      = "x-last-error"
 )
 
+// VerificationRequestedEvent là payload event yêu cầu gửi email xác minh từ identity-service.
 type VerificationRequestedEvent struct {
 	EventID         string    `json:"event_id"`
 	IdempotencyKey  string    `json:"idempotency_key"`
@@ -35,17 +37,20 @@ type VerificationRequestedEvent struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 }
 
+// messageReader trừu tượng hoá Kafka reader để dễ test.
 type messageReader interface {
 	FetchMessage(ctx context.Context) (kafka.Message, error)
 	CommitMessages(ctx context.Context, messages ...kafka.Message) error
 	Close() error
 }
 
+// messageWriter trừu tượng hoá Kafka writer để dễ test.
 type messageWriter interface {
 	WriteMessages(ctx context.Context, messages ...kafka.Message) error
 	Close() error
 }
 
+// VerificationConsumer xử lý event verification, retry và DLQ.
 type VerificationConsumer struct {
 	reader        messageReader
 	retryWriter   messageWriter
@@ -60,6 +65,7 @@ type VerificationConsumer struct {
 	sourceService string
 }
 
+// NewVerificationConsumer khởi tạo consumer verification cùng reader/writer cho retry và DLQ.
 func NewVerificationConsumer(cfg config.Config, logger *slog.Logger, sender email.Sender, processedStore store.ProcessedEventStore, deliveryLogs store.DeliveryLogStore) (*VerificationConsumer, error) {
 	topics := []string{
 		strings.TrimSpace(cfg.VerificationTopic),
@@ -72,6 +78,7 @@ func NewVerificationConsumer(cfg config.Config, logger *slog.Logger, sender emai
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
+		// External API: subscribe Kafka topic chính + retry topic.
 		Brokers:        cfg.KafkaBrokers,
 		GroupID:        strings.TrimSpace(cfg.VerificationConsumerGroup),
 		GroupTopics:    []string{strings.TrimSpace(cfg.VerificationTopic), strings.TrimSpace(cfg.VerificationRetryTopic)},
@@ -97,6 +104,7 @@ func NewVerificationConsumer(cfg config.Config, logger *slog.Logger, sender emai
 	), nil
 }
 
+// newVerificationConsumer tạo struct consumer với các dependency đã chuẩn bị sẵn.
 func newVerificationConsumer(
 	reader messageReader,
 	retryWriter messageWriter,
@@ -128,8 +136,10 @@ func newVerificationConsumer(
 	}
 }
 
+// newWriter tạo Kafka writer dùng chung cấu hình gửi message.
 func newWriter(brokers []string, topic, clientID string, writeTimeout time.Duration) messageWriter {
 	return &kafka.Writer{
+		// External API: ghi message ra Kafka topic đích.
 		Addr:                   kafka.TCP(brokers...),
 		Topic:                  strings.TrimSpace(topic),
 		Balancer:               &kafka.LeastBytes{},
@@ -143,6 +153,7 @@ func newWriter(brokers []string, topic, clientID string, writeTimeout time.Durat
 	}
 }
 
+// ensureTopics đảm bảo các topic cần thiết đã tồn tại trên Kafka cluster.
 func ensureTopics(brokers []string, topics []string) error {
 	if len(brokers) == 0 {
 		return fmt.Errorf("KAFKA_BROKERS is required")
@@ -151,6 +162,7 @@ func ensureTopics(brokers []string, topics []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// External API: kết nối broker Kafka để lấy controller.
 	conn, err := kafka.DialContext(ctx, "tcp", brokers[0])
 	if err != nil {
 		return fmt.Errorf("dial kafka broker: %w", err)
@@ -162,6 +174,7 @@ func ensureTopics(brokers []string, topics []string) error {
 		return fmt.Errorf("get kafka controller: %w", err)
 	}
 
+	// External API: kết nối Kafka controller để tạo topic.
 	controllerConn, err := kafka.DialContext(ctx, "tcp", net.JoinHostPort(controller.Host, strconv.Itoa(controller.Port)))
 	if err != nil {
 		return fmt.Errorf("dial kafka controller: %w", err)
@@ -185,6 +198,7 @@ func ensureTopics(brokers []string, topics []string) error {
 		return fmt.Errorf("at least one kafka topic is required")
 	}
 
+	// External API: tạo topic trên Kafka nếu chưa tồn tại.
 	err = controllerConn.CreateTopics(configs...)
 	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "already exists") {
 		return fmt.Errorf("create kafka topics: %w", err)
@@ -193,12 +207,14 @@ func ensureTopics(brokers []string, topics []string) error {
 	return nil
 }
 
+// Run chạy vòng lặp đọc message verification cho đến khi context bị hủy hoặc có lỗi nghiêm trọng.
 func (c *VerificationConsumer) Run(ctx context.Context) error {
 	defer c.reader.Close()
 	defer c.retryWriter.Close()
 	defer c.dlqWriter.Close()
 
 	for {
+		// External API: đọc message từ Kafka.
 		message, err := c.reader.FetchMessage(ctx)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
@@ -213,7 +229,9 @@ func (c *VerificationConsumer) Run(ctx context.Context) error {
 	}
 }
 
+// handleMessage xử lý một event verification với idempotency, retry và DLQ.
 func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.Message) error {
+	// Attempt được truyền qua header Kafka để giữ số lần thử khi consumer khởi động lại.
 	attempt := messageAttempt(message)
 
 	var event VerificationRequestedEvent
@@ -237,6 +255,7 @@ func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.
 		return c.reader.CommitMessages(ctx, message)
 	}
 
+	// External API: gọi provider email (SMTP/log sender) để gửi thư xác minh.
 	if err := c.sender.SendVerification(ctx, email.VerificationMessage{
 		EventID:         event.EventID,
 		IdempotencyKey:  event.IdempotencyKey,
@@ -253,6 +272,7 @@ func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.
 			ProviderMessageID: event.EventID,
 			ErrorMessage:      err.Error(),
 		})
+		// Gửi thất bại sẽ retry đến maxAttempts, sau đó đẩy vào DLQ để xử lý thủ công.
 		if attempt >= c.maxAttempts {
 			if err := c.publishDLQ(ctx, message, attempt, event.IdempotencyKey, err); err != nil {
 				return err
@@ -289,6 +309,7 @@ func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.
 		return err
 	}
 
+	// Ghi log gửi thành công để dễ quan sát và phục vụ debug.
 	deliveredAt := time.Now().UTC()
 	if err := c.deliveryLogs.CreateEmailDeliveryLog(ctx, store.CreateDeliveryLogInput{
 		UserID:            event.UserID,
@@ -312,6 +333,7 @@ func (c *VerificationConsumer) handleMessage(ctx context.Context, message kafka.
 	return nil
 }
 
+// publishRetry đẩy message sang retry topic và cập nhật header số lần thử.
 func (c *VerificationConsumer) publishRetry(ctx context.Context, message kafka.Message, attempt int, idempotencyKey string, cause error) error {
 	headers := append(headersWithout(message.Headers, headerLastError),
 		kafka.Header{Key: headerAttempt, Value: []byte(strconv.Itoa(attempt))},
@@ -326,6 +348,7 @@ func (c *VerificationConsumer) publishRetry(ctx context.Context, message kafka.M
 	})
 }
 
+// publishDLQ đẩy message lỗi cuối cùng sang DLQ kèm thông tin lỗi.
 func (c *VerificationConsumer) publishDLQ(ctx context.Context, message kafka.Message, attempt int, idempotencyKey string, cause error) error {
 	headers := append(headersWithout(message.Headers, headerLastError),
 		kafka.Header{Key: headerAttempt, Value: []byte(strconv.Itoa(attempt))},
@@ -341,7 +364,9 @@ func (c *VerificationConsumer) publishDLQ(ctx context.Context, message kafka.Mes
 	})
 }
 
+// messageAttempt đọc số lần thử từ header của Kafka message.
 func messageAttempt(message kafka.Message) int {
+	// Nếu header attempt thiếu hoặc sai định dạng thì coi như lần thử đầu tiên.
 	for _, header := range message.Headers {
 		if header.Key != headerAttempt {
 			continue
@@ -356,6 +381,7 @@ func messageAttempt(message kafka.Message) int {
 	return 1
 }
 
+// headersWithout loại bỏ header theo key trước khi ghi lại message.
 func headersWithout(headers []kafka.Header, key string) []kafka.Header {
 	filtered := make([]kafka.Header, 0, len(headers))
 	for _, header := range headers {

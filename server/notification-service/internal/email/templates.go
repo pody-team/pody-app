@@ -68,6 +68,7 @@ type templateData struct {
 	ExpiresAt   string
 }
 
+// RenderVerificationTemplate sinh subject, text và HTML cho email xác minh tài khoản.
 func RenderVerificationTemplate(displayName, verificationURL string, expiresAt time.Time) (string, string, string, error) {
 	return renderEmailTemplates(
 		verificationSubjectTemplate,
@@ -81,6 +82,7 @@ func RenderVerificationTemplate(displayName, verificationURL string, expiresAt t
 	)
 }
 
+// RenderPasswordResetTemplate sinh subject, text và HTML cho email đặt lại mật khẩu.
 func RenderPasswordResetTemplate(displayName, otpCode string, expiresAt time.Time) (string, string, string, error) {
 	return renderEmailTemplates(
 		passwordResetSubjectTemplate,
@@ -94,6 +96,7 @@ func RenderPasswordResetTemplate(displayName, otpCode string, expiresAt time.Tim
 	)
 }
 
+// renderEmailTemplates render đồng bộ 3 template (subject/text/html) từ cùng một dữ liệu.
 func renderEmailTemplates(
 	subjectTemplate *template.Template,
 	textBodyTemplate *template.Template,

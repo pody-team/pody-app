@@ -13,6 +13,7 @@ import (
 	"time"
 )
 
+// VerificationMessage là payload dùng để gửi email xác minh tài khoản.
 type VerificationMessage struct {
 	EventID         string    `json:"event_id,omitempty"`
 	IdempotencyKey  string    `json:"idempotency_key,omitempty"`
@@ -23,6 +24,7 @@ type VerificationMessage struct {
 	ExpiresAt       time.Time `json:"expires_at"`
 }
 
+// PasswordResetMessage là payload dùng để gửi OTP đặt lại mật khẩu.
 type PasswordResetMessage struct {
 	EventID        string    `json:"event_id,omitempty"`
 	IdempotencyKey string    `json:"idempotency_key,omitempty"`
@@ -33,12 +35,14 @@ type PasswordResetMessage struct {
 	ExpiresAt      time.Time `json:"expires_at"`
 }
 
+// Sender định nghĩa abstraction cho nhà cung cấp gửi email.
 type Sender interface {
 	SendVerification(ctx context.Context, message VerificationMessage) error
 	SendPasswordReset(ctx context.Context, message PasswordResetMessage) error
 	ProviderName() string
 }
 
+// Config gom cấu hình provider gửi email (SMTP/log).
 type Config struct {
 	Mode         string
 	EmailFrom    string
@@ -51,6 +55,7 @@ type Config struct {
 	SkipVerify   bool
 }
 
+// NewSender chọn implementation gửi mail theo cấu hình (smtp hoặc log).
 func NewSender(cfg Config, logger *slog.Logger) Sender {
 	if strings.EqualFold(strings.TrimSpace(cfg.Mode), "smtp") && strings.TrimSpace(cfg.SMTPHost) != "" {
 		return smtpSender{cfg: cfg}
@@ -59,14 +64,17 @@ func NewSender(cfg Config, logger *slog.Logger) Sender {
 	return logSender{logger: logger}
 }
 
+// logSender là implementation chỉ ghi log, không gửi mail thực.
 type logSender struct {
 	logger *slog.Logger
 }
 
+// ProviderName trả về tên provider của log sender.
 func (s logSender) ProviderName() string {
 	return "log"
 }
 
+// SendVerification ghi log mô phỏng gửi email xác minh.
 func (s logSender) SendVerification(_ context.Context, message VerificationMessage) error {
 	s.logger.Info("verification email dispatched",
 		"email", message.ToEmail,
@@ -76,6 +84,7 @@ func (s logSender) SendVerification(_ context.Context, message VerificationMessa
 	return nil
 }
 
+// SendPasswordReset ghi log mô phỏng gửi email đặt lại mật khẩu.
 func (s logSender) SendPasswordReset(_ context.Context, message PasswordResetMessage) error {
 	s.logger.Info("password reset email dispatched",
 		"email", message.ToEmail,
@@ -85,14 +94,17 @@ func (s logSender) SendPasswordReset(_ context.Context, message PasswordResetMes
 	return nil
 }
 
+// smtpSender là implementation gửi email thật qua giao thức SMTP.
 type smtpSender struct {
 	cfg Config
 }
 
+// ProviderName trả về tên provider của SMTP sender.
 func (s smtpSender) ProviderName() string {
 	return "smtp"
 }
 
+// SendVerification render template và gửi email xác minh qua SMTP.
 func (s smtpSender) SendVerification(_ context.Context, message VerificationMessage) error {
 	subject, textBody, htmlBody, err := RenderVerificationTemplate(
 		fallbackName(message.ToDisplayName, message.ToEmail),
@@ -106,6 +118,7 @@ func (s smtpSender) SendVerification(_ context.Context, message VerificationMess
 	return s.sendEmail(message.ToEmail, subject, textBody, htmlBody)
 }
 
+// SendPasswordReset render template và gửi email OTP đặt lại mật khẩu qua SMTP.
 func (s smtpSender) SendPasswordReset(_ context.Context, message PasswordResetMessage) error {
 	subject, textBody, htmlBody, err := RenderPasswordResetTemplate(
 		fallbackName(message.ToDisplayName, message.ToEmail),
@@ -119,6 +132,7 @@ func (s smtpSender) SendPasswordReset(_ context.Context, message PasswordResetMe
 	return s.sendEmail(message.ToEmail, subject, textBody, htmlBody)
 }
 
+// sendEmail thực thi toàn bộ phiên SMTP để gửi một email multipart.
 func (s smtpSender) sendEmail(toEmail, subject, textBody, htmlBody string) error {
 	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
 
@@ -133,12 +147,14 @@ func (s smtpSender) sendEmail(toEmail, subject, textBody, htmlBody string) error
 		return err
 	}
 
+	// External API: mở phiên kết nối đến SMTP server.
 	client, err := s.dialSMTP(addr)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
+	// External API: xác thực với SMTP server trước khi gửi.
 	if err := s.authenticate(client); err != nil {
 		return err
 	}
@@ -170,6 +186,7 @@ func (s smtpSender) sendEmail(toEmail, subject, textBody, htmlBody string) error
 	return nil
 }
 
+// dialSMTP mở kết nối SMTP với chế độ TLS/STARTTLS theo cấu hình.
 func (s smtpSender) dialSMTP(addr string) (*smtp.Client, error) {
 	timeout := s.cfg.DialTimeout
 	if timeout <= 0 {
@@ -222,6 +239,7 @@ func (s smtpSender) dialSMTP(addr string) (*smtp.Client, error) {
 	return client, nil
 }
 
+// authenticate thực hiện xác thực SMTP bằng cơ chế AUTH PLAIN.
 func (s smtpSender) authenticate(client *smtp.Client) error {
 	auth := smtp.PlainAuth("", s.cfg.SMTPUsername, s.cfg.SMTPPassword, s.cfg.SMTPHost)
 	if ok, _ := client.Extension("AUTH"); !ok {
@@ -233,6 +251,7 @@ func (s smtpSender) authenticate(client *smtp.Client) error {
 	return nil
 }
 
+// tlsConfig tạo cấu hình TLS dùng cho kết nối SMTP an toàn.
 func (s smtpSender) tlsConfig() *tls.Config {
 	return &tls.Config{
 		ServerName:         s.cfg.SMTPHost,
@@ -241,6 +260,7 @@ func (s smtpSender) tlsConfig() *tls.Config {
 	}
 }
 
+// fallbackName trả về display name nếu có, ngược lại dùng email.
 func fallbackName(displayName, email string) string {
 	displayName = strings.TrimSpace(displayName)
 	if displayName != "" {
@@ -250,6 +270,7 @@ func fallbackName(displayName, email string) string {
 	return strings.TrimSpace(email)
 }
 
+// buildMultipartMessage dựng raw MIME multipart (text + html) để gửi qua SMTP.
 func buildMultipartMessage(fromEmail, toEmail, subject, textBody, htmlBody string) ([]byte, error) {
 	boundary := fmt.Sprintf("pody-boundary-%d", time.Now().UnixNano())
 	var buffer bytes.Buffer

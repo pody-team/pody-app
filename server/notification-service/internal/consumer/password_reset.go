@@ -14,6 +14,7 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+// PasswordResetRequestedEvent là payload event yêu cầu gửi OTP đặt lại mật khẩu.
 type PasswordResetRequestedEvent struct {
 	EventID        string    `json:"event_id"`
 	IdempotencyKey string    `json:"idempotency_key"`
@@ -26,6 +27,7 @@ type PasswordResetRequestedEvent struct {
 	ExpiresAt      time.Time `json:"expires_at"`
 }
 
+// PasswordResetConsumer xử lý event password reset, retry và DLQ.
 type PasswordResetConsumer struct {
 	reader        messageReader
 	retryWriter   messageWriter
@@ -40,6 +42,7 @@ type PasswordResetConsumer struct {
 	sourceService string
 }
 
+// NewPasswordResetConsumer khởi tạo consumer password reset cùng reader/writer cho retry và DLQ.
 func NewPasswordResetConsumer(cfg config.Config, logger *slog.Logger, sender email.Sender, processedStore store.ProcessedEventStore, deliveryLogs store.DeliveryLogStore) (*PasswordResetConsumer, error) {
 	topics := []string{
 		cfg.PasswordResetTopic,
@@ -52,6 +55,7 @@ func NewPasswordResetConsumer(cfg config.Config, logger *slog.Logger, sender ema
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
+		// External API: subscribe Kafka topic chính + retry topic.
 		Brokers:        cfg.KafkaBrokers,
 		GroupID:        cfg.PasswordResetConsumerGroup,
 		GroupTopics:    []string{cfg.PasswordResetTopic, cfg.PasswordResetRetryTopic},
@@ -78,12 +82,14 @@ func NewPasswordResetConsumer(cfg config.Config, logger *slog.Logger, sender ema
 	}, nil
 }
 
+// Run chạy vòng lặp đọc message password reset cho đến khi context bị hủy hoặc có lỗi.
 func (c *PasswordResetConsumer) Run(ctx context.Context) error {
 	defer c.reader.Close()
 	defer c.retryWriter.Close()
 	defer c.dlqWriter.Close()
 
 	for {
+		// External API: đọc message từ Kafka.
 		message, err := c.reader.FetchMessage(ctx)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
@@ -98,7 +104,9 @@ func (c *PasswordResetConsumer) Run(ctx context.Context) error {
 	}
 }
 
+// handleMessage xử lý một event password reset với idempotency, retry và DLQ.
 func (c *PasswordResetConsumer) handleMessage(ctx context.Context, message kafka.Message) error {
+	// Attempt được truyền qua header Kafka để giữ số lần thử khi consumer khởi động lại.
 	attempt := messageAttempt(message)
 
 	var event PasswordResetRequestedEvent
@@ -122,6 +130,7 @@ func (c *PasswordResetConsumer) handleMessage(ctx context.Context, message kafka
 		return c.reader.CommitMessages(ctx, message)
 	}
 
+	// External API: gọi provider email (SMTP/log sender) để gửi OTP reset password.
 	if err := c.sender.SendPasswordReset(ctx, email.PasswordResetMessage{
 		EventID:        event.EventID,
 		IdempotencyKey: event.IdempotencyKey,
@@ -139,6 +148,7 @@ func (c *PasswordResetConsumer) handleMessage(ctx context.Context, message kafka
 			ErrorMessage:      err.Error(),
 		})
 
+		// Gửi thất bại sẽ retry đến maxAttempts, sau đó đẩy vào DLQ để xử lý thủ công.
 		if attempt >= c.maxAttempts {
 			if err := c.publishDLQ(ctx, message, attempt, event.IdempotencyKey, err); err != nil {
 				return err
@@ -165,6 +175,7 @@ func (c *PasswordResetConsumer) handleMessage(ctx context.Context, message kafka
 		return err
 	}
 
+	// Ghi log gửi thành công để dễ quan sát và phục vụ debug.
 	deliveredAt := time.Now().UTC()
 	if err := c.deliveryLogs.CreateEmailDeliveryLog(ctx, store.CreateDeliveryLogInput{
 		UserID:            event.UserID,
@@ -184,6 +195,7 @@ func (c *PasswordResetConsumer) handleMessage(ctx context.Context, message kafka
 	return nil
 }
 
+// publishRetry đẩy message sang retry topic và cập nhật header số lần thử.
 func (c *PasswordResetConsumer) publishRetry(ctx context.Context, message kafka.Message, attempt int, idempotencyKey string, _ error) error {
 	headers := append(headersWithout(message.Headers, headerLastError),
 		kafka.Header{Key: headerAttempt, Value: []byte(stringifyAttempt(attempt))},
@@ -198,6 +210,7 @@ func (c *PasswordResetConsumer) publishRetry(ctx context.Context, message kafka.
 	})
 }
 
+// publishDLQ đẩy message lỗi cuối cùng sang DLQ kèm thông tin lỗi.
 func (c *PasswordResetConsumer) publishDLQ(ctx context.Context, message kafka.Message, attempt int, idempotencyKey string, cause error) error {
 	headers := append(headersWithout(message.Headers, headerLastError),
 		kafka.Header{Key: headerAttempt, Value: []byte(stringifyAttempt(attempt))},
@@ -213,6 +226,7 @@ func (c *PasswordResetConsumer) publishDLQ(ctx context.Context, message kafka.Me
 	})
 }
 
+// stringifyAttempt chuẩn hóa attempt thành chuỗi hợp lệ để lưu vào header.
 func stringifyAttempt(attempt int) string {
 	if attempt <= 0 {
 		attempt = 1

@@ -8,6 +8,7 @@ import (
 	"github.com/promex04/pody/server/notification-service/internal/store"
 )
 
+// ProcessedEventsWorker dọn các bản ghi processed event đã hết thời gian lưu giữ.
 type ProcessedEventsWorker struct {
 	store     store.ProcessedEventStore
 	logger    *slog.Logger
@@ -16,6 +17,7 @@ type ProcessedEventsWorker struct {
 	batchSize int
 }
 
+// NewProcessedEventsWorker tạo worker dọn dữ liệu processed events với các giá trị mặc định an toàn.
 func NewProcessedEventsWorker(store store.ProcessedEventStore, logger *slog.Logger, interval, retention time.Duration, batchSize int) *ProcessedEventsWorker {
 	if interval <= 0 {
 		interval = time.Hour
@@ -38,6 +40,7 @@ func NewProcessedEventsWorker(store store.ProcessedEventStore, logger *slog.Logg
 	}
 }
 
+// Run chạy vòng lặp định kỳ để xóa processed events đã quá hạn.
 func (w *ProcessedEventsWorker) Run(ctx context.Context) error {
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
@@ -54,6 +57,7 @@ func (w *ProcessedEventsWorker) Run(ctx context.Context) error {
 	}
 }
 
+// cleanup thực hiện một lần dọn dữ liệu theo retention và batch size hiện tại.
 func (w *ProcessedEventsWorker) cleanup(ctx context.Context) error {
 	before := time.Now().UTC().Add(-w.retention)
 	deleted, err := w.store.DeleteProcessedEventsBefore(ctx, before, w.batchSize)

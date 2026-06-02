@@ -19,6 +19,7 @@ import (
 	"github.com/promex04/pody/server/notification-service/internal/store"
 )
 
+// main khởi tạo toàn bộ thành phần notification-service và điều phối vòng đời runtime.
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -30,6 +31,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// External API: mở kết nối đến PostgreSQL.
 	db, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
 		logger.Error("failed to open database", "error", err)
@@ -37,11 +39,13 @@ func main() {
 	}
 	defer db.Close()
 
+	// External API: kiểm tra kết nối PostgreSQL sẵn sàng.
 	if err := db.Ping(); err != nil {
 		logger.Error("failed to ping database", "error", err)
 		os.Exit(1)
 	}
 
+	// External API: cấu hình provider gửi email (SMTP hoặc log mode).
 	sender := email.NewSender(email.Config{
 		Mode:         cfg.EmailSenderMode,
 		EmailFrom:    cfg.EmailFrom,
@@ -56,6 +60,7 @@ func main() {
 
 	processedStore := store.NewPostgresStore(db)
 	server := httpserver.New(cfg, logger, sender, processedStore)
+	// Hai consumer dùng chung store để đảm bảo idempotency và ghi log gửi email.
 	verificationConsumer, err := consumer.NewVerificationConsumer(cfg, logger, sender, processedStore, processedStore)
 	if err != nil {
 		logger.Error("failed to create verification consumer", "error", err)
@@ -71,8 +76,10 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Channel có buffer giúp các goroutine báo lỗi mà không bị chặn.
 	errCh := make(chan error, 4)
 	go func() {
+		// External API: mở HTTP server để nhận request từ ngoài.
 		logger.Info("starting notification service", "addr", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- err
@@ -82,11 +89,13 @@ func main() {
 	}()
 
 	go func() {
+		// External API: chạy consumer đọc event verification từ Kafka.
 		logger.Info("starting verification consumer", "brokers", cfg.KafkaBrokers, "topic", cfg.VerificationTopic)
 		errCh <- verificationConsumer.Run(ctx)
 	}()
 
 	go func() {
+		// External API: chạy consumer đọc event password reset từ Kafka.
 		logger.Info("starting password reset consumer", "brokers", cfg.KafkaBrokers, "topic", cfg.PasswordResetTopic)
 		errCh <- passwordResetConsumer.Run(ctx)
 	}()
@@ -98,6 +107,7 @@ func main() {
 
 	select {
 	case err := <-errCh:
+		// Bất kỳ worker nào lỗi đều kích hoạt shutdown đồng bộ toàn service.
 		if err != nil && !errors.Is(err, context.Canceled) {
 			logger.Error("notification service stopped", "error", err)
 			stop()

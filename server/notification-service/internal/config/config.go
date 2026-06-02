@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Config gom toàn bộ cấu hình runtime cho notification-service.
 type Config struct {
 	Port                            string
 	DatabaseURL                     string
@@ -40,6 +41,7 @@ type Config struct {
 	ProcessedEventsCleanupBatchSize int
 }
 
+// Load đọc cấu hình từ biến môi trường, áp mặc định và kiểm tra các giá trị bắt buộc.
 func Load() (Config, error) {
 	kafkaWriteTimeout, err := durationFromEnv("KAFKA_WRITE_TIMEOUT", 5*time.Second)
 	if err != nil {
@@ -131,10 +133,12 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// Addr trả về địa chỉ listen HTTP theo định dạng :port.
 func (c Config) Addr() string {
 	return ":" + c.Port
 }
 
+// stringFromEnv lấy chuỗi từ env, trả về fallback nếu rỗng.
 func stringFromEnv(key, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -144,6 +148,7 @@ func stringFromEnv(key, fallback string) string {
 	return value
 }
 
+// csvFromEnv tách danh sách giá trị từ env dạng CSV.
 func csvFromEnv(key string, fallback []string) []string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -166,6 +171,7 @@ func csvFromEnv(key string, fallback []string) []string {
 	return items
 }
 
+// durationFromEnv parse duration từ env hoặc dùng fallback nếu chưa cấu hình.
 func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -180,6 +186,7 @@ func durationFromEnv(key string, fallback time.Duration) (time.Duration, error) 
 	return duration, nil
 }
 
+// intFromEnv parse số nguyên dương từ env, lỗi thì trả fallback.
 func intFromEnv(key string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -194,6 +201,7 @@ func intFromEnv(key string, fallback int) int {
 	return parsed
 }
 
+// boolFromEnv parse giá trị bool từ env hoặc dùng fallback.
 func boolFromEnv(key string, fallback bool) bool {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {

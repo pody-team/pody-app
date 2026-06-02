@@ -9,12 +9,14 @@ import (
 //go:embed docs/openapi.yaml
 var openAPISpec []byte
 
+// handleOpenAPI trả về file OpenAPI YAML nhúng sẵn trong binary.
 func (s *server) handleOpenAPI(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(openAPISpec)
 }
 
+// handleSwaggerUI render trang Swagger UI để xem tài liệu API trên trình duyệt.
 func (s *server) handleSwaggerUI(w http.ResponseWriter, _ *http.Request) {
 	specURL := "/api/v1/public/notifications/openapi.yaml"
 	html := fmt.Sprintf(`<!doctype html>
